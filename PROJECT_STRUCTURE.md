@@ -33,36 +33,73 @@ The core email campaign engine that manages automated sending, follow-ups, and s
 ### Files:
 
 - **`campaign.py`** - Main orchestration script
-  - Loads contact data from CSV
-  - Filters recipients based on campaign stage
-  - Manages email sending loop with state persistence
-  - Implements daily quota limits and safety delays
-  - Handles atomic CSV saves for fault tolerance
+  - **Critical:** Loads `.env` file BEFORE any imports (ensures credentials available)
+  - Loads contact data from master CSV
+  - Initializes tracking columns if missing (`Sent_Status`, timestamps, follow-up columns)
+  - **Daily quota management:** Counts emails sent today per campaign stage, enforces limit
+  - Filters recipients using `filter_recipients_by_stage()`
+  - Applies test mode limit (5 emails) or daily quota limit
+  - Establishes SMTP connection once, reuses for all emails
+  - **Send loop with atomic saves:**
+    - Selects template based on score/title
+    - Formats email with personalization
+    - Sends via `SMTPMailer.send_email()`
+    - Updates status and timestamp immediately
+    - **Saves CSV after each success** (fault-tolerant atomic save)
+    - Random delay (5-15 seconds) between sends
+  - Final cleanup and save
+  - **Key feature:** State persistence after each email (not batch)
 
 - **`config.py`** - Configuration and settings
-  - SMTP credentials (loaded from `.env` file)
+  - SMTP credentials from `.env` file (`SENDER_EMAIL`, `SENDER_PASSWORD`)
+  - SMTP server settings (Gmail: `smtp.gmail.com:587`)
   - Campaign stage control (`INITIAL_SEND`, `FOLLOW_UP_1`, `FOLLOW_UP_2`)
   - Daily send limits (default: 450 emails/day)
-  - Test mode settings
-  - Logging setup
+  - Test mode settings (`TEST_MODE`, `MAX_EMAILS_IN_TEST = 5`)
+  - Logging setup via `setup_logging()` function
+  - **Validation:** Checks if `SENDER_PASSWORD` is set before proceeding
 
 - **`mailer.py`** - SMTP email sending class
-  - `SMTPMailer` class manages SMTP connection lifecycle
-  - Handles connection retries and error recovery
-  - Returns status codes: `SUCCESS`, `FAILED_REFUSED`, `FAILED_OTHER`
-  - Implements timeout and disconnection handling
+  - **`SMTPMailer` class** manages SMTP connection lifecycle
+  - `connect()`: Establishes TLS connection, handles stale connections
+  - `disconnect()`: Safely closes connection, handles disconnection errors
+  - `send_email()`: Sends single email with retry logic
+    - Checks connection before send, reconnects if needed
+    - **Retry logic:** 1 retry attempt on `SMTPServerDisconnected`
+    - Returns status codes: `SUCCESS`, `FAILED_REFUSED`, `FAILED_OTHER`
+  - **Error handling:**
+    - `SMTPRecipientsRefused` → `FAILED_REFUSED` (bad email)
+    - `SMTPServerDisconnected` → Reconnect and retry
+    - Other exceptions → `FAILED_OTHER`
+  - 30-second timeout for connections
 
 - **`templates.py`** - Email template management
-  - 5 email templates (3 initial, 2 follow-ups)
-  - Template selection logic based on:
-    - Hiring score (high-score leads get detailed template)
-    - Job title (tech titles get ML-focused template)
-  - Name extraction and personalization helpers
+  - **5 email templates:**
+    - `TEMPLATE_1`: Primary cold email (high-score leads, 90-100)
+    - `TEMPLATE_2`: Ultra-short version (score < 90)
+    - `TEMPLATE_3`: ML-focused version (tech-leaning leaders)
+    - `TEMPLATE_4`: First follow-up (6-7 days)
+    - `TEMPLATE_5`: Second follow-up (12-14 days, final)
+  - **Template selection logic (`get_initial_template`):**
+    1. Tech titles (CTO, Head of AI, etc.) → `TEMPLATE_3`
+    2. High score (≥90) → `TEMPLATE_1`
+    3. Default → `TEMPLATE_2`
+  - **Helper functions:**
+    - `get_salutation_name()`: Extracts first name, falls back to "Hiring Team"
+    - Template variables: `{FirstName}`, `{Company}`
 
 - **`filters.py`** - Recipient filtering logic
-  - Filters contacts by campaign stage
-  - Time-based filtering for follow-ups (6-8 day windows)
-  - Ensures proper sequencing: Initial → Follow-up 1 → Follow-up 2
+  - **`filter_recipients_by_stage(df)`** - Main filtering function
+  - **INITIAL_SEND:** Returns all rows where `Sent_Status == 'PENDING'`
+  - **FOLLOW_UP_1:**
+    - Requires: `Sent_Status == 'SENT_SUCCESS'`
+    - Requires: `FollowUp_1_Status` not already sent/failed
+    - Time window: 6-8 days after `Sent_Timestamp`
+  - **FOLLOW_UP_2:**
+    - Requires: Both initial and follow-up 1 successful
+    - Requires: `FollowUp_2_Status` not already sent/failed
+    - Time window: 6-8 days after `FollowUp_1_Timestamp`
+  - **Edge cases:** Initializes missing tracking columns, handles invalid timestamps
 
 ### Workflow:
 1. `campaign.py` reads configuration from `config.py`
@@ -75,11 +112,28 @@ The core email campaign engine that manages automated sending, follow-ups, and s
 
 ## 2. `/scraper_bridge/` - LinkedIn Scraper & Ingestion
 
-Bridges LinkedIn profile scraping with the campaign system.
+Bridges LinkedIn profile scraping with the campaign system using StaffSpy, with a normalization layer that transforms raw scraping output into outreach-ready data.
 
 ### Files:
 
-- **`scraper_to_ingest.py`** - LinkedIn profile scraper
+- **`staffspy_ingest.py`** - Main StaffSpy ingestion pipeline
+  - Uses `staffspy` library for LinkedIn profile scraping
+  - **Normalization layer integration**: Transforms raw scraping output into outreach-ready data
+  - **Organized diagnostics**: All output files saved to `diagnostics/company_snapshots/{company}/`
+  - Supports SAFE mode (single company testing) and PRODUCTION mode
+  - Applies scoring, deduplication, and staging logic
+  - Safety guards: randomized delays, error handling, logging
+
+- **`normalize_for_outreach.py`** - **NEW: Outreach Normalization Layer**
+  - **Hard filtering**: Removes invalid profiles (headless, LinkedIn Member, search results)
+  - **Role filtering**: Explicit allow/deny lists for decision-adjacent roles
+  - **Title normalization**: Maps noisy titles to canonical roles with seniority/department
+  - **Email generation**: Priority-based email generation with confidence scores (0.0-1.0)
+  - **Minimum confidence threshold**: Only emails with confidence ≥ 0.3 are accepted
+  - **Rejection tracking**: Captures all rejected leads with reasons
+  - Uses `logging` module for all output
+
+- **`scraper_to_ingest.py`** - Legacy LinkedIn profile scraper (alternative)
   - Uses Selenium and `linkedin_scraper` library
   - Configurable search queries (via `.env` file)
   - Scrapes profile data: name, title, email, company
@@ -97,13 +151,56 @@ Bridges LinkedIn profile scraping with the campaign system.
     - `FollowUp_2_Status`, `FollowUp_2_Timestamp`
   - Sets all new leads to `PENDING` status
 
+### Directory Structure:
+
+```
+scraper_bridge/
+├── staffspy_ingest.py
+├── normalize_for_outreach.py
+├── diagnostics/
+│   └── company_snapshots/
+│       ├── {company_name}/
+│       │   ├── staffspy_raw_snapshot.csv      # Raw StaffSpy output
+│       │   ├── staffspy_outreach_ready.csv    # Normalized outreach-ready data
+│       │   └── staffspy_rejected_debug.csv    # Rejected leads with reasons
+│       └── ...
+├── staffspy_ingest_log.txt                    # Execution logs
+└── staffspy_new_leads_staging.csv            # Staged leads for production
+```
+
+### Normalization Process:
+
+1. **Raw Scraping**: StaffSpy scrapes LinkedIn profiles for a company
+2. **Hard Filtering**: Removes structurally invalid profiles (headless, hidden, search results)
+3. **Role Filtering**: Applies explicit allow/deny lists (removes interns, QA, students, etc.)
+4. **Title Normalization**: Maps noisy titles to canonical roles (e.g., "Engineering Manager @ Zepto" → "Engineering Manager")
+5. **Email Generation**: Generates emails with confidence scores (0.9 format confirmed, 0.6 inferred, 0.3 fallback)
+6. **Schema Enforcement**: Outputs strict outreach schema with only relevant columns
+7. **Rejection Tracking**: Saves all rejected leads with detailed reasons
+
 ### Workflow:
-1. `scraper_to_ingest.py` logs into LinkedIn
-2. Executes configured search queries
-3. Scrapes profile details with delays
-4. Cleans and scores each lead
-5. Calls `ingest_function.py` to append to master CSV
-6. New leads are ready for campaign engine
+1. `staffspy_ingest.py` loads target companies from `target_companies.csv`
+2. For each company, scrapes LinkedIn profiles using StaffSpy
+3. Saves raw snapshot to `diagnostics/company_snapshots/{company}/staffspy_raw_snapshot.csv`
+4. **Normalizes data** using `normalize_for_outreach()`:
+   - Hard filters invalid profiles
+   - Filters by role relevance
+   - Normalizes titles to canonical roles
+   - Generates emails with confidence scores
+5. Saves outputs:
+   - `staffspy_outreach_ready.csv` - Outreach-ready leads
+   - `staffspy_rejected_debug.csv` - Rejected leads with reasons
+6. Converts normalized data to legacy format for scoring/staging
+7. Applies scoring, deduplication, and staging
+8. Saves final leads to staging CSV or test snapshot
+
+### Key Features:
+
+- **Strict Data Contract**: Normalization layer enforces business logic that scrapers don't provide
+- **Organized Diagnostics**: All company-specific files in dedicated folders
+- **Rejection Tracking**: Understand why leads were dropped
+- **Email Confidence**: Minimum 0.3 confidence threshold ensures only actionable emails
+- **Role Qualification**: Explicit allow/deny lists prevent non-decision roles from entering pipeline
 
 ---
 
@@ -126,47 +223,114 @@ Ruby-based scraper for collecting faculty contact information from top universit
 
 - **`professor_enrichment/`** - Python-based faculty profile enrichment module
   - **`run_enrichment.py`** - Main orchestration script
-    - Scans `data/` directory for all CSV files
-    - Interactive university selection (supports "all" or comma-separated numbers)
-    - Processes multiple CSVs independently (no data corruption)
-    - Asks for re-run confirmation on already-scraped profiles
-    - Periodic saves during processing
+    - **Multi-CSV Support:** Scans `data/` directory, prompts user to select universities
+    - **Harvard URL Generation:** Auto-generates missing Harvard profile URLs from names
+      - Uses `generate_harvard_url_from_name()`: Converts "Michael J. Aziz" → `michael-aziz`
+      - Fills `PROFILE LINK` column before scraping
+    - **Independent Processing:** Each CSV processed separately (no cross-contamination)
+    - **Skip/Rerun Logic:** Asks user if they want to re-run already-scraped profiles
+    - **Periodic Saves:** Saves CSV every N rows (configurable via `SAVE_EVERY_N_ROWS`)
+    - **Sent Status Logic:** Sets `Sent_Status` based on enrichment quality:
+      - `PENDING`: `Scrape_Status == 'SUCCESS'` AND `Confidence >= 1`
+      - `NEEDS REVIEW`: Otherwise
     - Updates CSV in-place with enriched data
-    - Sets `Sent_Status` based on enrichment quality
+    - **Workflow:**
+      1. Scans `data/` for CSV files
+      2. User selects universities (or "all")
+      3. For each CSV:
+         - Loads and validates
+         - Detects university type
+         - Generates Harvard URLs if needed
+         - Initializes enrichment columns
+         - Checks for already-scraped profiles
+         - Prompts for rerun confirmation
+         - Scraping loop with periodic saves
+         - Sets `Sent_Status` based on results
+         - Final save and summary
   
   - **`scraper.py`** - Web scraping functions
-    - `scrape_and_process_profile()` - Main scraping function
-    - University-aware extraction (Harvard, UCLA, generic)
-    - Retry logic with exponential backoff
-    - Handles HTTP errors and network failures gracefully
-    - Returns structured data with error handling
+    - **`scrape_and_process_profile(row)`** - Main scraping function
+    - **URL Validation:** Checks for valid HTTP/HTTPS URLs
+    - **URL Normalization:** Converts http → https
+    - **Berkeley Fallback URLs:** Generates alternative URLs if main URL fails
+    - **Retry Logic:** 3 attempts per URL with exponential backoff (1.5s, 3.0s, 4.5s)
+    - **University Detection:** Detects from URL (harvard, ucla, berkeley, uiuc, generic)
+    - **University-Aware Extraction:**
+      - Harvard → `extract_harvard_text()` (Drupal-specific selectors)
+      - UCLA → `extract_ucla_research_text()` (table-based extraction)
+      - Generic → `extract_generic_text()` (header-based extraction)
+    - **NLP Processing Pipeline:**
+      - Extracts primary focus
+      - Calculates confidence score (university-aware)
+      - Infers research question
+      - Builds personalization line
+      - Generates subject line
+      - Calculates hiring score
+      - Infers domain
+    - **Error Handling:** Returns structured error response for all failures
+    - Returns complete result dictionary with all enrichment fields
   
   - **`nlp_processor.py`** - NLP and scoring functions
-    - `extract_primary_focus()` - Extracts best research sentence using keyword scoring
-    - `calculate_hiring_score()` - Scores professors based on research topics (AI/ML focus)
-    - `build_personalization_line()` - Generates personalized email hooks
-    - `infer_domain()` - Categorizes research into domains (Robotics, NLP, Vision, etc.)
-    - `confidence_score()` - Calculates extraction reliability (0-2 scale)
-    - `infer_research_question()` - Generates research question hints
-    - `generate_subject_line()` - Creates email subject lines
+    - **Text Processing:**
+      - `extract_sentences()`: Splits text into sentences (min 40 chars)
+      - `score_sentence()`: Scores sentence based on AI/ML keyword density
+      - `extract_primary_focus()`: Extracts best research sentence:
+        - Filters out role/biographical sentences
+        - Keeps sentences with research verbs
+        - Ranks by keyword score
+        - Cleans up common prefixes
+    - **Scoring:**
+      - `confidence_score()`: Calculates 0-3 confidence (university-aware):
+        - Signal 1: Length threshold (40 chars, 25 for Harvard)
+        - Signal 2: Keyword density (≥2 keywords, ≥1 for Harvard)
+        - Signal 3: Research verb presence
+      - `calculate_hiring_score()`: Calculates 10-95 score:
+        - Base: 10
+        - +40: Reinforcement, foundation, robotics, representation, causal
+        - +30: Deep learning, optimization, neural, computer vision, generative AI
+        - +15: Machine learning, NLP, AI, data science
+        - +10: Lab or center mentions
+    - **Personalization:**
+      - `build_personalization_line()`: Confidence-aware personalization (0-3 scale)
+      - `generate_subject_line()`: Confidence-aware subject lines
+      - `infer_research_question()`: Converts research statement to implicit question
+    - **Domain Inference:**
+      - `infer_domain()`: Categorizes research (Robotics/RL, Vision, NLP, Foundations, Data Science, General ML)
+    - **Helper Functions:**
+      - `is_role_sentence()`: Detects biographical/role sentences
+      - `has_research_signal()`: Detects research activity verbs
   
   - **`config.py`** - Configuration settings
-    - Mode control (`TEST` vs `PROD`)
-    - Data directory path (no hard-coded CSV files)
-    - Rate limiting and timeout settings
-    - AI/ML keywords for scoring
-    - NLP filtering patterns and research verbs
-    - Personalization tone presets
-    - HTTP headers for scraping
+    - **Mode Control:** `MODE = 'TEST'` or `'PROD'`
+    - **Logging:** `LOG_DETAIL` (0=minimal, 1=medium, 2=full)
+    - **Testing:** `TEST_ROW_LIMIT = 5` (rows processed in test mode)
+    - **Periodic Saves:** `SAVE_EVERY_N_ROWS = 5`
+    - **Data Directory:** Auto-detected path to `data/` folder
+    - **Rate Limiting:** `BASE_SLEEP_TIME = 1.5s`, `REQUESTS_TIMEOUT = 10s`
+    - **AI/ML Keywords:** List of keywords for scoring (machine learning, deep learning, etc.)
+    - **NLP Filtering:** `BAD_SENTENCE_PATTERNS`, `RESEARCH_VERBS`
+    - **Personalization Tone:** Presets for high/medium/low confidence
+    - **HTTP Headers:** User-Agent and Accept-Language for scraping
   
   - **`utils/data_loader.py`** - Data loading utilities
-    - `list_university_csvs()` - Scans data directory for CSV files
-    - `get_csv_path()` - Builds full paths to CSV files
+    - `list_university_csvs(data_dir)`: Scans directory, returns sorted list of CSV files
+    - `get_csv_path(data_dir, csv_name)`: Constructs full path to CSV file
 
 - **`html_extractors/`** - University-specific HTML extraction modules
   - **`generic.py`** - Generic extraction for Berkeley, UCLA, UIUC, MIT-style pages
+    - `extract_generic_text(soup)`: 
+      - Searches for common research headers (h2/h3: "Research", "Research Interests", "Research Areas")
+      - Returns following paragraph if found (>100 chars)
+      - Fallback: Returns largest paragraph (>120 chars)
   - **`harvard.py`** - Harvard SEAS (Drupal) specific extraction
-  - Modular design allows easy addition of new university extractors
+    - `extract_harvard_text(soup)`:
+      - Tries CSS selectors in priority order:
+        1. `.field--name-field-person-research-summary`
+        2. `.field--name-body`
+        3. `.node__content`
+        4. `.field--name-field-person-bio`
+      - Returns first match with >120 chars
+  - **Modular design:** Easy to add new university extractors by creating new functions
 
   **Enrichment Output Columns:**
   - `Primary_Focus` - Best research sentence extracted
@@ -201,10 +365,20 @@ The enrichment module adds research-focused personalization capabilities, making
 ### Data Processing:
 
 - **`data_cleaner.py`** - Master data cleaning script
-  - Processes CSV files (HR contact lists)
-  - Extracts data from PDF files (company-wise HR contacts)
-  - Cleans and normalizes: emails, names, titles, companies
-  - Calculates `HiringScore` based on job titles:
+  - **CSV Processing (`process_csv`):**
+    - Reads CSV file (skips first 3 rows)
+    - Renames columns, normalizes data
+    - Validates emails (regex pattern, excludes URLs/forms)
+    - Applies cleaning functions to all text fields
+  - **PDF Processing (`parse_hr_pdf`):**
+    - Uses `pdfplumber` to extract tables
+    - Heuristic mapping: First cell → Name, Last cell → Company, Middle → Title/Email
+    - Extracts email from text blob using regex
+    - Only processes rows with valid emails
+  - **Cleaning Functions:**
+    - `clean_email()`: Removes invalid characters, normalizes to lowercase
+    - `clean_text()`, `clean_name()`, `clean_title()`, `clean_company()`: Text normalization
+  - **Hiring Score Calculation (`hiring_score`):**
     - Founders/CEOs: 100
     - CHRO: 90
     - VPs: 80
@@ -212,8 +386,16 @@ The enrichment module adds research-focused personalization capabilities, making
     - HR Heads: 60
     - Talent Acquisition: 50
     - General HR: 30
-  - Removes duplicates and invalid emails
-  - Outputs: `cold_email_outreach_all_cleaned_ranked.csv`
+    - Default: 10
+  - **Main Function:**
+    - Processes both CSV and PDF
+    - Concatenates DataFrames
+    - Validates emails with regex pattern
+    - Calculates `HiringScore` for each row
+    - Sorts by `HiringScore` (descending)
+    - Removes duplicates (by Email + Company)
+    - Outputs: `cold_email_outreach_all_cleaned_ranked.csv`
+  - **Test Mode:** Can limit CSV rows and PDF pages for testing
 
 ### Data Files:
 
@@ -255,7 +437,7 @@ The enrichment module adds research-focused personalization capabilities, making
 │                    DATA COLLECTION                           │
 ├─────────────────────────────────────────────────────────────┤
 │ 1. Raw CSV/PDF files                                         │
-│ 2. LinkedIn scraper (scraper_bridge/)                        │
+│ 2. LinkedIn scraper (scraper_bridge/staffspy_ingest.py)      │
 │ 3. Faculty scraper (faculty-scraper/scripts/)                │
 └──────────────────────┬──────────────────────────────────────┘
                        │
@@ -269,6 +451,22 @@ The enrichment module adds research-focused personalization capabilities, making
 │  ├─ Calculates research-based HiringScore                   │
 │  ├─ Generates personalization lines                         │
 │  └─ Updates faculty CSV files in-place                      │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│              DATA NORMALIZATION (StaffSpy)                    │
+├─────────────────────────────────────────────────────────────┤
+│ scraper_bridge/normalize_for_outreach.py                      │
+│  ├─ Hard filters invalid profiles                           │
+│  ├─ Role filtering (allow/deny lists)                      │
+│  ├─ Title normalization (canonical roles)                   │
+│  ├─ Email generation (with confidence scores)              │
+│  └─ Schema enforcement (strict outreach schema)             │
+│                                                              │
+│ Outputs:                                                     │
+│  ├─ staffspy_outreach_ready.csv (normalized leads)          │
+│  └─ staffspy_rejected_debug.csv (rejected with reasons)     │
 └──────────────────────┬──────────────────────────────────────┘
                        │
                        ▼
@@ -305,7 +503,7 @@ The enrichment module adds research-focused personalization capabilities, making
 ├─────────────────────────────────────────────────────────────┤
 │ outreach/campaign.py                                         │
 │  ├─ Filters recipients (filters.py)                         │
-│  ├─ Selects templates (templates.py)                        │
+│  ├─ Selects templates (templates.py)                          │
 │  ├─ Sends emails (mailer.py)                                │
 │  └─ Updates CSV state                                       │
 └─────────────────────────────────────────────────────────────┘
@@ -383,8 +581,11 @@ The system uses environment variables (`.env` file) for sensitive configuration:
    # Process raw data
    python data_cleaner.py
    
-   # Or scrape new leads
+   # Or scrape new leads (StaffSpy - recommended)
    cd scraper_bridge
+   python staffspy_ingest.py
+   
+   # Or use legacy scraper
    python scraper_to_ingest.py
    
    # Or enrich faculty data (optional)
@@ -410,7 +611,8 @@ The system uses environment variables (`.env` file) for sensitive configuration:
 - `pandas` - Data manipulation
 - `smtplib` - Email sending (built-in)
 - `selenium` - Web scraping
-- `linkedin_scraper` - LinkedIn profile scraping
+- `linkedin_scraper` - LinkedIn profile scraping (legacy)
+- `staffspy` - LinkedIn profile scraping (StaffSpy library, recommended)
 - `pdfplumber` - PDF parsing
 - `python-dotenv` - Environment variable management
 - `requests` - HTTP requests (for professor enrichment)

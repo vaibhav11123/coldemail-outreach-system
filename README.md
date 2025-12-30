@@ -31,16 +31,32 @@ This system was engineered to handle large, heterogeneous datasets and execute h
 ```
 coldemail/
 ├── outreach/                    # Email campaign engine
+│   ├── campaign.py             # Main orchestration (atomic saves, quota management)
+│   ├── config.py                # Configuration (SMTP, campaign stages)
+│   ├── filters.py               # Recipient filtering by stage
+│   ├── mailer.py                # SMTP connection and email sending
+│   └── templates.py             # Email templates and selection logic
 ├── scraper_bridge/              # LinkedIn scraper and ingestion
+│   ├── staffspy_ingest.py       # Main StaffSpy pipeline
+│   ├── normalize_for_outreach.py # Normalization layer (hard filter, role filter, email gen)
+│   └── diagnostics/             # Organized output files
 ├── faculty-scraper/             # University faculty scraper
-│   ├── professor_enrichment/   # Research enrichment module
+│   ├── professor_enrichment/    # Research enrichment module
+│   │   ├── run_enrichment.py   # Multi-CSV orchestration
+│   │   ├── scraper.py          # Web scraping with retry logic
+│   │   ├── nlp_processor.py     # NLP processing and scoring
+│   │   ├── config.py           # Configuration
+│   │   └── utils/data_loader.py # Data loading utilities
 │   ├── html_extractors/        # University-specific extractors
+│   │   ├── generic.py          # Generic extraction
+│   │   └── harvard.py          # Harvard SEAS extraction
 │   └── data/                    # Faculty CSV files
-├── data_cleaner.py              # Data processing and cleaning
+├── data_cleaner.py              # CSV/PDF processing and cleaning
 └── cold_email_outreach_all_cleaned_ranked.csv  # Master database
 ```
 
 See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed documentation.
+See [CODEBASE_OVERVIEW.md](CODEBASE_OVERVIEW.md) for complete code file understanding.
 
 ## 🛠️ Installation
 
@@ -98,8 +114,19 @@ python -m faculty-scraper.professor_enrichment.run_enrichment
 
 ```bash
 cd scraper_bridge
+# Using StaffSpy (recommended - includes normalization layer)
+python staffspy_ingest.py
+
+# Or using legacy scraper
 python scraper_to_ingest.py
 ```
+
+**Note:** The StaffSpy ingestion pipeline (`staffspy_ingest.py`) includes a normalization layer that:
+- Hard filters invalid profiles
+- Applies role-based filtering (removes interns, QA, students, etc.)
+- Normalizes titles to canonical roles
+- Generates emails with confidence scores
+- Saves organized diagnostics to `scraper_bridge/diagnostics/company_snapshots/{company}/`
 
 ### 4. Run Email Campaign
 

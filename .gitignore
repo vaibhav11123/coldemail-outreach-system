@@ -67,3 +67,15 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
+# Logs
+*.log
+
+# Generated data / outputs
+*.csv
+
+# Local diagnostics
+diagnostics/
+staffspy_*_snapshot_*.csv
+
+# Secrets / configs
+.env
