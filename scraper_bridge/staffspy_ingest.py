@@ -48,14 +48,14 @@ logging.info(f"Diagnostic files will be organized under: {DIAGNOSTICS_BASE_DIR}"
 
 
 MASTER_CSV_FOR_DEDUP = os.path.join(
-    PROJECT_ROOT, "cold_email_outreach_all_cleaned_ranked.csv.backup"
+    PROJECT_ROOT, "data", "backups", "cold_email_outreach_all_cleaned_ranked.csv.backup"
 )
 # MODIFIED: Staging file now points to SCRIPT_DIR
 NEW_LEADS_CSV_STAGING = os.path.join(
     SCRIPT_DIR, "staffspy_new_leads_staging.csv"
 )
 TARGET_COMPANIES_FILE = os.path.join(
-    PROJECT_ROOT, "target_companies.csv"
+    PROJECT_ROOT, "config", "target_companies.csv"
 )
 
 # --- TARGET TITLES ---

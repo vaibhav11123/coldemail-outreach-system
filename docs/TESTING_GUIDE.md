@@ -1,5 +1,13 @@
 # 🧪 Detailed Guide to Testing Your Cold Email System
 
+**Version:** 2.0.0  
+**Last Updated:** 2025-01-03  
+**Changelog:**
+- v2.0.0: Updated for new file structure, normalization layer testing
+- v1.0.0: Initial version
+
+---
+
 Testing your campaign system should progress through three phases: **Unit Testing** (for individual components), **Integration Testing** (for components working together), and **System Testing** (end-to-end dry runs).
 
 ## 1. Unit Testing: Component Verification

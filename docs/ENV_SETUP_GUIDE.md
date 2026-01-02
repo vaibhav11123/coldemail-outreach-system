@@ -1,5 +1,13 @@
 # Environment Variables Setup Guide
 
+**Version:** 2.0.0  
+**Last Updated:** 2025-01-03  
+**Changelog:**
+- v2.0.0: Updated for new directory structure, path references
+- v1.0.0: Initial version
+
+---
+
 This guide explains how to set up the `.env` file with all required credentials and configuration.
 
 ## 📋 Overview
@@ -179,7 +187,7 @@ If you encounter issues:
 1. Check the logs: `outreach_campaign.log`
 2. Verify all required variables are set
 3. Test each component individually
-4. Review [TESTING_GUIDE.md](TESTING_GUIDE.md)
+4. Review [TESTING_GUIDE.md](docs/TESTING_GUIDE.md)
 
 ## 🔄 Updating Credentials
 

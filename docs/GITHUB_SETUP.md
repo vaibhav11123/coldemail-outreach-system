@@ -1,17 +1,30 @@
 # GitHub Setup Guide
 
+**Version:** 2.0.0  
+**Last Updated:** 2025-01-03  
+**Changelog:**
+- v2.0.0: Updated for new organized directory structure (data/, docs/, scripts/, logs/, config/)
+- v1.0.0: Initial version
+
+---
+
 This guide will help you prepare and upload your project to GitHub.
 
 ## 📋 Pre-Upload Checklist
 
 ### ✅ Files to Verify
 
-1. **`.gitignore`** - ✅ Created (excludes `.env`, `__pycache__`, logs, etc.)
+1. **`.gitignore`** - ✅ Created (excludes `.env`, `__pycache__`, logs/, etc.)
 2. **`.env.example`** - ✅ Created (template for environment variables)
-3. **`README.md`** - ✅ Created (project overview and quick start)
-4. **`ENV_SETUP_GUIDE.md`** - ✅ Created (detailed environment setup)
-5. **`PROJECT_STRUCTURE.md`** - ✅ Updated (complete project documentation)
-6. **`requirements.txt`** - ✅ Created (Python dependencies)
+3. **`README.md`** - ✅ Created (project overview and quick start, v2.0.0)
+4. **`docs/CHANGELOG.md`** - ✅ Created (version history and changes)
+5. **`docs/ENV_SETUP_GUIDE.md`** - ✅ Created (detailed environment setup, v2.0.0)
+6. **`docs/PROJECT_STRUCTURE.md`** - ✅ Updated (complete project documentation, v2.0.0)
+7. **`docs/CODEBASE_OVERVIEW.md`** - ✅ Created (comprehensive code file documentation, v2.0.0)
+8. **`docs/TESTING_GUIDE.md`** - ✅ Created (testing procedures, v2.0.0)
+9. **`docs/GITHUB_SETUP.md`** - ✅ Created (this guide, v2.0.0)
+10. **`scraper_bridge/NORMALIZATION_ARCHITECTURE.md`** - ✅ Created (normalization layer docs, v1.0.0)
+11. **`requirements.txt`** - ✅ Created (Python dependencies)
 
 ### 🔒 Security Check
 
@@ -21,8 +34,10 @@ Before uploading, verify these sensitive files are excluded:
 # Check .gitignore includes:
 - .env
 - *.log
+- logs/          # New: logs directory
 - __pycache__/
 - *.backup
+- diagnostics/   # New: scraper diagnostics
 ```
 
 **Never commit:**
@@ -83,7 +98,7 @@ git push -u origin main
 
 ### Repository Description
 ```
-Production-grade cold email outreach system with automated lead generation, data enrichment, and multi-stage email campaigns
+Production-grade cold email outreach system with automated lead generation, data normalization, enrichment, and multi-stage email campaigns. Features StaffSpy integration, NLP-based personalization, and fault-tolerant design.
 ```
 
 ### Topics/Tags
@@ -92,8 +107,12 @@ Production-grade cold email outreach system with automated lead generation, data
 - `lead-generation`
 - `web-scraping`
 - `linkedin-scraper`
+- `staffspy`
 - `email-campaign`
+- `data-normalization`
 - `python`
+- `pandas`
+- `nlp`
 - `selenium`
 
 ### Visibility
@@ -105,18 +124,24 @@ Production-grade cold email outreach system with automated lead generation, data
 ### ✅ Included (Safe to Commit)
 - All Python source code
 - Configuration files (without secrets)
-- Documentation (README, guides)
+  - `config/target_companies.csv` (company list)
+- Documentation (README, guides in `docs/`)
 - `.gitignore`
 - `.env.example` (template)
 - `requirements.txt`
-- CSV data files (if not too large)
-- PDF files (if not sensitive)
+- Directory structure (data/, docs/, scripts/, config/)
+- CSV data files in `data/raw/` (if not too large)
+- PDF files in `data/raw/` (if not sensitive)
 
 ### ❌ Excluded (via .gitignore)
 - `.env` (credentials)
-- `*.log` (logs)
+- `*.log` (log files)
+- `logs/` (logs directory)
 - `__pycache__/` (Python cache)
 - `*.backup` (backup files)
+- `data/backups/` (backup data files)
+- `data/processed/` (processed data - may contain sensitive info)
+- `scraper_bridge/diagnostics/` (scraper diagnostic files)
 - Virtual environment directories
 
 ## 🔄 After Upload
@@ -139,7 +164,7 @@ Production-grade cold email outreach system with automated lead generation, data
 3. **Create `.env` file**
    ```bash
    cp .env.example .env
-   # Edit .env with your credentials (see ENV_SETUP_GUIDE.md)
+   # Edit .env with your credentials (see docs/ENV_SETUP_GUIDE.md)
    ```
 
 ## 🛡️ Security Best Practices
@@ -198,10 +223,15 @@ After pushing, verify on GitHub:
 ## 📚 Documentation Links
 
 Make sure these are accessible:
-- [README.md](README.md) - Main documentation
-- [ENV_SETUP_GUIDE.md](ENV_SETUP_GUIDE.md) - Environment setup
-- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) - Detailed structure
-- [TESTING_GUIDE.md](TESTING_GUIDE.md) - Testing procedures
+- [README.md](../README.md) - Main documentation (v2.0.0)
+- [docs/CHANGELOG.md](CHANGELOG.md) - Version history and changes
+- [docs/VERSIONING.md](VERSIONING.md) - Detailed versioning guide
+- [docs/ENV_SETUP_GUIDE.md](ENV_SETUP_GUIDE.md) - Environment setup (v2.0.0)
+- [docs/PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) - Detailed structure (v2.0.0)
+- [docs/CODEBASE_OVERVIEW.md](CODEBASE_OVERVIEW.md) - Complete codebase overview (v2.0.0)
+- [docs/TESTING_GUIDE.md](TESTING_GUIDE.md) - Testing procedures (v2.0.0)
+- [docs/GITHUB_SETUP.md](GITHUB_SETUP.md) - This guide (v2.0.0)
+- [scraper_bridge/NORMALIZATION_ARCHITECTURE.md](../scraper_bridge/NORMALIZATION_ARCHITECTURE.md) - Normalization layer docs (v1.0.0)
 
 ## 🆘 Troubleshooting
 

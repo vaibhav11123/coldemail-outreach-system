@@ -1,0 +1,150 @@
+2025-12-29 18:54:11,979 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-29 18:55:07,056 - ERROR - 'NoneType' object is not subscriptable
+Traceback (most recent call last):
+  File "/Users/vaibhavsingh/coldemail/.venv/lib/python3.13/site-packages/staffspy/linkedin/experiences.py", line 113, in parse_experiences
+    multi_exps = self.parse_multi_exp(entity)
+  File "/Users/vaibhavsingh/coldemail/.venv/lib/python3.13/site-packages/staffspy/linkedin/experiences.py", line 124, in parse_multi_exp
+    elements = entity["subComponents"]["components"][0]["components"][
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        "pagedListComponent"
+        ~~~~~~~~~~~~~~~~~~~~
+    ]["components"]["elements"]
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable
+2025-12-29 18:55:07,063 - ERROR - 'NoneType' object is not subscriptable
+Traceback (most recent call last):
+  File "/Users/vaibhavsingh/coldemail/.venv/lib/python3.13/site-packages/staffspy/linkedin/experiences.py", line 113, in parse_experiences
+    multi_exps = self.parse_multi_exp(entity)
+  File "/Users/vaibhavsingh/coldemail/.venv/lib/python3.13/site-packages/staffspy/linkedin/experiences.py", line 124, in parse_multi_exp
+    elements = entity["subComponents"]["components"][0]["components"][
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        "pagedListComponent"
+        ~~~~~~~~~~~~~~~~~~~~
+    ]["components"]["elements"]
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable
+2025-12-29 19:02:29,813 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-29 19:04:35,847 - WARNING - No leads collected in this run. Saving empty snapshot for inspection.
+2025-12-29 19:04:35,854 - INFO - Saved empty snapshot to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_test_snapshot_empty.csv
+2025-12-29 20:58:56,625 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-29 20:59:08,341 - ERROR - 'NoneType' object is not subscriptable
+Traceback (most recent call last):
+  File "/Users/vaibhavsingh/coldemail/.venv/lib/python3.13/site-packages/staffspy/linkedin/experiences.py", line 113, in parse_experiences
+    multi_exps = self.parse_multi_exp(entity)
+  File "/Users/vaibhavsingh/coldemail/.venv/lib/python3.13/site-packages/staffspy/linkedin/experiences.py", line 124, in parse_multi_exp
+    elements = entity["subComponents"]["components"][0]["components"][
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        "pagedListComponent"
+        ~~~~~~~~~~~~~~~~~~~~
+    ]["components"]["elements"]
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable
+2025-12-29 20:59:19,694 - WARNING - No leads collected in this run. Saving empty snapshot for inspection.
+2025-12-29 20:59:19,696 - INFO - Saved empty snapshot to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_test_snapshot_empty.csv
+2025-12-29 21:02:38,782 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-29 21:02:53,207 - ERROR - 'NoneType' object is not subscriptable
+Traceback (most recent call last):
+  File "/Users/vaibhavsingh/coldemail/.venv/lib/python3.13/site-packages/staffspy/linkedin/experiences.py", line 113, in parse_experiences
+    multi_exps = self.parse_multi_exp(entity)
+  File "/Users/vaibhavsingh/coldemail/.venv/lib/python3.13/site-packages/staffspy/linkedin/experiences.py", line 124, in parse_multi_exp
+    elements = entity["subComponents"]["components"][0]["components"][
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        "pagedListComponent"
+        ~~~~~~~~~~~~~~~~~~~~
+    ]["components"]["elements"]
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable
+2025-12-29 21:03:04,026 - INFO - Saved raw StaffSpy snapshot to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_raw_snapshot_increff.csv
+2025-12-29 21:03:04,033 - WARNING - No leads collected AFTER FILTERING. Check staffspy_raw_snapshot_*.csv to inspect titles/emails.
+2025-12-29 21:03:04,034 - INFO - Saved empty snapshot to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_test_snapshot_empty.csv
+2025-12-29 21:07:11,919 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-29 21:07:37,788 - INFO - Saved raw StaffSpy snapshot to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_raw_snapshot_increff.csv
+2025-12-29 21:07:37,788 - INFO - NOTE: Emails are NOT required at scrape stage; enrichment happens later.
+2025-12-29 21:07:37,794 - WARNING - No leads collected AFTER FILTERING. Check staffspy_raw_snapshot_*.csv to inspect titles/emails.
+2025-12-29 21:07:37,794 - INFO - Saved empty snapshot to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_test_snapshot_empty.csv
+2025-12-29 21:11:01,607 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-29 21:11:26,346 - INFO - Saved raw StaffSpy snapshot to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_raw_snapshot_increff.csv
+2025-12-29 21:11:26,346 - INFO - NOTE: Emails are NOT required at scrape stage; enrichment happens later.
+2025-12-29 21:11:26,366 - INFO - Collected 100 leads after title filtering
+2025-12-29 21:11:26,386 - INFO - --- Starting Data Quality Audit ---
+2025-12-29 21:11:26,390 - WARNING - 100 leads missing email (expected at scrape stage)
+2025-12-29 21:11:26,390 - INFO - Audit complete. 100 usable leads.
+2025-12-30 00:29:57,936 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-30 00:30:39,403 - INFO - Saved raw StaffSpy snapshot to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_raw_snapshot_zepto.csv
+2025-12-30 00:30:39,403 - INFO - NOTE: Emails are NOT required at scrape stage; enrichment happens later.
+2025-12-30 00:30:39,427 - INFO - Collected 221 leads after title filtering
+2025-12-30 00:30:39,445 - INFO - --- Starting Data Quality Audit ---
+2025-12-30 00:30:39,446 - WARNING - 221 leads missing email (expected at scrape stage)
+2025-12-30 00:30:39,446 - INFO - Audit complete. 221 usable leads.
+2025-12-30 00:49:40,586 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-30 00:49:41,800 - INFO - Loaded 500 companies from CSV
+2025-12-30 00:49:41,800 - INFO - SAFE MODE: Using email format '{first}.{last}@zepto.com' for Zepto
+2025-12-30 00:50:18,277 - INFO - FILTERED: Removed 275 invalid/garbage profiles (300 → 25)
+2025-12-30 00:50:18,278 - WARNING - Zepto: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2025-12-30 00:50:18,278 - INFO - Collected 0 leads after initial processing
+2025-12-30 00:50:18,278 - WARNING - No leads collected AFTER PROCESSING. Check staffspy_raw_snapshot_*.csv to inspect raw data.
+2025-12-30 00:50:18,280 - INFO - Saved empty snapshot to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_test_snapshot_empty.csv
+2025-12-30 01:18:07,611 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-30 01:18:08,675 - INFO - Loaded 500 companies from CSV
+2025-12-30 01:18:08,675 - INFO - SAFE MODE: Using email format '{first}.{last}@zepto.com' for Zepto
+2025-12-30 01:18:48,094 - INFO - 💾 Saved raw StaffSpy snapshot (300 rows) to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_raw_snapshot_zepto.csv
+2025-12-30 01:18:48,125 - INFO - ✅ Saved outreach-ready CSV (8 rows) to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_outreach_ready_zepto.csv
+2025-12-30 01:18:48,130 - INFO - 💾 Saved rejected debug (292 rows) to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_rejected_debug_zepto.csv
+2025-12-30 01:18:48,131 - INFO - Collected 8 leads after initial processing
+2025-12-30 01:18:48,146 - INFO - --- Starting Data Quality Audit ---
+2025-12-30 01:18:48,146 - INFO - Audit complete. 8 usable leads.
+2025-12-30 01:18:48,149 - INFO - ✅ SAFE MODE: Saved test results snapshot (8 outreach-ready leads) to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_test_snapshot.csv
+2025-12-30 01:34:50,790 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-30 01:34:50,790 - INFO - Diagnostic files will be saved to: /Users/vaibhavsingh/coldemail/diagnostics/company_snapshots
+2025-12-30 01:34:51,967 - INFO - Loaded 500 companies from CSV
+2025-12-30 01:34:51,968 - INFO - SAFE MODE: Using email format '{first}.{last}@zepto.com' for Zepto
+2025-12-30 01:35:34,782 - INFO - 💾 Saved raw StaffSpy snapshot (300 rows) to /Users/vaibhavsingh/coldemail/diagnostics/company_snapshots/staffspy_raw_snapshot_zepto.csv
+2025-12-30 01:35:34,782 - INFO - 
+======================================================================
+2025-12-30 01:35:34,782 - INFO - NORMALIZING: Zepto (300 raw rows)
+2025-12-30 01:35:34,783 - INFO - ======================================================================
+
+2025-12-30 01:35:34,793 - INFO - HARD FILTER: Removed 275 invalid profiles (300 → 25)
+2025-12-30 01:35:34,798 - INFO - ROLE FILTER: Removed 17 non-relevant roles (25 → 8)
+2025-12-30 01:35:34,805 - INFO - 
+NORMALIZATION COMPLETE
+2025-12-30 01:35:34,805 - INFO -    Outreach-ready: 8 rows
+2025-12-30 01:35:34,805 - INFO -    Rejected: 292 rows
+2025-12-30 01:35:34,805 - INFO -    Conversion rate: 2.7%
+2025-12-30 01:35:34,806 - INFO - ✅ Saved outreach-ready CSV (8 rows) to /Users/vaibhavsingh/coldemail/diagnostics/company_snapshots/staffspy_outreach_ready_zepto.csv
+2025-12-30 01:35:34,809 - INFO - 💾 Saved rejected debug (292 rows) to /Users/vaibhavsingh/coldemail/diagnostics/company_snapshots/staffspy_rejected_debug_zepto.csv
+2025-12-30 01:35:34,810 - INFO - Collected 8 leads after initial processing
+2025-12-30 01:35:34,822 - INFO - --- Starting Data Quality Audit ---
+2025-12-30 01:35:34,822 - INFO - Audit complete. 8 usable leads.
+2025-12-30 01:35:34,825 - INFO - ✅ SAFE MODE: Saved test results snapshot (8 outreach-ready leads) to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_test_snapshot.csv
+2025-12-30 01:42:22,656 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-30 01:42:22,656 - INFO - Diagnostic files will be saved to: /Users/vaibhavsingh/coldemail/diagnostics/company_snapshots
+2025-12-30 01:42:24,511 - INFO - Loaded 500 companies from CSV
+2025-12-30 01:42:24,511 - INFO - SAFE MODE: Using email format '{first}.{last}@zepto.com' for Zepto
+2025-12-30 01:43:11,279 - INFO - 💾 Saved raw StaffSpy snapshot (300 rows) to /Users/vaibhavsingh/coldemail/diagnostics/company_snapshots/staffspy_raw_snapshot_zepto.csv
+2025-12-30 01:43:11,280 - INFO - 
+======================================================================
+2025-12-30 01:43:11,280 - INFO - NORMALIZING: Zepto (300 raw rows)
+2025-12-30 01:43:11,280 - INFO - ======================================================================
+
+2025-12-30 01:43:11,290 - INFO - HARD FILTER: Removed 275 invalid profiles (300 → 25)
+2025-12-30 01:43:11,295 - INFO - ROLE FILTER: Removed 17 non-relevant roles (25 → 8)
+2025-12-30 01:43:11,302 - INFO - 
+NORMALIZATION COMPLETE
+2025-12-30 01:43:11,302 - INFO -    Outreach-ready: 8 rows
+2025-12-30 01:43:11,302 - INFO -    Rejected: 292 rows
+2025-12-30 01:43:11,302 - INFO -    Conversion rate: 2.7%
+2025-12-30 01:43:11,303 - INFO - ✅ Saved outreach-ready CSV (8 rows) to /Users/vaibhavsingh/coldemail/diagnostics/company_snapshots/staffspy_outreach_ready_zepto.csv
+2025-12-30 01:43:11,307 - INFO - 💾 Saved rejected debug (292 rows) to /Users/vaibhavsingh/coldemail/diagnostics/company_snapshots/staffspy_rejected_debug_zepto.csv
+2025-12-30 01:43:11,307 - INFO - Collected 8 leads after initial processing
+2025-12-30 01:43:11,318 - INFO - --- Starting Data Quality Audit ---
+2025-12-30 01:43:11,318 - INFO - Audit complete. 8 usable leads.
+2025-12-30 01:43:11,321 - INFO - ✅ SAFE MODE: Saved test results snapshot (8 outreach-ready leads) to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_test_snapshot.csv
+2025-12-30 01:43:11,987 - INFO - --- Starting new StaffSpy Ingestion Run ---
+2025-12-30 01:43:11,987 - INFO - Diagnostic files will be saved to: /Users/vaibhavsingh/coldemail/diagnostics/company_snapshots
+2025-12-30 01:43:12,885 - INFO - Loaded 500 companies from CSV
+2025-12-30 01:43:12,886 - INFO - SAFE MODE: Using email format '{first}.{last}@zepto.com' for Zepto
+2025-12-30 01:43:48,775 - WARNING - Zepto: Cannot save file into a non-existent directory: '/Users/vaibhavsingh/coldemail/diagnostics/company_snapshots'
+2025-12-30 01:43:48,775 - INFO - Collected 0 leads after initial processing
+2025-12-30 01:43:48,776 - WARNING - No leads collected AFTER PROCESSING. Check staffspy_raw_snapshot_*.csv to inspect raw data.
+2025-12-30 01:43:48,776 - INFO - Saved empty snapshot to /Users/vaibhavsingh/coldemail/scraper_bridge/staffspy_test_snapshot_empty.csv

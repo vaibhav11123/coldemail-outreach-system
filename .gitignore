@@ -43,6 +43,7 @@ ENV/
 # Logs
 *.log
 outreach_campaign.log
+logs/
 
 # Data files (large CSVs and PDFs - uncomment if you don't want to commit data)
 # *.csv
@@ -71,7 +72,9 @@ dmypy.json
 *.log
 
 # Generated data / outputs
-*.csv
+# Note: data/raw/*.csv and data/processed/*.csv may be committed if not sensitive
+# Uncomment below to exclude all CSVs:
+# *.csv
 
 # Local diagnostics
 diagnostics/

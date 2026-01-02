@@ -15,8 +15,8 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587 # Port for TLS
 
 # CAMPAIGN SETTINGS
-FILE_TO_LOAD = "cold_email_outreach_all_cleaned_ranked.csv"
-LOG_FILE = "outreach_campaign.log"
+FILE_TO_LOAD = "data/processed/cold_email_outreach_all_cleaned_ranked.csv"
+LOG_FILE = "logs/outreach_campaign.log"
 DAILY_SEND_LIMIT = 450
 
 # --- CAMPAIGN STAGE SWITCH (Change this for follow-ups) ---

@@ -1,5 +1,13 @@
 # Complete Codebase Overview
 
+**Version:** 2.0.0  
+**Last Updated:** 2025-01-03  
+**Changelog:**
+- v2.0.0: Updated for new file structure, normalization layer, campaign improvements, path updates
+- v1.0.0: Initial version
+
+---
+
 This document provides a comprehensive understanding of every code file in the cold email outreach system.
 
 ---
@@ -8,18 +16,24 @@ This document provides a comprehensive understanding of every code file in the c
 
 The system consists of four main modules:
 
-1. **Data Collection & Processing** (`data_cleaner.py`)
-2. **LinkedIn Scraping & Normalization** (`scraper_bridge/`)
+1. **Data Collection & Processing** (`scripts/data_cleaner.py`)
+2. **LinkedIn Scraping & Normalization** (`scraper_bridge/`) - **NEW: Normalization Layer**
 3. **Faculty Profile Enrichment** (`faculty-scraper/professor_enrichment/`)
-4. **Email Campaign Engine** (`outreach/`)
+4. **Email Campaign Engine** (`outreach/`) - **IMPROVED: Atomic Saves, Quota Management**
 
 ---
 
 ## 1. Root Level: Data Processing
 
-### `data_cleaner.py`
+### `scripts/data_cleaner.py`
 
 **Purpose:** Processes raw CSV and PDF files containing HR contact data, cleans and normalizes the data, and calculates hiring scores.
+
+**Location:** Moved to `scripts/` directory for better organization.
+
+**Path Configuration:** Uses relative paths from `scripts/` directory:
+- Input files: `../data/raw/`
+- Output file: `../data/processed/cold_email_outreach_all_cleaned_ranked.csv`
 
 **Key Functions:**
 - `clean_email()` - Removes invalid characters from emails
@@ -37,7 +51,7 @@ The system consists of four main modules:
 5. Calculates `HiringScore` for each row
 6. Sorts by `HiringScore` (descending)
 7. Removes duplicates (by Email + Company)
-8. Outputs to `cold_email_outreach_all_cleaned_ranked.csv`
+8. Outputs to `data/processed/cold_email_outreach_all_cleaned_ranked.csv`
 
 **Test Mode:** Can limit CSV rows and PDF pages for testing
 
@@ -53,11 +67,14 @@ The system consists of four main modules:
 **Purpose:** Main orchestration script for email campaigns. Manages the entire email sending workflow with state persistence.
 
 **Key Features:**
-- **Atomic CSV Saves:** Uses temporary files and `os.replace()` for fault-tolerant saves
-- **Daily Quota Management:** Tracks emails sent today per campaign stage
-- **State Persistence:** Saves CSV after each successful email send
-- **Campaign Stage Support:** Handles INITIAL_SEND, FOLLOW_UP_1, FOLLOW_UP_2
+- **Path Resolution:** Uses `Path(__file__).parent.parent` to resolve project root, then joins with `config.FILE_TO_LOAD`
+- **File Location:** Loads from `data/processed/cold_email_outreach_all_cleaned_ranked.csv`
+- **Atomic CSV Saves:** Uses `save_campaign_state()` function with temporary files and `os.replace()` for fault-tolerant saves
+- **Daily Quota Management:** Tracks emails sent today per campaign stage, enforces 450/day limit
+- **State Persistence:** Saves CSV after each successful email send (not batch) for maximum fault tolerance
+- **Campaign Stage Support:** Handles INITIAL_SEND, FOLLOW_UP_1, FOLLOW_UP_2 with stage-specific timestamp columns
 - **SMTP Connection Management:** Establishes connection once, reuses for all emails
+- **Environment Loading:** Loads `.env` file BEFORE any imports to ensure credentials are available
 
 **Workflow:**
 1. Loads `.env` file (critical: must happen before imports)
@@ -89,8 +106,8 @@ The system consists of four main modules:
 **Configuration:**
 - `SENDER_EMAIL`, `SENDER_PASSWORD` - From `.env` file
 - `SMTP_SERVER`, `SMTP_PORT` - Gmail SMTP settings
-- `FILE_TO_LOAD` - Master CSV filename
-- `LOG_FILE` - Log output file
+- `FILE_TO_LOAD` - Master CSV path: `"data/processed/cold_email_outreach_all_cleaned_ranked.csv"`
+- `LOG_FILE` - Log output path: `"logs/outreach_campaign.log"`
 - `DAILY_SEND_LIMIT` - 450 emails/day default
 - `CAMPAIGN_STAGE` - 'INITIAL_SEND', 'FOLLOW_UP_1', or 'FOLLOW_UP_2'
 - `TEST_MODE` - Boolean flag
@@ -529,7 +546,7 @@ faculty-scraper/professor_enrichment/
 ## Testing & Development
 
 **Test Modes:**
-- `data_cleaner.py`: `TEST_MODE` flag limits rows/pages
+- `scripts/data_cleaner.py`: `TEST_MODE` flag limits rows/pages
 - `outreach/config.py`: `TEST_MODE` limits to 5 emails
 - `faculty-scraper/professor_enrichment/config.py`: `MODE = 'TEST'` limits to 5 rows
 - `scraper_bridge/staffspy_ingest.py`: `SAFE_SINGLE_COMPANY_MODE` for single company testing

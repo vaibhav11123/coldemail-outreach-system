@@ -1,5 +1,12 @@
 # Outreach Normalization Architecture
 
+**Version:** 1.0.0  
+**Last Updated:** 2025-01-03  
+**Changelog:**
+- v1.0.0: Initial version documenting normalization layer architecture
+
+---
+
 ## The Problem (What Was Wrong)
 
 The original pipeline treated **raw scraping output as outreach-ready data**. This violated a fundamental principle:

@@ -2,8 +2,8 @@ import pandas as pd
 import pdfplumber
 import re
 
-CSV_FILE = "14400+ Ultimate HR Outreach List  - DataNiti - 2500+ HR's Manager Contacts with Profiles - .csv"
-PDF_FILE = "Company Wise HR Contacts - HR Contacts.pdf"
+CSV_FILE = "../data/raw/14400+ Ultimate HR Outreach List  - DataNiti - 2500+ HR's Manager Contacts with Profiles - .csv"
+PDF_FILE = "../data/raw/Company Wise HR Contacts - HR Contacts.pdf"
 
 # ===============================
 # TEST MODE CONFIG
@@ -13,9 +13,9 @@ TEST_CSV_ROWS = 30        # rows from CSV
 TEST_PDF_PAGES = 2        # pages from PDF
 
 OUTPUT_FILE = (
-    "cold_email_TEST_sample.csv"
+    "../data/processed/cold_email_TEST_sample.csv"
     if TEST_MODE
-    else "cold_email_outreach_all_cleaned_ranked.csv"
+    else "../data/processed/cold_email_outreach_all_cleaned_ranked.csv"
 )
 
 # =========================================================

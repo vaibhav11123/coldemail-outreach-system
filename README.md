@@ -1,223 +1,235 @@
 # Cold Email Outreach System
 
-**A full-stack, autonomous system targeting 4,000+ top university professors and 14,000+ corporate leaders.** This comprehensive, production-grade cold email outreach engine automates lead generation, data enrichment, and multi-stage campaign management, featuring intelligent, NLP-driven personalization for high-conversion academic and professional outreach.
+**Version:** 2.0.0  
+**Last Updated:** 2025-01-03
 
 ---
 
-## 📊 Project Scale & Results
+**Production-grade outreach infrastructure** designed to convert noisy, scraped data into campaign-safe leads and execute fault-tolerant, multi-stage email campaigns at scale.
 
-This system was engineered to handle large, heterogeneous datasets and execute high-precision campaigns.
+Built to solve a core problem in outbound systems:
+> *Scraped data is not outreach-ready.*
 
-| Audience / Metric | Result | Feature Highlight |
-| :--- | :--- | :--- |
-| **Total Leads Processed** | **~18,500+** Contacts | End-to-end Data Pipeline |
-| **Academic Leads** | **4,084 Professors** from **16 Top Global Universities** | **NLP-Based Research Enrichment** |
-| **Corporate Leads** | **14,400+ Executives** (CEOs, VPs, CHROs) | **Title-Based HiringScore** & Cleansing |
-| **Fault Tolerance** | **100% Data Recovery** | Atomic CSV Saves & SMTP Retry Logic |
+This system enforces strict normalization, deterministic scoring, and immutable campaign state before a single email is sent.
 
 ---
 
-## 🚀 Features
+## Design at Scale
 
-- **Multi-Source Data Collection**: LinkedIn scraping, faculty directory scraping, CSV/PDF processing
-- **Intelligent Data Enrichment**: NLP-based research extraction and personalization for academic contacts
-- **Automated Email Campaigns**: Multi-stage campaigns with follow-up sequences
-- **Fault-Tolerant Design**: Atomic saves, retry logic, state persistence
-- **University-Aware Scraping**: Specialized extractors for different university websites
-- **Scalable Architecture**: Process multiple universities independently without data corruption
+| Constraint | Solution |
+| :--- | :--- |
+| **~18,500 heterogeneous leads** | Independent pipelines per domain (academic/corporate) |
+| **Zero state corruption** | Atomic CSV saves after every email |
+| **Resumable execution** | Immutable campaign state with timestamp tracking |
+| **Multi-stage campaigns** | Enforced follow-up windows (6-8 days) with stage isolation |
 
-## 📁 Project Structure
+**Validated on:**
+- 4,084 professors from 16 top universities (MIT, Stanford, Harvard, etc.)
+- 14,400+ corporate executives (CEOs, VPs, Engineering Managers)
+- 100% data recovery rate during SMTP failures
+
+---
+
+## System Architecture
 
 ```
-coldemail/
-├── outreach/                    # Email campaign engine
-│   ├── campaign.py             # Main orchestration (atomic saves, quota management)
-│   ├── config.py                # Configuration (SMTP, campaign stages)
-│   ├── filters.py               # Recipient filtering by stage
-│   ├── mailer.py                # SMTP connection and email sending
-│   └── templates.py             # Email templates and selection logic
-├── scraper_bridge/              # LinkedIn scraper and ingestion
-│   ├── staffspy_ingest.py       # Main StaffSpy pipeline
-│   ├── normalize_for_outreach.py # Normalization layer (hard filter, role filter, email gen)
-│   └── diagnostics/             # Organized output files
-├── faculty-scraper/             # University faculty scraper
-│   ├── professor_enrichment/    # Research enrichment module
-│   │   ├── run_enrichment.py   # Multi-CSV orchestration
-│   │   ├── scraper.py          # Web scraping with retry logic
-│   │   ├── nlp_processor.py     # NLP processing and scoring
-│   │   ├── config.py           # Configuration
-│   │   └── utils/data_loader.py # Data loading utilities
-│   ├── html_extractors/        # University-specific extractors
-│   │   ├── generic.py          # Generic extraction
-│   │   └── harvard.py          # Harvard SEAS extraction
-│   └── data/                    # Faculty CSV files
-├── data_cleaner.py              # CSV/PDF processing and cleaning
-└── cold_email_outreach_all_cleaned_ranked.csv  # Master database
+Raw Data Sources
+  (LinkedIn / Faculty / CSV/PDF)
+        ↓
+┌───────────────────────────────┐
+│  Normalization Layer          │
+│  • Hard filters (invalid)      │
+│  • Role qualification          │
+│  • Title normalization         │
+│  • Email confidence scoring    │
+└───────────────────────────────┘
+        ↓
+Qualified Lead Store
+  (Immutable campaign schema)
+        ↓
+┌───────────────────────────────┐
+│  Campaign Engine              │
+│  • Template selection          │
+│  • Daily quota management      │
+│  • Multi-stage follow-ups      │
+│  • Atomic state persistence    │
+└───────────────────────────────┘
+        ↓
+SMTP Delivery
 ```
 
-See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed documentation.
-See [CODEBASE_OVERVIEW.md](CODEBASE_OVERVIEW.md) for complete code file understanding.
+---
 
-## 🛠️ Installation
+## Core Capabilities
 
-### Prerequisites
+### Data Integrity First
+- **Strict normalization layer** separating scraping from outreach
+- **Hard filters** for invalid profiles and non-decision roles
+- **Canonical role mapping** with rejection diagnostics
+- **Email confidence scoring** (0.3 minimum threshold)
 
-- Python 3.8+
-- Ruby (for faculty scraper scripts)
-- Gmail account with App Password enabled
-- LinkedIn account (for LinkedIn scraper)
+### Deterministic Lead Qualification
+- **Explainable HiringScore** (0–100), no LLM dependency
+- **DNS MX verification** to prevent bounce-heavy domains
+- **Confidence-scored email generation** (format confirmed → inferred → fallback)
+- **Role-based filtering** (explicit allow/deny lists)
 
-### Setup
+### Fault-Tolerant Campaign Execution
+- **Atomic state persistence** after every email (temp file + `os.replace()`)
+- **Multi-stage campaigns** with enforced follow-up windows
+- **Daily send quotas** with test mode safeguards (450/day default)
+- **SMTP retry logic** with connection recovery
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd coldemail
-   ```
+### Scalable by Design
+- **University- and company-isolated pipelines** (no cross-contamination)
+- **No shared mutable state** across runs
+- **Safe re-runs** and crash recovery
+- **Organized diagnostics** per company/university
 
-2. **Create virtual environment**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
+---
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment variables**
-   
-   Create a `.env` file in the project root (see [ENV_SETUP_GUIDE.md](ENV_SETUP_GUIDE.md) for details):
-   ```bash
-   cp .env.example .env
-   # Edit .env with your credentials
-   ```
-
-## 📖 Quick Start
-
-### 1. Process Raw Data
+## Quick Start
 
 ```bash
-# Clean and process CSV/PDF files
-python data_cleaner.py
-```
+# Process raw data
+python scripts/data_cleaner.py
 
-### 2. Enrich Faculty Data (Optional)
-
-```bash
-# Interactive university selection
-python -m faculty-scraper.professor_enrichment.run_enrichment
-```
-
-### 3. Scrape LinkedIn Leads (Optional)
-
-```bash
-cd scraper_bridge
-# Using StaffSpy (recommended - includes normalization layer)
-python staffspy_ingest.py
-
-# Or using legacy scraper
-python scraper_to_ingest.py
-```
-
-**Note:** The StaffSpy ingestion pipeline (`staffspy_ingest.py`) includes a normalization layer that:
-- Hard filters invalid profiles
-- Applies role-based filtering (removes interns, QA, students, etc.)
-- Normalizes titles to canonical roles
-- Generates emails with confidence scores
-- Saves organized diagnostics to `scraper_bridge/diagnostics/company_snapshots/{company}/`
-
-### 4. Run Email Campaign
-
-```bash
-# Edit outreach/config.py to set CAMPAIGN_STAGE
+# Run campaign
 python -m outreach.campaign
 ```
 
-## ⚙️ Configuration
+**Detailed workflows** for scraping, enrichment, and testing live in [docs/](docs/).
+
+---
+
+## Runtime Controls
 
 ### Campaign Configuration
-
 Edit `outreach/config.py`:
 - `CAMPAIGN_STAGE`: `'INITIAL_SEND'`, `'FOLLOW_UP_1'`, or `'FOLLOW_UP_2'`
 - `DAILY_SEND_LIMIT`: Maximum emails per day (default: 450)
 - `TEST_MODE`: Set to `True` for testing (sends only 5 emails)
 
-### Enrichment Configuration
+### Environment Variables
+See [docs/ENV_SETUP_GUIDE.md](docs/ENV_SETUP_GUIDE.md) for complete setup.
 
-Edit `faculty-scraper/professor_enrichment/config.py`:
-- `MODE`: `'TEST'` or `'PROD'`
-- `TEST_ROW_LIMIT`: Number of rows to process in test mode (default: 5)
-- `SAVE_EVERY_N_ROWS`: Periodic save frequency (default: 5)
+Required:
+- `SENDER_EMAIL` - Gmail address
+- `SENDER_PASSWORD` - Gmail App Password
+- `LINKEDIN_EMAIL` - LinkedIn login (for scraping)
+- `LINKEDIN_PASSWORD` - LinkedIn password
 
-## 📊 Data Flow
+---
+
+## Project Structure
 
 ```
-Data Collection → Data Enrichment → Data Processing → Lead Ingestion → Campaign Execution
+coldemail/
+├── outreach/                    # Campaign engine
+│   ├── campaign.py             # Orchestration (atomic saves, quotas)
+│   ├── config.py                # Configuration
+│   ├── filters.py               # Stage-based filtering
+│   ├── mailer.py                # SMTP with retry logic
+│   └── templates.py             # Template selection
+├── scraper_bridge/              # LinkedIn ingestion
+│   ├── staffspy_ingest.py       # Main pipeline
+│   ├── normalize_for_outreach.py # Normalization layer
+│   └── diagnostics/             # Company-specific outputs
+├── faculty-scraper/             # University faculty scraper
+│   ├── professor_enrichment/    # Research enrichment (optional)
+│   └── html_extractors/         # University-specific extractors
+├── data/
+│   ├── raw/                     # Input data
+│   ├── processed/               # Master database
+│   └── backups/                 # Backup files
+├── scripts/                     # Root-level scripts
+├── logs/                        # Execution logs
+└── config/                      # Configuration files
 ```
 
-1. **Collection**: Scrape from LinkedIn, faculty directories, or load from CSV/PDF
-2. **Enrichment**: Extract research areas, generate personalization lines
-3. **Processing**: Clean, normalize, score, and deduplicate
-4. **Ingestion**: Add to master CSV with campaign state initialization
-5. **Execution**: Filter, template selection, send emails, update state
+---
 
-## 🔒 Security
+## Non-Goals
+
+This system intentionally does **not**:
+- Use LLMs for scoring or filtering (determinism > novelty)
+- Auto-send emails without persisted campaign state
+- Optimize for UI-first usage over reliability
+- Replace CRMs or inbox management tools
+- Handle email replies or two-way communication
+
+It is designed to be **predictable, auditable, and safe to re-run**.
+
+---
+
+## Operational Guarantees
+
+- **Zero data loss**: Atomic CSV saves prevent corruption
+- **Resumable execution**: Campaign state persists after crashes
+- **No duplicate sends**: Email-based deduplication with timestamp tracking
+- **Quota enforcement**: Daily limits prevent account suspension
+- **Isolated pipelines**: University/company data processed independently
+
+---
+
+## Documentation
+
+- [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) - Detailed architecture
+- [docs/CODEBASE_OVERVIEW.md](docs/CODEBASE_OVERVIEW.md) - File-by-file breakdown
+- [docs/NORMALIZATION_ARCHITECTURE.md](scraper_bridge/NORMALIZATION_ARCHITECTURE.md) - Normalization layer design
+- [docs/CHANGELOG.md](docs/CHANGELOG.md) - Version history
+- [docs/VERSIONING.md](docs/VERSIONING.md) - Documentation versioning guide
+
+---
+
+## Installation
+
+```bash
+# Clone and setup
+git clone <repo-url>
+cd coldemail
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your credentials
+```
+
+**Prerequisites:**
+- Python 3.8+
+- Ruby (for faculty scraper scripts)
+- Gmail account with App Password
+- LinkedIn account (for scraping)
+
+---
+
+## Security
 
 - **Never commit `.env` file** - Contains sensitive credentials
 - Use Gmail App Passwords (not regular passwords)
 - Review `.gitignore` to ensure sensitive files are excluded
 - Rotate credentials periodically
 
-## 📝 Environment Variables
+---
 
-See [ENV_SETUP_GUIDE.md](ENV_SETUP_GUIDE.md) for complete setup instructions.
-
-Required variables:
-- `SENDER_EMAIL` - Gmail address
-- `SENDER_PASSWORD` - Gmail App Password
-- `LINKEDIN_EMAIL` - LinkedIn login
-- `LINKEDIN_PASSWORD` - LinkedIn password
-- `QUERY_1`, `QUERY_2`, ... - LinkedIn search queries
-
-## 🧪 Testing
-
-See [TESTING_GUIDE.md](TESTING_GUIDE.md) for comprehensive testing procedures.
-
-Quick test:
-```bash
-# Set TEST_MODE = True in outreach/config.py
-python -m outreach.campaign
-```
-
-## 📚 Documentation
-
-- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) - Detailed project structure
-- [TESTING_GUIDE.md](TESTING_GUIDE.md) - Testing procedures
-- [ENV_SETUP_GUIDE.md](ENV_SETUP_GUIDE.md) - Environment configuration
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## ⚠️ Important Notes
-
-- Always backup your CSV files before running campaigns
-- Test mode should be used for initial testing
-- Respect daily email limits to avoid account suspension
-- Follow-up emails are automatically scheduled based on timestamps
-- Each university CSV is processed independently (no cross-contamination)
-
-## 📄 License
-
-[Add your license here]
-
-## 🙏 Acknowledgments
+## Prior Art
 
 - Faculty scraper based on [barc-iitkgp/faculty-scraper](https://github.com/barc-iitkgp/faculty-scraper)
 
+---
+
+## Why This Exists
+
+Most outbound systems fail silently due to poor data quality and fragile state.
+
+This project treats outreach as a **data and state management problem**, not a copywriting problem. The normalization layer enforces strict data contracts that scrapers don't provide, and the campaign engine guarantees immutable state that survives crashes, network failures, and manual interruptions.
+
+---
+
+## License
+
+[Add your license here]

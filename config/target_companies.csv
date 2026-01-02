@@ -1,0 +1,501 @@
+No.,Company Name,Category/Sector/Domain,Primary Location,Strategic Context,Estimated Email Format
+1,Zepto,Quick Commerce,Mumbai,"Ranked first in LinkedIn's 2024 Top Startups list; 5,000+ employees",{first}.{last}@zepto.com
+2,Razorpay,Fintech,Bengaluru,"India's leading payment gateway; 2,700 employees; YC alum",{first}.{last}@razorpay.com
+3,Groww,Investing,Bengaluru,"Largest stock broker in India by active clients; 1,000+ employees",{first}.{last}@groww.in
+4,Meesho,E-commerce,Bengaluru,"Democratizing internet commerce for small businesses; 1,450 employees",{first}.{last}@meesho.com
+5,CRED,Fintech,Bengaluru,Rewards-based credit card payment platform; 900+ employees,{first}.{last}@cred.club
+6,PharmEasy,Healthtech,Mumbai,Pharmacy made easy; leading digital healthcare platform,{first}.{last}@pharmeasy.in
+7,Zomato,Foodtech,Gurugram,"Publicly traded food discovery and delivery giant; 7,000+ employees",{first}.{last}@zomato.com
+8,Swiggy,Foodtech,Bengaluru,Leading player in food delivery and quick commerce (Instamart),{first}.{last}@swiggy.in
+9,Delhivery,Logistics,Gurugram,Integrated logistics provider for e-commerce; public entity,{first}.{last}@delhivery.com
+10,BrowserStack,B2B SaaS,Mumbai,World's leading software testing platform; profitable unicorn,{first}.{last}@browserstack.com
+11,Zoho,B2B SaaS,Chennai,"Profitable, bootstrapped SaaS giant with global product suite",{first}@zohocorp.com
+12,Freshworks,B2B SaaS,Chennai,First Indian SaaS company to list on NASDAQ; customer engagement,{first}.{last}@freshworks.com
+13,Pine Labs,Fintech,Noida,Merchant platform offering POS and payment solutions,{first}.{last}@pinelabs.com
+14,Ola,Mobility,Bengaluru,Leading ride-hailing platform and EV manufacturer,{first}.{last}@olacabs.com
+15,Flipkart,E-commerce,Bengaluru,India's largest e-commerce platform; majority owned by Walmart,{first}.{last}@flipkart.com
+16,PhonePe,Fintech,Bengaluru,"Leading UPI and digital payments platform; 1,000+ employees",{first}.{last}@phonepe.com
+17,Uniphore,AI / Conversational,Chennai,AI-based conversational automation for enterprises,{first}.{last}@uniphore.com
+18,Chargebee,B2B SaaS,Chennai,Subscription billing and revenue management unicorn,{first}.{last}@chargebee.com
+19,Darwinbox,HRTech,Hyderabad,End-to-end HR operations management platform,{first}.{last}@darwinbox.com
+20,Druva,Cloud / SaaS,Pune,Cloud data backup and protection solutions for enterprises,{first}.{last}@druva.com
+21,Icertis,B2B SaaS,Pune,Contract lifecycle management powered by AI,{first}.{last}@icertis.com
+22,Innovaccer,Healthtech,Bengaluru,Healthcare data activation and analytics platform,{first}.{last}@innovaccer.com
+23,LeadSquared,B2B SaaS,Bengaluru,Sales CRM and marketing automation solutions,{first}.{last}@leadsquared.com
+24,Mindtickle,B2B SaaS,Pune,Sales readiness and enablement platform,{first}.{last}@mindtickle.com
+25,Postman,B2B SaaS,Bengaluru,Leading platform for API development and testing,{first}@postman.com
+26,Shiprocket,Logistics SaaS,Gurugram,Logistics and shipping solutions for SMBs,{first}.{last}@shiprocket.com
+27,Zenoti,B2B SaaS,Hyderabad,Business management software for the spa and salon industry,{first}.{last}@zenoti.com
+28,Zeta,Fintech,Bengaluru,Modern banking and payment stack for financial institutions,{first}.{last}@zeta.tech
+29,Polygon,Web3 / Infra,Bengaluru,Layer 2 scaling solution for Ethereum,{first}@polygon.technology
+30,blinkit,Quick Commerce,Gurugram,Ultra-fast grocery delivery (formerly Grofers),{first}.{last}@blinkit.com
+31,Jupiter,Fintech,Mumbai,Digital-first neobanking app for retail consumers,{first}.{last}@jupiter.money
+32,Myntra,E-commerce,Bengaluru,Leading destination for fashion and lifestyle products,{first}.{last}@myntra.com
+33,Rapido,Mobility,Bengaluru,India's largest bike-taxi and auto-hailing app,{first}.{last}@rapido.bike
+34,InCred,Fintech,Mumbai,Non-banking financial company (NBFC) for personal and biz loans,{first}.{last}@incred.com
+35,Porter,Logistics,Bengaluru,Tech-enabled intra-city logistics for businesses,{first}.{last}@porter.in
+36,Krutrim,AI Infrastructure,Bengaluru,Building foundational AI models for Indian languages,{first}@olakrutrim.com
+37,Vedantu,Edtech,Bengaluru,Live online learning platform for K-12 students,{first}.{last}@vedantu.com
+38,boAt,Consumer Electronics,Mumbai,Leading D2C brand for audio and wearables,{first}.{last}@imaginemarketingindia.com
+39,Pixxel,SpaceTech,Bengaluru,Hyperspectral imaging satellite constellation,{first}@pixxel.space
+40,Licious,Food Commerce,Bengaluru,D2C brand for fresh meat and seafood,{first}.{last}@licious.in
+41,Acko,Insurtech,Bengaluru,Digital-native general insurance provider,{first}.{last}@acko.com
+42,Dream11,Gaming Tech,Mumbai,India's largest fantasy sports platform,{first}.{last}@dream11.com
+43,Shadowfax,Logistics,Bengaluru,Last-mile delivery platform for e-commerce and food,{first}.{last}@shadowfax.in
+44,Pocket FM,Media Tech,Bengaluru,Audio series and podcast platform,{first}.{last}@pocketfm.com
+45,Skyroot,SpaceTech,Hyderabad,Private aerospace manufacturer and launch provider,{first}@skyroot.in
+46,GoKwik,E-commerce SaaS,Gurugram,Solving RTO and checkout problems for D2C brands,{first}.{last}@gokwik.co
+47,Lucidity,Cloud Infra,Bengaluru,Ranked 2nd on LinkedIn Rising Startups 2024,{first}@lucidity.co
+48,Sprinto,B2B SaaS,Bengaluru,Compliance automation for SaaS companies,{first}@sprinto.com
+49,Jar,Fintech,Bengaluru,Micro-savings platform investing in digital gold,{first}@myjar.app
+50,Wiingy,Edtech,Bengaluru,Online tutoring platform for diverse subjects,{first}@wiingy.com
+51,SourceBae,AI Recruitment,Bengaluru,Matching remote engineers with global firms using AI,{first}@sourcebae.com
+52,BiofuelCircle,Cleantech,Pune,Marketplace for biomass and biofuel supply chains,{first}.{last}@biofuelcircle.com
+53,Supersourcing,AI Recruitment,Indore,Platform for hiring remote tech talent,{first}@supersourcing.com
+54,Battery Smart,Energy Infra,New Delhi,Battery-swapping network for electric vehicles,{first}.{last}@batterysmart.in
+55,Scrut Automation,B2B SaaS,Bengaluru,GRC platform for high-growth tech companies,{first}@scrut.io
+56,MindPeers,Healthtech,Delhi,Mental health platform for individuals and firms,{first}@mindpeers.co
+57,Oben Electric,Mobility,Bengaluru,High-performance electric motorcycle manufacturer,{first}@obenelectric.com
+58,Convin,AI Conversational,Bengaluru,Conversation intelligence for sales teams,{first}@convin.ai
+59,Swish,Quick Commerce,Bengaluru,10-minute hot meal delivery platform,{first}@swish.in
+60,Weekday,AI Recruitment,Bengaluru,Proactive hiring tool using a talent database,{first}@weekday.works
+61,Bhanzu,Edtech,Bengaluru,Math-learning platform focused on speed and agility,{first}@bhanzu.com
+62,Refyne India,Fintech,Bengaluru,Financial wellness and earned wage access platform,{first}.{last}@refyne.in
+63,EMotorad,Mobility,Pune,Premium electric bike manufacturer,{first}@emotorad.com
+64,Atlys,Traveltech,Delhi,Streamlining visa and travel documentation,{first}@atlys.com
+65,Snabbit,Home Services,Mumbai,Hyperlocal on-demand home services,{first}@snabbit.com
+66,FirstClub,Quick Commerce,Bengaluru,Omnichannel grocery and beauty delivery,{first}@firstclub.com
+67,Innoviti,Fintech,Bengaluru,Payment solutions for retail and enterprise,{first}.{last}@innoviti.com
+68,Rupeek,Fintech,Bengaluru,Online gold loans at the doorstep,{first}.{last}@rupeek.com
+69,Cuemath,Edtech,Bengaluru,Math-learning platform for K-12,{first}.{last}@cuemath.com
+70,Fashinza,B2B Marketplace,Gurugram,Manufacturing marketplace for fashion brands,{first}.{last}@fashinza.com
+71,Loop Health,Healthtech,Pune,Health insurance and clinical care provider,{first}@loophealth.com
+72,Perfios,Fintech,Bengaluru,Real-time financial analytics and decisioning,{first}.{last}@perfios.com
+73,Livspace,E-commerce,Bengaluru,Home interior and renovation platform,{first}.{last}@livspace.com
+74,INCREFF,B2B SaaS,Bengaluru,Inventory and supply chain optimization for retail,{first}.{last}@increff.com
+75,BlueStone,E-commerce,Bengaluru,Online jewelry retailer,{first}.{last}@bluestone.com
+76,Pristyn Care,Healthtech,Gurugram,Elective surgery and healthcare management,{first}.{last}@pristyncare.com
+77,Rentomojo,SaaS / Rental,Mumbai,Rental platform for furniture and electronics,{first}.{last}@rentomojo.com
+78,MyGlamm,E-commerce,Mumbai,D2C beauty brand and content platform,{first}.{last}@myglamm.com
+79,Scripbox,Fintech,Bengaluru,Jargon-free investment platform,{first}.{last}@scripbox.com
+80,Lokal,Media Tech,Bengaluru,Hyperlocal news and classifieds app,{first}@getlokalapp.com
+81,CoinSwitch,Fintech,Bengaluru,Leading cryptocurrency exchange platform,{first}.{last}@coinswitch.co
+82,Niramai,Health AI,Bengaluru,Non-invasive breast cancer screening using AI,{first}@niramai.com
+83,GreyOrange,Robotics,Gurugram,AI-driven robotics for warehouse automation,{first}.{last}@greyorange.com
+84,Log 9 Materials,Deep Tech,Bengaluru,Advanced materials and graphene battery tech,{first}@log9materials.com
+85,Agnikul Cosmos,SpaceTech,Chennai,3D-printed rocket engines and launch vehicles,{first}@agnikul.in
+86,QNu Labs,Cybersecurity,Bengaluru,Quantum-safe cryptography and communication,{first}@qnulabs.com
+87,SigTuple,Health AI,Bengaluru,Automated pathology and medical diagnostics,{first}@sigtuple.com
+88,Locus.sh,Logistics SaaS,Bengaluru,Dispatch management and route optimization,{first}@locus.sh
+89,CropIn,Agtech,Bengaluru,Data-driven smart farming solutions,{first}@cropin.com
+90,Zenatix,IoT,Gurugram,Energy management and IoT for commercial bldgs,{first}@zenatix.com
+91,Sarvam AI,AI Infrastructure,Bengaluru,Developing large-scale AI models for India,{first}@sarvam.ai
+92,Murf AI,Media AI,Bengaluru,AI-powered voice generation and text-to-speech,{first}@murf.ai
+93,Vahan AI,AI Recruitment,Bengaluru,Blue-collar recruitment platform powered by AI,{first}@vahan.co
+94,DhiWise,DevTool SaaS,Surat,Automated app development platform for devs,{first}@dhiwise.com
+95,Pixis,Marketing AI,Bengaluru,Codeless AI platform for marketing optimization,{first}@pixis.ai
+96,Qure AI,Medical AI,Mumbai,AI for medical imaging and radiology,{first}@qure.ai
+97,Jiffy AI,Enterprise AI,Bengaluru,Autonomous enterprise automation platform,{first}@jiffy.ai
+98,Video Verse,Media AI,Mumbai,AI-driven video editing and content creation,{first}@vverse.ai
+99,Neuron7 AI,Service AI,Bengaluru,AI-driven service intelligence for enterprises,{first}@neuron7.ai
+100,InVideo,Media AI,Mumbai,High-speed video creation platform,{first}@invideo.io
+101,Kissflow,No-code / BPM,,Leading low-code platform for business workflows,{first}@kissflow.com
+102,Eka Software,Fintech SaaS,,Cloud-based commodity management and finance,{first}.{last}@ekaplus.com
+103,Wingman,Sales Tech,,Conversation intelligence for sales teams (Acq by Clari),{first}@trywingman.com
+104,Almabase,Education SaaS,,Alumni management platform for schools and unis,{first}@almabase.com
+105,Oloid AI,Cybersecurity,,AI-based physical and digital access management,{first}@oloid.ai
+106,PipeCandy,E-comm Intel,,Strategic intelligence for the e-commerce economy,{first}@pipecandy.com
+107,Veris,Workplace SaaS,,Modern visitor and workplace management platform,{first}@getveris.com
+108,ExtraEdge,Edtech CRM,,Admissions and marketing automation for colleges,{first}@extraedge.com
+109,Intentwise,Adtech SaaS,,Optimization platform for Amazon and e-comm ads,{first}@intentwise.com
+110,Typito AI,Media AI,,Online video editor for professional content creators,{first}@typito.com
+111,Rocketlane,Project Mgmt,,Professional services automation and onboarding,{first}@rocketlane.com
+112,Spyne,Media Tech,,AI-driven visual content for e-commerce,{first}@spyne.ai
+113,Appknox,Cybersecurity,,Mobile application security testing for enterprises,{first}@appknox.com
+114,DemandFarm,Sales Tech,,Key account management software for B2B,{first}@demandfarm.com
+115,Ozonetel,Cloud Telephony,,Full-stack contact center as a service (CCaaS),{first}@ozonetel.com
+116,Nukebox,Gaming SaaS,,Mobile game development and publishing tools,{first}@nukeboxstudios.com
+117,Wizikey,PR Tech,,Data-driven PR and media intelligence platform,{first}@wizikey.com
+118,Recurpost,Social SaaS,,Social media scheduling and automation tool,{first}@recurpost.com
+119,Desku,Support SaaS,,Customer support and helpdesk for SMBs,{first}@desku.io
+120,Unicommerce,E-comm Ops,,Warehouse and inventory management (Acq by Snapdeal),{first}.{last}@unicommerce.com
+121,KNOW,Workforce SaaS,,Operations platform for frontline workforces,{first}@getknow.io
+122,Zapscale,Customer Success,,AI-driven customer success platform,{first}@zapscale.com
+123,DevRev,Dev CRM,,Connecting developers with customer feedback,{first}@devrev.ai
+124,Cutshort,HRTech,,AI-powered recruitment and sourcing platform,{first}@cutshort.io
+125,Zoconut,Health SaaS,,Business management for dieticians and clinics,{first}@zoconut.com
+126,Two Minute Reports,Data SaaS,,Self-service reporting and analytics tool,{first}@gox.ai
+127,Gyde,Product SaaS,,Digital adoption and walkthroughs for software,{first}@gyde.ai
+128,Factors.ai,Marketing SaaS,,Marketing attribution and analytics platform,{first}@factors.ai
+129,Goodmeetings,Sales Tech,,AI-driven video engagement for sales meetings,{first}@goodmeetings.ai
+130,Discover Dollar,Retail SaaS,,Identifying overpayments for retail giants,{first}@discoverdollar.com
+131,Xoxoday,HRTech SaaS,,"Rewards, incentives, and loyalty management",{first}.{last}@xoxoday.com
+132,Skuad,HR / Payroll,,Global payroll and remote hiring platform,{first}@skuad.io
+133,Floik,Media SaaS,,Visual product documentation and demo platform,{first}@floik.com
+134,Saleshandy,Sales Tech,,Cold email outreach and tracking platform,{first}@saleshandy.com
+135,Threado AI,Comm. SaaS,,AI-driven support for community-led growth,{first}@threado.com
+136,Klenty,Sales Tech,,Sales engagement and automation platform,{first}@klenty.com
+137,Stackby,Productivity,,Spreadsheet-database hybrid for flexible workflows,{first}@stackby.com
+138,Astra Security,Cybersecurity,,Comprehensive web and mobile app security,{first}@getastra.com
+139,Gallabox,E-comm SaaS,,Conversational commerce platform for WhatsApp,{first}@gallabox.com
+140,BiteSpeed,E-comm SaaS,,Marketing platform for D2C brands on WhatsApp,{first}@bitespeed.co
+141,Docupilot,Productivity,,Automated document generation for businesses,{first}@docupilot.app
+142,Crunch,Fintech SaaS,,Financial reporting and analytics platform,{first}@crunch.ai
+143,Mergeo.ai,Media AI,,AI-driven video localization and marketing,{first}@mergeo.ai
+144,Dyrect,E-comm SaaS,,Post-purchase engagement and warranty platform,{first}@dyrect.com
+145,GimBooks,Fintech SaaS,,Invoicing and bookkeeping for Indian SMBs,{first}@gimbooks.com
+146,Bryckel AI,PropTech SaaS,,AI-driven real estate marketing and sales,{first}@bryckel.ai
+147,TicketRoot,Event SaaS,,Cloud-based ticketing and event management,{first}@ticketroot.com
+148,enParadigm,L&D SaaS,,Simulation-based learning for corporate training,{first}@enparadigm.com
+149,DesignWiz,Design SaaS,,Product design and collaboration platform,{first}@designwiz.com
+150,Loglens,Data SaaS,,High-concurrency log monitoring and analysis,{first}@loglens.io
+151,Deployment.io,DevOps SaaS,,Infrastructure automation for cloud deployments,{first}@deployment.io
+152,SalesAgents AI,Sales AI,,AI agents for lead generation and outreach,{first}@salesagents.ai
+153,Sowl,Social SaaS,,Community and networking platform for devs,{first}@sowl.io
+154,Emossy,HRTech SaaS,,Employee engagement and performance platform,{first}@emossy.com
+155,SocialPilot,Social SaaS,,Professional social media marketing tool,{first}@socialpilot.co
+156,Responsive,RFP SaaS,,Automating RFP and RFQ response workflows,{first}.{last}@responsive.io
+157,Vire Insights,Analytics SaaS,,Data-driven consumer insights for brands,{first}@vireinsights.ai
+158,Tune AI,Media Tech,,Audio-first personalization for media brands,{first}@tune.ai
+159,Dailybee,Logistics SaaS,,Route management for daily delivery services,{first}@dailybee.ai
+160,Billiontags,Supply Chain,,Transparent supply chain tracking for retail,{first}@billiontags.com
+161,GoSelfServe,Retail SaaS,,Automated retail checkout and inventory,{first}@goselfserve.com
+162,Superworks,HRTech SaaS,,"Integrated HR, payroll, and recruitment",{first}@superworks.com
+163,Kwanzoo,ABM SaaS,,Account-based marketing for enterprise B2B,{first}@kwanzoo.com
+164,Economize,Cloud SaaS,,Optimizing and reducing cloud infrastructure costs,{first}@economize.cloud
+165,dropthought,Survey SaaS,,Real-time customer experience and feedback,{first}@dropthought.com
+166,TruckHall,Logistics SaaS,,Full-stack platform for trucking and freight,{first}@truckhall.com
+167,Docket AI,Knowledge SaaS,,AI-powered knowledge base for support teams,{first}@docket.ai
+168,Omnify,Scheduling SaaS,,Booking and scheduling for service businesses,{first}@getomnify.com
+169,Equip,HRTech SaaS,,Skills-based assessment for tech hiring,{first}@equip.co
+170,GTM Buddy,Sales Tech,,Contextual sales enablement for B2B teams,{first}@gtmbuddy.ai
+171,IntelliOak,Enterprise Tech,,Data and digital transformation consultancy,{first}@intellioak.com
+172,OneIntegral,IT Ops SaaS,,Managing IT infrastructure for distributed teams,{first}@oneintegral.com
+173,DigiUsher,Digital SaaS,,Automating digital transformation workflows,{first}@digiusher.com
+174,Xobin,HRTech SaaS,,Platform for pre-employment skill tests,{first}@xobin.com
+175,OneMetrik,Data SaaS,,Business performance and metrics tracking,{first}@onemetrik.com
+176,Proptor,PropTech SaaS,,Real estate property management and sales,{first}@proptor.ai
+177,clAppIt,Media SaaS,,Cloud-based video and audio editing studio,{first}@clappit.com
+178,Aspiro,Fintech SaaS,,Personal finance and savings for employees,{first}@aspiro.io
+179,Selfbest,Productivity,,AI-driven time management for individuals,{first}@selfbest.com
+180,GenSpark,AI Media,,AI-powered content generation for social,{first}@genspark.ai
+181,Dreamcast,Event Tech,,Virtual and hybrid event hosting platform,{first}@dreamcast.in
+182,Exprs,Logistics SaaS,,Last-mile and neighborhood logistics hubs,{first}@exprs.in
+183,FreJun,Sales Tech,,Automated calling and CRM logging for sales,{first}@frejun.com
+184,Fitbots,OKR SaaS,,Goal setting and OKR tracking for businesses,{first}@fitbots.com
+185,Qapita,Fintech SaaS,,Equity management and cap table tracking,{first}@qapita.com
+186,Magic Studio,Media AI,,AI tools for high-quality photo editing,{first}@magicstudio.com
+187,Steam-A,Edtech SaaS,,Personalized learning for STEM education,{first}@steam-a.com
+188,100 Circles,Community SaaS,,Professional networking for niche communities,{first}@100circles.com
+189,10xers Labs,SaaS Studio,,Venture studio for building B2B SaaS,{first}@10xers.com
+190,Appbrew,Mobile SaaS,,High-speed mobile app building platform,{first}@appbrew.io
+191,Appsmith,Open Source,,Framework for building internal business tools,{first}@appsmith.com
+192,Aptly,PropTech SaaS,,CRM and workflow for property management,{first}@aptly.io
+193,Aramya,Fashion Tech,,Tech-enabled supply chain for women's ethnic wear,{first}@aramya.com
+194,Avenir,Procurement SaaS,,AI-driven procure-to-pay and contract mgmt,{first}@aavenir.com
+195,BestDoc,Healthtech SaaS,,Patient relationship and experience management,{first}@bestdocapp.com
+196,Binocs,Fintech SaaS,,Crypto tax compliance and reporting,{first}@binocs.co
+197,100ms,Video Infra,,Live video infrastructure for developers,{first}@100ms.live
+198,1Balance,Health Brand,,Subscription-based herbal health supplements,{first}@1balance.com
+199,AgroStar,Agtech,,E-commerce and advisory platform for farmers,{first}.{last}@agrostar.in
+200,Akto,Cybersecurity,,Plug-and-play API security platform,{first}@akto.io
+201,Sarvam AI,AI Infrastructure,,Developing foundational LLMs for Indian languages,{first}@sarvam.ai
+202,Krutrim,AI Cloud,,Building sovereign AI infrastructure for India,{first}@olakrutrim.com
+203,Neysa,AI Infrastructure,,AI infrastructure and platform services,{first}@neysa.ai
+204,Myelin Foundry,Edge AI,,AI platforms for the media and industrial sectors,{first}@myelinfoundry.com
+205,Qbeast,Data Infrastructure,,Optimizing query engines for Lakehouse platforms,{first}@qbeast.io
+206,Nirmata,DevOps / Infra,,Policy-as-code for Kubernetes security,{first}@nirmata.com
+207,Pre6,Manufacturing AI,,Bringing modern AI to the manufacturing shopfloor,{first}@pre6.ai
+208,Palo,Content AI,,AI-driven workflows for short-form content,{first}@palo.ai
+209,OnFinance AI,Fintech AI,,Compliance automation for the BFSI sector,{first}@onfinance.ai
+210,JustAI,Marketing AI,,Hyper-personalizing marketing with AI agents,{first}@justai.com
+211,Cybrilla,Wealth Infra,,Decentralized wealth management infrastructure,{first}@cybrilla.com
+212,AIR Trading,Trading AI,,AI-powered global trading and data systems,{first}@airtrading.ai
+213,Finster AI,Financial AI,,AI-native platform for finance professionals,{first}@finster.ai
+214,Round1 AI,Recruitment AI,,AI-powered candidate screening and interviewing,{first}@round1.ai
+215,SixSense,Industrial AI,,AI-driven vision and quality control for mfg,{first}@sixsense.ai
+216,Tonbo.io,Database Infra,,Serverless database solutions for developers,{first}@tonbo.io
+217,Supanote AI,Health AI,,Automating session notes for health clinics,{first}@supanote.ai
+218,Ten X You,Media AI,,Personal AI avatars for creators and celebs,{first}@tenxyou.com
+219,Pixis,Marketing AI,,AI for optimizing global digital ad spend,{first}@pixis.ai
+220,Qure AI,Medical AI,,AI for automating medical scans and imaging,{first}@qure.ai
+221,Jiffy AI,Enterprise AI,,Robotic process automation for enterprises,{first}@jiffy.ai
+222,Video Verse,Media AI,,Intelligent video highlight generation,{first}@vverse.ai
+223,Neuron7 AI,Service AI,,Resolving complex customer issues using AI,{first}@neuron7.ai
+224,InVideo,Media AI,,AI-powered professional video creation,{first}@invideo.io
+225,MathCo,Data AI,,Advanced analytics and AI consulting,{first}@themathcompany.com
+226,Leena AI,HR AI,,AI-powered employee experience platform,{first}@leena.ai
+227,Atomicwork,IT / HR AI,,Service management for modern enterprises,{first}@atomicwork.com
+228,Nanonets,Automation AI,,Capturing and structuring data from documents,{first}@nanonets.com
+229,Avaamo,Conversational AI,,Multi-modal conversational AI for biz,{first}@avaamo.ai
+230,Fireflies,Media AI,,AI assistant for recording and transcribing,{first}@fireflies.ai
+231,Prismforce,Talent AI,,Resource management for IT services firms,{first}@prismforce.com
+232,NextBillionAI,Spatial AI,,Mapping and spatial data infrastructure,{first}@nextbillion.ai
+233,Actyv AI,Fintech AI,,B2B buy-now-pay-later (BNPL) using AI,{first}@actyv.ai
+234,Nektar AI,CRM AI,,Automated CRM data capture and insights,{first}@nektar.ai
+235,Arya.ai,BFSI AI,,Deep learning for financial services,{first}@arya.ai
+236,Bobble AI,Media Tech,,AI-powered keyboard and conversational media,{first}@bobble.ai
+237,Yellow.ai,Support AI,,Generative AI for customer support automation,{first}@yellow.ai
+238,Attentive.ai,Field AI,,AI for landscaping and field service management,{first}@attentive.ai
+239,Udemy,Edtech,,Global learning marketplace with large India R&D,{first}.{last}@udemy.com
+240,Niramai,Health AI,,Early breast cancer detection through thermal AI,{first}@niramai.com
+241,Agnikul Cosmos,SpaceTech,,Building modular rocket launch vehicles,{first}@agnikul.in
+242,Skyroot Aerospace,SpaceTech,,Private satellite launch services,{first}@skyroot.in
+243,QNu Labs,Cybersecurity,,Leading Indian quantum cryptography firm,{first}@qnulabs.com
+244,SigTuple,Medical AI,,Automated blood and urine analysis,{first}@sigtuple.com
+245,Log 9 Materials,Cleantech,,Aluminum-fuel cell and battery tech,{first}@log9materials.com
+246,GreyOrange,Robotics,,Global warehouse robotics and automation,{first}.{last}@greyorange.com
+247,Locus.sh,Logistics AI,,Decision-making for logistics and delivery,{first}@locus.sh
+248,CropIn,Agtech,,Cloud-based data platform for farmers,{first}@cropin.com
+249,Zenatix,IoT,,Energy monitoring for commercial retail,{first}@zenatix.com
+250,Euler Motors,Mobility,,Electric three-wheelers for cargo delivery,{first}@eulermotors.com
+251,Ultraviolette,Mobility,,High-performance electric motorcycles,{first}@ultraviolette.com
+252,SpaceFields,SpaceTech,,Building rocket engines for micro-satellites,{first}@spacefields.com
+253,Chakr Innovation,Cleantech,,Emission control and carbon capture tech,{first}@chakr.in
+254,Serentica,Cleantech,,Decarbonization for energy-heavy industries,{first}.{last}@serentica.com
+255,Tessolve,Semiconductors,,Leading semiconductor engineering services,{first}.{last}@tessolve.com
+256,Indkal,Consumer Tech,,Smart home hardware and appliances,{first}@indkal.com
+257,Vyome,Biotech,,Developing novel medicines for skin health,{first}@vyome.in
+258,Rubicon,Biotech,,Specialty pharmaceutical development,{first}.{last}@rubicon.com
+259,Adaptive,Cybersecurity,,Identity management for an AI-native world,{first}@adaptive.io
+260,InspeCity,SpaceTech,,Building a fleet of orbital service vehicles,{first}@inspecity.com
+261,Plotch.ai,E-comm Infra,,Enabling enterprises on the ONDC network,{first}@plotch.ai
+262,Navana Tech,Voice AI,,Multilingual voice stack for Indian consumers,{first}@navana.ai
+263,Figr,Design AI,,Autopilot for UI/UX design research,{first}@figr.design
+264,Infer.so,Voice AI,,AI voice bots for insurance and lending,{first}@infer.so
+265,Pascal,Fintech AI,,AI agents for investment managers,{first}@pascal.ai
+266,Storefox.ai,Retail AI,,Monitoring offline retail through audio AI,{first}@storefox.ai
+267,Autodraft,Media AI,,AI-powered animation for storytellers,{first}@autodraft.ai
+268,NimbleBox,MLOps,,Unified platform for building and scaling ML,{first}@nimblebox.ai
+269,Ripik.AI,Industrial AI,,AI for supply chain and manufacturing,{first}@ripik.ai
+270,ASETS,Energy Infra,,Cloud-based EPC and plant design,{first}@asets.io
+271,Spintly,IoT,,Cloud-based wireless access control systems,{first}@spintly.com
+272,Skoob,Media Tech,,Social reading and book discovery platform,{first}@skoob.io
+273,Psyke,Media AI,,AI-driven content and social engagement,{first}@psyke.ai
+274,Youshd,E-comm Tech,,Influencer marketing for D2C brands,{first}@youshd.com
+275,Redacto,Cybersecurity,,Redacting sensitive PII for data compliance,{first}@redacto.ai
+276,Inamo,Consumer AI,,High-frequency AI-driven consumer apps,{first}@inamo.ai
+277,Cautio,Media AI,,Visual telematics and dashboard analytics,{first}@cautio.ai
+278,ApniBus,Mobility Tech,,Intercity bus booking and tracking,{first}@apnibus.com
+279,Bold Finance,Fintech,,Tech-enabled gold loan marketplace,{first}@boldfinance.in
+280,codedamn,Edtech,,Interactive platform to learn to code,{first}@codedamn.com
+281,Gladful,D2C Brand,,Protein-rich snacks for children,{first}@gladful.in
+282,Navana Tech,AI Research,,Breaking literacy barriers with voice AI,{first}@navana.ai
+283,InspeCity,Aerospace,,Space robotics for satellite servicing,{first}@inspecity.com
+284,Cautio,AI Safety,,Real-time visual monitoring for road safety,{first}@cautio.ai
+285,Zingle,Data AI,,Making databases generative AI-ready,{first}@zingle.ai
+286,Revvolution AI,RevOps AI,,AI agents for revenue and data hygiene,{first}@revvolution.ai
+287,Posha,Leap Tech,,Paradigm-shifting tech for human exp.,{first}@posha.ai
+288,Sarla Aviation,Mobility,,Urban air mobility and electric aircraft,{first}@sarla.aero
+289,Accelequant,Quantum Tech,,High-speed quantum financial modelling,{first}@accelequant.com
+290,Wiom,Telecom Tech,,Distributed internet for the Indian masses,{first}@wiom.in
+291,Haber,Industrial AI,,AI for reducing water and chemical waste,{first}@haberi.com
+292,Aignosis,Health AI,,AI-driven early autism detection,{first}@aignosis.ai
+293,APM Medichem,Pharma Tech,,Tech-enabled pharma manufacturing partner,{first}@apmmedichem.com
+294,Segwise,Data AI,,Data monitoring co-pilot for growth teams,{first}@segwise.ai
+295,Plotch.ai,E-comm Tech,,Enterprise-grade ONDC infrastructure,{first}@plotch.ai
+296,Alt Fashion,Media Tech,,Meta-search engine for fashion brands,{first}@altfashion.in
+297,Kubo Care,Healthtech,,Eldercare platform with assisted living,{first}@kubocare.com
+298,Hexo.ai,Data AI,,Advanced data science for consumer insights,{first}@hexo.ai
+299,Atlan,Data SaaS,,Active metadata platform for data teams,{first}@atlan.com
+300,1Password,Cybersecurity,,Password manager with significant India hub,{first}.{last}@1password.com
+301,RDash,Real Estate Tech,,,{first}@rdash.io
+302,Swipe,Fintech,,,{first}@getswipe.in
+303,IMT Care,Healthtech,,,{first}@imtcare.com
+304,Hiration,CareerTech,,,{first}@hiration.com
+305,ODWEN,Logistics,,,{first}@odwen.com
+306,SuperKalam,Edtech,,,{first}@superkalam.com
+307,Infinity,Fintech,,,{first}@infinity.io
+308,CheqUPI,Fintech,,,{first}@chequpi.com
+309,Fieldproxy,Workforce Mgmt,,,{first}@fieldproxy.com
+310,DocVita,Healthtech,,,{first}@docvita.com
+311,Mantys,Fintech,,,{first}@mantys.io
+312,Better Opinions,Prediction Market,,,{first}@betteropinions.in
+313,Rehook.ai,Marketing SaaS,,,{first}@rehook.ai
+314,Clueso,Knowledge SaaS,,,{first}@clueso.io
+315,MySivi,Healthtech,,,{first}@mysivi.com
+316,DrDroid,Observability,,,{first}@drdroid.io
+317,Mindbase,Enterprise SaaS,,,{first}@mindbase.io
+318,SalaryBook,HRTech,,,{first}@salarybook.com
+319,Bolna AI,Voice AI,,,{first}@bolna.ai
+320,Paasa,Fintech,,,{first}@paasa.ai
+321,Yenmo,Fintech,,,{first}@yenmo.in
+322,PayCrunch,Fintech,,,{first}@paycrunch.in
+323,ClickPe,Fintech,,,{first}@clickpe.com
+324,SuperAPI,DevTool,,,{first}@superapi.io
+325,Brik,Construction SaaS,,,{first}@brik.build
+326,Databrain,Data SaaS,,,{first}@databrain.io
+327,Dhiwise,DevTool,,,{first}@dhiwise.com
+328,Dpanda,E-commerce SaaS,,,{first}@dpanda.in
+329,Fishlog,B2B Marketplace,,,{first}@fishlog.co
+330,Mello,Social / B2C,,,{first}@mello.app
+331,Lovable,AI App Builder,,,{first}@lovable.ai
+332,Airalo,Travel Tech,,,{first}@airalo.com
+333,Peec.ai,Marketing AI,,,{first}@peec.ai
+334,Reebelo,E-commerce,,,{first}@reebelo.com
+335,Taqtic,AI Productivity,,,{first}@taqtic.ai
+336,Wingbits,Aviation AI,,,{first}@wingbits.com
+337,0-mission,Climate Tech,,,{first}@0-mission.com
+338,12iD,Identity Tech,,,{first}@12id.com
+339,19VPN,Cybersecurity,,,{first}@19vpn.com
+340,5.Y GLUCOSE,Agentic AI,,,{first}@5yglucose.ai
+341,913.ai,B2B AI,,,{first}@913.ai
+342,ABIVO,B2B SaaS,,,{first}@abivo.ai
+343,ACSIRYO K.K.,Healthtech,,,{first}@acsiryo.com
+344,AEOFLO,SEO AI,,,{first}@aeoflo.ai
+345,AIFluence,Marketing AI,,,{first}@aifluence.com
+346,AIKA,Fintech,,,{first}@aika.io
+347,ALFI AI,Wealth AI,,,{first}@alfi.ai
+348,ARCA,Cleantech,,,{first}@arca.com
+349,ARDOR,B2B Software,,,{first}@ardor.ai
+350,ARKI,Real Estate AI,,,{first}@arki.ai
+351,AURELIA,Food Compliance,,,{first}@aurelia.ai
+352,AWAN,Fashion Tech,,,{first}@awan.com
+353,Abel Studios,Media Tech,,,{first}@abelstudios.com
+354,Abode,PropTech,,,{first}@abode.io
+355,Abode Labs,PropTech AI,,,{first}@abodelabs.ai
+356,Abstraction.dev,DevOps Tool,,,{first}@abstraction.dev
+357,Academlo,Edtech SaaS,,,{first}@academlo.com
+358,Acanthis,B2B SaaS,,,{first}@acanthis.io
+359,Acceleq,Healthtech,,,{first}@acceleq.com
+360,Aerotime,Productivity,,,{first}@aerotime.com
+361,AI Rudder,Voice AI,,,{first}@airudder.com
+362,Airmeet,Event Tech,,,{first}@airmeet.com
+363,Akulaku,Fintech,,,{first}@akulaku.com
+364,Animall,Agtech,,,{first}@animall.in
+365,Arbo Works,Fintech,,,{first}@arbo.works
+366,Arrow,E-commerce,,,{first}@arrow.com
+367,Aspire,Fintech SaaS,,,{first}@aspireapp.com
+368,Astro,Quick Commerce,,,{first}@astro.id
+369,Aukera,Lab Diamonds,,,{first}@aukera.com
+370,Auquan,FinTech,,,{first}@auquan.com
+371,Axio,Lending,,,{first}@axio.co.in
+372,BankBazaar,Fintech,,,{first}.{last}@bankbazaar.com
+373,Basis Technologies,Enterprise AI,,,{first}@basis.ai
+374,Beam,Mobility,,,{first}@ridebeam.com
+375,BeautyHaul,E-commerce,,,{first}@beautyhaul.com
+376,Belong,Recruitment SaaS,,,{first}@belong.co
+377,Beta Finance,DeFi,,,{first}@betafinance.org
+378,Better Auth,Security Tech,,,{first}@betterauth.com
+379,Plum,Insurtech,,,{first}@plumhq.com
+380,Elivaas,PropTech,,,{first}@elivaas.com
+381,MasterChow,Food Brand,,,{first}@masterchow.in
+382,Vault Wealth,Wealth Tech,,,{first}@vaultwealth.com
+383,Thanks,Consumer,,,{first}@thanks.com
+384,Round1,AI Recruitment,,,{first}@round1.ai
+385,MPL,Esports Tech,,,{first}.{last}@mpl.com
+386,FinBox,Fintech Infra,,,{first}@finbox.in
+387,NSE,Stock Exchange,,,{first}.{last}@nse.co.in
+388,Kapiva,Health Brand,,,{first}.{last}@kapiva.in
+389,Stan,Gaming Tech,,,{first}@stan.gg
+390,Seekho,Edtech SaaS,,,{first}@seekho.ai
+391,Flipspaces,Interior SaaS,,,{first}@flipspaces.com
+392,VAMA,Spiritual Tech,,,{first}@vama.app
+393,PayU,Payments,,,{first}.{last}@payu.in
+394,TransBnk,Banking Tech,,,{first}@transbnk.com
+395,Truemeds,E-pharmacy,,,{first}.{last}@truemeds.in
+396,Fyno,Messaging,,,{first}@fyno.io
+397,Cashify,Device Re-comm.,,,{first}.{last}@cashify.in
+398,Swift,Checkout SaaS,,,{first}@swift.com
+399,Cashfree,Payments,,,{first}.{last}@cashfree.com
+400,HD Works,Casual Gaming,,,{first}.{last}@hdworks.in
+401,CSTEP,Policy / S&T,Bengaluru,,{first}@cstep.in
+402,CEEW,Energy / Water,New Delhi,,{first}.{last}@ceew.in
+403,ORF,Int. Relations,New Delhi,,{first}@orfonline.org
+404,CPR India,Governance,New Delhi,,{first}@cprindia.org
+405,NITI Aayog,Apex Think Tank,New Delhi,,{first}.{last}@gov.in
+406,ICWA,Diplomacy,New Delhi,,{first}@icwa.in
+407,RIS,Global South,New Delhi,,{first}@ris.org.in
+408,TERI,Energy / Resources,New Delhi,,{first}@teri.res.in
+409,VIF,Strategic Affairs,New Delhi,,{first}@vifindia.org
+410,CCS,Civil Society,New Delhi,,{first}@ccs.in
+411,ATREE,Ecology,Bengaluru,,{first}@atree.org
+412,IEG,Economic Growth,New Delhi,,{first}@iegindia.org
+413,TCOE,Telecom,New Delhi,,{first}@tcoe.in
+414,ADR India,Politics,New Delhi,,{first}@adrindia.org
+415,CAPS,Air Power,New Delhi,,{first}@capsindia.org
+416,CDS,Development,Thiruvananthapuram,,{first}@cds.edu
+417,CSEP,Climate / IR,New Delhi,,{first}@csep.org
+418,CLAWS,Land Warfare,New Delhi,,{first}@claws.in
+419,CMIE,Economic Data,Mumbai,,{first}@cmie.com
+420,CPPR,Policy Research,Kochi,,{first}@cppr.in
+421,CSE,Environment,New Delhi,,{first}@cseindia.org
+422,C3S,China Studies,Chennai,,{first}@c3sindia.org
+423,ECIPH,Public Health,Mangalore,,{first}@eciph.in
+424,FFE,Entrepreneurship,Mumbai,,{first}@ffe.org
+425,FDR India,Governance,Hyderabad,,{first}@fdrindia.org
+426,IICA,Corporate Affairs,New Delhi,,{first}.{last}@iica.in
+427,IDSA,Defense,New Delhi,,{first}@idsa.in
+428,ISID,Industrial Dev,New Delhi,,{first}@isid.org.in
+429,IFS India,Food Security,Gurugram,,{first}@ifs.org.in
+430,IPH Bengaluru,Public Health,Bengaluru,,{first}@iphindia.org
+431,ISEC,Social Change,Bengaluru,,{first}@isec.ac.in
+432,ICFOSS,Open Source,Thiruvananthapuram,,{first}@icfoss.in
+433,IGC India,Growth,New Delhi,,{first}@theigc.org
+434,NCDS,Development,Bhubaneswar,,{first}@ncds.nic.in
+435,NAAS,Agriculture,New Delhi,,{first}@naasindia.org
+436,NCCD,Cold Chain,New Delhi,,{first}@nccd.gov.in
+437,NCAER,Applied Economics,New Delhi,,{first}@ncaer.org
+438,NIAS,Advanced Studies,Bengaluru,,{first}@nias.res.in
+439,NIPFP,Public Finance,New Delhi,,{first}@nipfp.org.in
+440,NMF,Maritime,New Delhi,,{first}@maritimeindia.org
+441,Digital India Corp,Digital Arm,New Delhi,,{first}.{last}@dic.gov.in
+442,India AI,AI Research,New Delhi,,{first}@indiaai.gov.in
+443,BHASHINI,Voice Tech,New Delhi,,{first}@bhashini.gov.in
+444,DRDO,Defense Research,PAN India,,{first}.{last}@drdo.in
+445,ISRO,Space Research,Bengaluru,,{first}.{last}@isro.gov.in
+446,NIC,IT Infrastructure,New Delhi,,{first}.{last}@nic.in
+447,ICERT,Cybersecurity,New Delhi,,{first}@cert-in.org.in
+448,BARC,Nuclear Research,Mumbai,,{first}@barc.gov.in
+449,STQC,Standardization,New Delhi,,{first}@stqc.gov.in
+450,NIELIT,Electronics / IT,New Delhi,,{first}@nielit.gov.in
+451,CDAC,Advanced Comp.,Pune,,{first}.{last}@cdac.in
+452,BSNL,Telecom,New Delhi,,{first}.{last}@bsnl.co.in
+453,BEL,Electronics,Bengaluru,,{first}.{last}@bel-india.in
+454,HAL,Aerospace,Bengaluru,,{first}.{last}@hal-india.co.in
+455,ONGC,Energy,New Delhi,,{first}.{last}@ongc.co.in
+456,IOCL,Energy,New Delhi,,{first}.{last}@iocl.com
+457,BHEL,Engineering,New Delhi,,{first}.{last}@bhel.in
+458,NTPC,Power,New Delhi,,{first}.{last}@ntpc.co.in
+459,GAIL,Energy,New Delhi,,{first}.{last}@gail.co.in
+460,PGCIL,Power Grid,Gurugram,,{first}.{last}@powergrid.in
+461,NHAI,Infrastructure,New Delhi,,{first}.{last}@nhai.org
+462,AAI,Airports,New Delhi,,{first}.{last}@aai.aero
+463,Indian Railways,Transportation,New Delhi,,{first}.{last}@railnet.gov.in
+464,CPWD,Public Works,New Delhi,,{first}.{last}@nic.in
+465,Prasar Bharati,Media,New Delhi,,{first}.{last}@prasarbharati.gov.in
+466,NABARD,Finance,Mumbai,,{first}.{last}@nabard.org
+467,SIDBI,Finance,Lucknow,,{first}.{last}@sidbi.in
+468,EXIM Bank,Finance,Mumbai,,{first}.{last}@eximbankindia.in
+469,NPCI,Fintech Arm,Mumbai,,{first}.{last}@npci.org.in
+470,UIDAI,Digital ID,New Delhi,,{first}.{last}@uidai.net.in
+471,Meity,Ministry IT,New Delhi,,{first}.{last}@meity.gov.in
+472,Invest India,Investment,New Delhi,,{first}@investindia.org.in
+473,Startup India,Ecosystem,New Delhi,,{first}@startupindia.gov.in
+474,MyGov,Engagement,New Delhi,,{first}@mygov.in
+475,NKN,Knowledge Network,New Delhi,,{first}@nkn.in
+476,GeM,E-marketplace,New Delhi,,{first}.{last}@gem.gov.in
+477,GSTN,Fintech,New Delhi,,{first}.{last}@gstn.org.in
+478,ONDC,Open Commerce,New Delhi,,{first}@ondc.org
+479,BHIM,Payments,Mumbai,,{first}@npci.org.in
+480,DigiLocker,Digital Docs,New Delhi,,{first}@digitallocker.gov.in
+481,Umang,Gov Services,New Delhi,,{first}@umang.gov.in
+482,Aarogya Setu,Healthtech,New Delhi,,{first}@aarogyasetu.gov.in
+483,CoWIN,Healthtech,New Delhi,,{first}@cowin.gov.in
+484,Sahmati,Account Aggregator,Bengaluru,,{first}@sahmati.org.in
+485,iSPIRT,Tech Policy,Bengaluru,,{first}@ispirt.in
+486,NASSCOM,Tech Industry,Noida,,{first}@nasscom.in
+487,CII,Industry,New Delhi,,{first}.{last}@cii.in
+488,FICCI,Commerce,New Delhi,,{first}.{last}@ficci.com
+489,ASSOCHAM,Commerce,New Delhi,,{first}.{last}@assocham.com
+490,ICMR,Medical Research,New Delhi,,{first}.{last}@icmr.gov.in
+491,CSIR,Science Research,New Delhi,,{first}.{last}@csir.res.in
+492,TIFR,Fundamental Res,Mumbai,,{first}@tifr.res.in
+493,IISc,Science Research,Bengaluru,,{first}@iisc.ac.in
+494,IIT Madras Research Park,Innovation Hub,Chennai,,{first}@itmrp.com
+495,Foundation for Innovation,SINE IITB,Mumbai,,{first}@sineiitb.org
+496,FITT IIT Delhi,Tech Transfer,New Delhi,,{first}@fitt-iitd.org
+497,Society for Innov. (SID),IISc Hub,Bengaluru,,{first}@sid.iisc.ac.in
+498,AIC-IIITB,Incubation,Bengaluru,,{first}@iiitb.ac.in
+499,T-Hub,Innovation Hub,Hyderabad,,{first}@t-hub.co
+500,Kerala Startup Mission,Ecosystem,Kochi,,{first}@startupmission.in

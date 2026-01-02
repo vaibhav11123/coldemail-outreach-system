@@ -1,5 +1,13 @@
 # Cold Email Outreach Project - Structure Documentation
 
+**Version:** 2.0.0  
+**Last Updated:** 2025-01-03  
+**Changelog:**
+- v2.0.0: Updated for organized directory structure, normalization layer documentation, path updates
+- v1.0.0: Initial version
+
+---
+
 ## Overview
 
 This project is a comprehensive cold email outreach system designed for automated lead generation, data cleaning, and email campaign management. It consists of four main components:
@@ -18,10 +26,15 @@ coldemail/
 ├── outreach/                    # Main email campaign module
 ├── scraper_bridge/              # LinkedIn scraper and data ingestion
 ├── faculty-scraper/             # University faculty contact scraper (Ruby-based)
-├── data_cleaner.py              # CSV/PDF data processing and cleaning
-├── cold_email_outreach_all_cleaned_ranked.csv  # Master contact database
-├── outreach_campaign.log        # Campaign execution logs
-└── TESTING_GUIDE.md            # Testing documentation
+├── data/                        # Data files
+│   ├── raw/                     # Raw input data (CSV, PDF)
+│   ├── processed/               # Master processed database
+│   └── backups/                 # Backup files
+├── docs/                        # Documentation files
+├── scripts/                     # Root-level scripts
+│   └── data_cleaner.py          # CSV/PDF data processing and cleaning
+├── logs/                        # Log files
+└── config/                      # Configuration files
 ```
 
 ---
@@ -34,9 +47,10 @@ The core email campaign engine that manages automated sending, follow-ups, and s
 
 - **`campaign.py`** - Main orchestration script
   - **Critical:** Loads `.env` file BEFORE any imports (ensures credentials available)
-  - Loads contact data from master CSV
+  - **Path resolution:** Uses `Path(__file__).parent.parent` to resolve project root, then joins with `config.FILE_TO_LOAD`
+  - Loads contact data from `data/processed/cold_email_outreach_all_cleaned_ranked.csv`
   - Initializes tracking columns if missing (`Sent_Status`, timestamps, follow-up columns)
-  - **Daily quota management:** Counts emails sent today per campaign stage, enforces limit
+  - **Daily quota management:** Counts emails sent today per campaign stage, enforces limit (450/day default)
   - Filters recipients using `filter_recipients_by_stage()`
   - Applies test mode limit (5 emails) or daily quota limit
   - Establishes SMTP connection once, reuses for all emails
@@ -45,14 +59,17 @@ The core email campaign engine that manages automated sending, follow-ups, and s
     - Formats email with personalization
     - Sends via `SMTPMailer.send_email()`
     - Updates status and timestamp immediately
-    - **Saves CSV after each success** (fault-tolerant atomic save)
+    - **Saves CSV after each success** using `save_campaign_state()` (fault-tolerant atomic save via temp file + `os.replace()`)
     - Random delay (5-15 seconds) between sends
   - Final cleanup and save
-  - **Key feature:** State persistence after each email (not batch)
+  - **Key feature:** State persistence after each email (not batch) for maximum fault tolerance
 
 - **`config.py`** - Configuration and settings
   - SMTP credentials from `.env` file (`SENDER_EMAIL`, `SENDER_PASSWORD`)
   - SMTP server settings (Gmail: `smtp.gmail.com:587`)
+  - **File paths:** Uses relative paths from project root:
+    - `FILE_TO_LOAD = "data/processed/cold_email_outreach_all_cleaned_ranked.csv"`
+    - `LOG_FILE = "logs/outreach_campaign.log"`
   - Campaign stage control (`INITIAL_SEND`, `FOLLOW_UP_1`, `FOLLOW_UP_2`)
   - Daily send limits (default: 450 emails/day)
   - Test mode settings (`TEST_MODE`, `MAX_EMAILS_IN_TEST = 5`)
@@ -118,20 +135,36 @@ Bridges LinkedIn profile scraping with the campaign system using StaffSpy, with 
 
 - **`staffspy_ingest.py`** - Main StaffSpy ingestion pipeline
   - Uses `staffspy` library for LinkedIn profile scraping
+  - **Path configuration:** Uses `PROJECT_ROOT` pattern for all file paths:
+    - `MASTER_CSV_FOR_DEDUP = data/backups/cold_email_outreach_all_cleaned_ranked.csv.backup`
+    - `TARGET_COMPANIES_FILE = config/target_companies.csv`
   - **Normalization layer integration**: Transforms raw scraping output into outreach-ready data
   - **Organized diagnostics**: All output files saved to `diagnostics/company_snapshots/{company}/`
+  - **Company-specific folders:** Creates dedicated folder per company for all diagnostic outputs
+  - **SAFE mode improvements:** Now loads email format from `target_companies.csv` instead of hardcoding
+  - **Production resume logic:** Safely removes processed companies from list using list comprehension
   - Supports SAFE mode (single company testing) and PRODUCTION mode
   - Applies scoring, deduplication, and staging logic
+  - **Safe NA handling:** Uses `safe_int()` and `safe_bool()` helpers for pandas NA values
   - Safety guards: randomized delays, error handling, logging
 
-- **`normalize_for_outreach.py`** - **NEW: Outreach Normalization Layer**
-  - **Hard filtering**: Removes invalid profiles (headless, LinkedIn Member, search results)
+- **`normalize_for_outreach.py`** - **Outreach Normalization Layer (Critical Business Logic)**
+  - **Strict schema enforcement:** Outputs only outreach-relevant columns (company, name, role, email, confidence, etc.)
+  - **Hard filtering**: Removes invalid profiles (headless, LinkedIn Member, search results, empty headlines)
   - **Role filtering**: Explicit allow/deny lists for decision-adjacent roles
-  - **Title normalization**: Maps noisy titles to canonical roles with seniority/department
-  - **Email generation**: Priority-based email generation with confidence scores (0.0-1.0)
+    - **Allowed:** Director, Head, VP, Principal, Staff Engineer, Engineering Manager, Tech Lead, Founder, C-Level
+    - **Excluded:** Intern, SDE-1/2, QA, Test, Support, Student, Operations, HR, Recruiter, Junior
+  - **Title normalization**: Maps noisy titles to canonical roles with seniority/department mapping
+    - Example: "Engineering Manager @ Zepto" → "Engineering Manager" (Manager, Engineering)
+    - Includes catch-all for Software Engineer (IC) roles
+  - **Email generation with confidence**: Priority-based email generation
+    - Priority 1 (0.9): Email format from CSV confirmed
+    - Priority 2 (0.6): Extracted from potential_emails
+    - Priority 3 (0.3): Fallback pattern (first.last@domain)
   - **Minimum confidence threshold**: Only emails with confidence ≥ 0.3 are accepted
-  - **Rejection tracking**: Captures all rejected leads with reasons
-  - Uses `logging` module for all output
+  - **Rejection tracking**: Captures all rejected leads with detailed reasons in `rejected_debug.csv`
+  - **Logging**: Uses `logging` module for all output (no print statements)
+  - **Returns:** `(outreach_ready_df, rejected_debug_df)` tuple
 
 - **`scraper_to_ingest.py`** - Legacy LinkedIn profile scraper (alternative)
   - Uses Selenium and `linkedin_scraper` library
@@ -142,14 +175,30 @@ Bridges LinkedIn profile scraping with the campaign system using StaffSpy, with 
   - Randomized delays to avoid detection
   - Calls `ingest_new_leads()` to save data
 
-- **`ingest_function.py`** - Data ingestion bridge
-  - Appends new leads to master CSV (`cold_email_outreach_all_cleaned_ranked.csv`)
-  - Prevents duplicates by checking existing emails
-  - Initializes campaign state columns:
-    - `Sent_Status`, `Sent_Timestamp`
-    - `FollowUp_1_Status`, `FollowUp_1_Timestamp`
-    - `FollowUp_2_Status`, `FollowUp_2_Timestamp`
-  - Sets all new leads to `PENDING` status
+- **`enforce_master_schema.py`** - Schema enforcement for verified leads
+  - Converts verified leads to campaign-ready master schema
+  - **Path configuration:** Uses `PROJECT_ROOT` pattern:
+    - `INPUT_CSV = scraper_bridge/final_verified_leads.csv`
+    - `OUTPUT_CSV = data/processed/cold_email_outreach_all_cleaned_ranked.csv`
+  - Ensures required columns exist (`Name`, `Title`, `Email`, `Company`, `HiringScore`)
+  - Adds missing campaign columns with defaults
+  - Normalizes types (HiringScore to int, Email to lowercase string)
+  - Returns DataFrame with canonical column order
+
+- **`qualify_leads.py`** - Lead qualification and verification
+  - **Path configuration:** Uses `PROJECT_ROOT` pattern:
+    - `INPUT_CSV = data/processed/cold_email_outreach_all_cleaned_ranked.csv`
+    - `OUTPUT_CSV = scraper_bridge/og_final_verified_leads.csv`
+  - **DNS verification:** Checks MX records for email domains (cached)
+  - **Lead scoring:** Calculates qualification score (0-100) based on:
+    - Email syntax validation
+    - Role inbox detection (info@, support@, etc.)
+    - Domain authority (free vs. corporate)
+    - Title authority (founder, VP, director, etc.)
+    - Data completeness
+    - Name/email consistency
+  - Filters out low-quality leads (role inboxes, free domains for corporate contacts)
+  - Saves verified leads with qualification scores
 
 ### Directory Structure:
 
@@ -179,7 +228,7 @@ scraper_bridge/
 7. **Rejection Tracking**: Saves all rejected leads with detailed reasons
 
 ### Workflow:
-1. `staffspy_ingest.py` loads target companies from `target_companies.csv`
+1. `staffspy_ingest.py` loads target companies from `config/target_companies.csv`
 2. For each company, scrapes LinkedIn profiles using StaffSpy
 3. Saves raw snapshot to `diagnostics/company_snapshots/{company}/staffspy_raw_snapshot.csv`
 4. **Normalizes data** using `normalize_for_outreach()`:
@@ -364,7 +413,11 @@ The enrichment module adds research-focused personalization capabilities, making
 
 ### Data Processing:
 
-- **`data_cleaner.py`** - Master data cleaning script
+- **`scripts/data_cleaner.py`** - Master data cleaning script
+  - **Path configuration:** Uses relative paths from `scripts/` directory:
+    - `CSV_FILE = "../data/raw/14400+ Ultimate HR Outreach List...csv"`
+    - `PDF_FILE = "../data/raw/Company Wise HR Contacts - HR Contacts.pdf"`
+    - `OUTPUT_FILE = "../data/processed/cold_email_outreach_all_cleaned_ranked.csv"`
   - **CSV Processing (`process_csv`):**
     - Reads CSV file (skips first 3 rows)
     - Renames columns, normalizes data
@@ -394,7 +447,7 @@ The enrichment module adds research-focused personalization capabilities, making
     - Calculates `HiringScore` for each row
     - Sorts by `HiringScore` (descending)
     - Removes duplicates (by Email + Company)
-    - Outputs: `cold_email_outreach_all_cleaned_ranked.csv`
+    - Outputs: `data/processed/cold_email_outreach_all_cleaned_ranked.csv`
   - **Test Mode:** Can limit CSV rows and PDF pages for testing
 
 ### Data Files:
@@ -408,15 +461,15 @@ The enrichment module adds research-focused personalization capabilities, making
   - Sorted by `HiringScore` (descending)
   - This is the single source of truth for all campaigns
 
-- **`cold_email_outreach_all_cleaned_ranked.csv.backup`** - Backup of master CSV
+- **`data/backups/cold_email_outreach_all_cleaned_ranked.csv.backup`** - Backup of master CSV
 
-- **`14400+ Ultimate HR Outreach List  - DataNiti - 2500+ HR's Manager Contacts with Profiles - .csv`** - Raw input data
+- **`data/raw/14400+ Ultimate HR Outreach List  - DataNiti - 2500+ HR's Manager Contacts with Profiles - .csv`** - Raw input data
 
-- **`Company Wise HR Contacts - HR Contacts.pdf`** - Raw PDF input data
+- **`data/raw/Company Wise HR Contacts - HR Contacts.pdf`** - Raw PDF input data
 
 ### Logs:
 
-- **`outreach_campaign.log`** - Campaign execution logs
+- **`logs/outreach_campaign.log`** - Campaign execution logs
   - Records all email sends, failures, and system events
   - Timestamped entries for debugging and auditing
 
@@ -569,7 +622,7 @@ The system uses environment variables (`.env` file) for sensitive configuration:
    - Email-based duplicate checking during ingestion
 
 4. **Comprehensive Logging**
-   - All operations logged to `outreach_campaign.log`
+   - All operations logged to `logs/outreach_campaign.log`
    - Timestamped entries for auditing
 
 ---
@@ -579,7 +632,7 @@ The system uses environment variables (`.env` file) for sensitive configuration:
 1. **Initial Setup:**
    ```bash
    # Process raw data
-   python data_cleaner.py
+   python scripts/data_cleaner.py
    
    # Or scrape new leads (StaffSpy - recommended)
    cd scraper_bridge
@@ -599,7 +652,7 @@ The system uses environment variables (`.env` file) for sensitive configuration:
    ```
 
 3. **Monitor:**
-   - Check `outreach_campaign.log` for execution details
+   - Check `logs/outreach_campaign.log` for execution details
    - Review CSV file for updated statuses
    - Verify sent emails in your email account
 
@@ -626,7 +679,7 @@ The system uses environment variables (`.env` file) for sensitive configuration:
 
 ## Notes
 
-- The master CSV file (`cold_email_outreach_all_cleaned_ranked.csv`) is the single source of truth
+- The master CSV file (`data/processed/cold_email_outreach_all_cleaned_ranked.csv`) is the single source of truth
 - Always backup the CSV before running campaigns
 - Test mode should be used for initial testing (sends only 5 emails)
 - The system is designed to be run daily, respecting quota limits
