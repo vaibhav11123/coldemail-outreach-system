@@ -1,19 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Profile — Academic Outreach Studio{% endblock %}
 {% block content %}
-<p class="hero-kicker">Start here</p>
-<h1>Your academic profile</h1>
-<p class="muted">Confirmed lines are used in matching and drafts. Unconfirmed CV lines are unused.</p>
+<p class="hero-kicker">Step 1 of 3</p>
+<h1>Tell us what you want to research</h1>
+<p class="lede">Import your CV, confirm extracted lines, then explore matching professors. AI is optional.</p>
 <ul class="step-rail" aria-label="Where you are">
   <li class="active">1 · Profile</li>
-  <li>2 · Openings</li>
+  <li>2 · Directory</li>
   <li>3 · Shortlist</li>
   <li>4 · Draft</li>
   <li>5 · Track</li>
 </ul>
 
-<form method="post" action="/profile" enctype="multipart/form-data">
+<form method="post" action="/profile" enctype="multipart/form-data" class="panel">
   <input type="hidden" name="page_token" value="{{ page_token }}">
+
+  <label for="cv">Import CV (PDF, DOCX, or TXT)</label>
+  <input id="cv" name="cv" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+  <p class="fineprint">Your CV stays on this device unless you later authorize an AI provider to process text.</p>
 
   <label for="mode">Goal</label>
   <select id="mode" name="mode">
@@ -60,10 +64,8 @@
   <label for="project">Add project</label>
   <textarea id="project" name="project" placeholder="Title, what you built, method, result"></textarea>
 
-  <label for="cv">Optional CV (text/.txt)</label>
-  <input id="cv" name="cv" type="file" accept=".txt,text/plain">
-
-  <p style="margin-top:1rem"><button type="submit">Save profile</button></p>
+  <p style="margin-top:1rem"><button type="submit">Save &amp; extract</button>
+  <a class="button secondary" href="/directory">Skip to directory</a></p>
 </form>
 
 <h2>Facts</h2>

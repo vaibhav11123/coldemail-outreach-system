@@ -47,6 +47,30 @@
 </div>
 </div>
 
+{% if quality %}
+<div class="sheet">
+  <h2>Application quality</h2>
+  <ul class="list">
+    {% for c in quality.checks %}
+    <li>
+      <strong>{{ c.label }}</strong>
+      {% if c.status=='pass' %}<span class="stated">{{ c.status }}</span>
+      {% elif c.status=='fail' %}<span class="expired">{{ c.status }}</span>
+      {% else %}<span class="unknown">{{ c.status }}</span>{% endif %}
+      — {{ c.detail }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if quality.improvements %}
+  <p class="muted">Suggested improvements (edit manually or via AI rewrite):</p>
+  <ul class="list">{% for i in quality.improvements %}<li>{{ i }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if quality.hard_fail %}
+  <p class="flash error">Hard failures must be fixed before you should approve this letter.</p>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="sheet">
   <h2>Optional rewrite</h2>
   {% if ai_status and ai_status.connected %}

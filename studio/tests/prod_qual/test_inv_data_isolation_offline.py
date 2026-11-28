@@ -141,7 +141,11 @@ def test_INV11_full_provider_outage_offline_core_still_works(client, conn):
             ]
             draft = generate_draft("Prof Offline", "o@ex.edu", facts, pubs, [])
             assert "Built offline matcher" in draft["body"]
-            assert "https://example.edu/offline" in draft["body"]
+            # Evidence URLs live on citations; prose stays recipient-facing
+            assert any(
+                (c.get("url") or "") == "https://example.edu/offline"
+                for c in draft.get("citations") or []
+            )
 
 
 def test_INV05_ui_unknown_funding_label(client):

@@ -4,72 +4,82 @@
     {
       "id": 1,
       "win": true,
-      "subject": "Interest in your work on Scheduling experts for efficient transformer inference",
-      "has_url": true,
-      "specific": true
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
     },
     {
       "id": 2,
       "win": true,
-      "subject": "Interest in your work on GPU virtual memory for research clusters",
-      "has_url": true,
-      "specific": true
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
     },
     {
       "id": 4,
       "win": true,
-      "subject": "Interest in your work on Optimizing DSL compilers with LLVM passes",
-      "has_url": true,
-      "specific": true
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
     },
     {
       "id": 6,
       "win": true,
-      "subject": "Interest in your work on Dense retrieval for scholarly search",
-      "has_url": true,
-      "specific": true
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
     },
     {
       "id": 7,
       "win": true,
-      "subject": "Interest in your work on Programmable NIC pipelines with eBPF",
-      "has_url": true,
-      "specific": true
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
     },
     {
       "id": 9,
       "win": true,
-      "subject": "Interest in your work on Geo-replication with Raft variants",
-      "has_url": true,
-      "specific": true
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
     },
     {
       "id": 10,
       "win": true,
-      "subject": "Interest in your work on Speculative decoding for large language models",
-      "has_url": true,
-      "specific": true
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
     },
     {
       "id": 12,
       "win": true,
-      "subject": "Interest in your work on Type inference for dynamic languages",
-      "has_url": true,
-      "specific": true
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
     },
     {
       "id": 13,
       "win": true,
-      "subject": "Interest in your work on Skew-aware shuffle in distributed dataflows",
-      "has_url": true,
-      "specific": true
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
     },
     {
       "id": 15,
       "win": true,
-      "subject": "Interest in your work on Vision transformers for radiology triage",
-      "has_url": true,
-      "specific": true
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
     }
   ]
 }

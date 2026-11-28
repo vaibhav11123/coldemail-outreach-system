@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/studio.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -15,7 +16,7 @@
     <nav class="nav" aria-label="Primary">
       <a href="/offer" {% if nav=='offer' %}aria-current="page"{% endif %}>Home</a>
       <a href="/profile" {% if nav=='profile' %}aria-current="page"{% endif %}>Profile</a>
-      <a href="/start" {% if nav=='start' %}aria-current="page"{% endif %}>Openings</a>
+      <a href="/directory" {% if nav=='directory' %}aria-current="page"{% endif %}>Directory</a>
       <a href="/shortlist" {% if nav=='shortlist' %}aria-current="page"{% endif %}>Shortlist</a>
       <a href="/drafts" {% if nav=='drafts' %}aria-current="page"{% endif %}>Drafts</a>
       <a href="/tracker" {% if nav=='tracker' %}aria-current="page"{% endif %}>Tracker</a>
@@ -25,6 +26,7 @@
           <a href="/ai" {% if nav=='ai' %}aria-current="page"{% endif %}>AI</a>
           <a href="/mail" {% if nav=='mail' %}aria-current="page"{% endif %}>Mail</a>
           <a href="/connections" {% if nav=='connections' %}aria-current="page"{% endif %}>Connections</a>
+          <a href="/start" {% if nav=='start' %}aria-current="page"{% endif %}>Openings</a>
           <a href="/planner" {% if nav=='planner' %}aria-current="page"{% endif %}>Planner</a>
           <a href="/reader" {% if nav=='reader' %}aria-current="page"{% endif %}>Data Reader</a>
           <a href="/return" {% if nav=='return' %}aria-current="page"{% endif %}>Return later</a>

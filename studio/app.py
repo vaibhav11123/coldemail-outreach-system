@@ -204,13 +204,20 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         return dbmod.connect()
 
     def profile_ready(conn) -> bool:
+        """Enough confirmed evidence to rank — project optional if coursework/skills exist."""
         interests = conn.execute(
             "SELECT COUNT(*) AS c FROM profile_fact WHERE kind='interest' AND confirmed=1"
         ).fetchone()["c"]
         projects = conn.execute(
             "SELECT COUNT(*) AS c FROM profile_fact WHERE kind='project' AND confirmed=1"
         ).fetchone()["c"]
-        return interests > 0 and projects > 0
+        coursework = conn.execute(
+            "SELECT COUNT(*) AS c FROM profile_fact WHERE kind='coursework' AND confirmed=1"
+        ).fetchone()["c"]
+        skills = conn.execute(
+            "SELECT COUNT(*) AS c FROM profile_fact WHERE kind='skill' AND confirmed=1"
+        ).fetchone()["c"]
+        return interests > 0 and (projects > 0 or coursework > 0 or skills > 0)
 
     @app.get("/", response_class=HTMLResponse)
     async def home(request: Request):
@@ -300,17 +307,10 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     )
             if cv is not None and cv.filename:
                 raw = await cv.read()
-                text = raw.decode("utf-8", errors="replace")
-                for line in text.splitlines():
-                    line = line.strip()
-                    if line:
-                        conn.execute(
-                            """
-                            INSERT INTO profile_fact(kind, body, source, confirmed)
-                            VALUES ('skill', ?, 'cv', 0)
-                            """,
-                            (line[:500],),
-                        )
+                from studio.cv_import import parse_cv, persist_extracted_profile
+
+                parsed = parse_cv(cv.filename, raw)
+                persist_extracted_profile(conn, parsed.profile, confirmed=False)
             conn.execute("COMMIT")
         except Exception:
             conn.execute("ROLLBACK")
@@ -388,41 +388,61 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
 
     @app.get("/library", response_class=HTMLResponse)
     async def library(request: Request, q: str = ""):
+        return RedirectResponse(f"/directory?q={quote(q)}" if q else "/directory", status_code=302)
+
+    @app.get("/directory", response_class=HTMLResponse)
+    async def directory(
+        request: Request,
+        q: str = "",
+        funding: str = "",
+        status: str = "",
+        university: str = "",
+    ):
+        """Complete faculty directory — FTS5 + hybrid semantic, works without AI."""
+        from studio.search.hybrid import ensure_search_indexes, hybrid_search_researchers
+
         conn = get_conn()
         try:
-            if q.strip():
-                like = f"%{q.strip()}%"
-                rows = conn.execute(
-                    """
-                    SELECT o.id AS opportunity_id, r.display_name AS name,
-                           a.institution, o.funding
-                    FROM opportunity o
-                    JOIN researcher r ON r.id = o.researcher_id
-                    LEFT JOIN affiliation a ON a.researcher_id = r.id AND a.is_current = 1
-                    WHERE r.origin = 'bundled'
-                      AND (r.display_name LIKE ? OR a.institution LIKE ? OR o.note LIKE ?)
-                    ORDER BY r.display_name
-                    LIMIT 100
-                    """,
-                    (like, like, like),
-                ).fetchall()
-                empty = "No match for that search."
-            else:
-                rows = conn.execute(
-                    """
-                    SELECT o.id AS opportunity_id, r.display_name AS name,
-                           a.institution, o.funding
-                    FROM opportunity o
-                    JOIN researcher r ON r.id = o.researcher_id
-                    LEFT JOIN affiliation a ON a.researcher_id = r.id AND a.is_current = 1
-                    WHERE r.origin = 'bundled'
-                    ORDER BY r.display_name
-                    LIMIT 100
-                    """
-                ).fetchall()
-                empty = "Library is empty."
-            return TEMPLATES.TemplateResponse(request, "library.html",
-                ctx(request, nav="start", items=rows, q=q, empty_reason=empty),
+            ensure_search_indexes(conn)
+            hits = hybrid_search_researchers(
+                conn,
+                q,
+                limit=100,
+                funding=funding or None,
+                status=status or None,
+                university=university or None,
+            )
+            items = []
+            for h in hits:
+                items.append(
+                    {
+                        "opportunity_id": h.get("opportunity_id"),
+                        "researcher_id": h.get("researcher_id"),
+                        "name": h.get("display_name"),
+                        "institution": h.get("institution"),
+                        "funding": h.get("funding"),
+                        "status": h.get("status"),
+                        "paper_title": h.get("paper_title"),
+                        "snippet": h.get("snippet") or "",
+                        "rrf_score": h.get("rrf_score"),
+                        "retrieval": h.get("retrieval"),
+                    }
+                )
+            empty = "No match for that search." if q else "Directory is empty — load the Summer library."
+            return TEMPLATES.TemplateResponse(
+                request,
+                "directory.html",
+                ctx(
+                    request,
+                    nav="directory",
+                    items=items,
+                    q=q,
+                    funding=funding,
+                    status=status,
+                    university=university,
+                    empty_reason=empty,
+                    total=len(items),
+                ),
             )
         finally:
             conn.close()
@@ -959,7 +979,11 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 "SELECT rank_explanation FROM shortlist_item WHERE opportunity_id=?",
                 (opp_id,),
             ).fetchone()
-            reasons = json.loads(short["rank_explanation"]) if short else []
+            from studio.rank_payload import parse_rank_explanation
+
+            reasons, intel = parse_rank_explanation(
+                short["rank_explanation"] if short else None
+            )
             expired = False
             if opp["deadline"]:
                 try:
@@ -975,6 +999,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     institution=(aff["institution"] if aff else "Unknown"),
                     publications=pubs,
                     reasons=reasons,
+                    match_intel=intel,
                     expired=expired,
                 ),
             )
@@ -1124,7 +1149,11 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     "SELECT rank_explanation FROM shortlist_item WHERE opportunity_id=?",
                     (opportunity_id,),
                 ).fetchone()
-                reasons = json.loads(short["rank_explanation"]) if short else []
+                from studio.rank_payload import parse_rank_explanation
+
+                reasons, _intel = parse_rank_explanation(
+                    short["rank_explanation"] if short else None
+                )
                 try:
                     generated = generate_draft(
                         researcher["display_name"] if researcher else "",
@@ -1132,6 +1161,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                         facts,
                         pubs,
                         reasons,
+                        opportunity=dict(opp),
                     )
                     did = save_or_update_draft(conn, opportunity_id, generated)
                     draft = dict(
@@ -1185,6 +1215,22 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 ],
             )
             handoff_prompt = build_handoff_prompt(handoff_req)
+            from studio.drafting.evidence import build_evidence_graph
+            from studio.drafting.quality import inspect_application_quality
+
+            aff = conn.execute(
+                "SELECT institution FROM affiliation WHERE researcher_id=? AND is_current=1",
+                (opp["researcher_id"],),
+            ).fetchone()
+            ev_graph = build_evidence_graph(facts_h, pubs_h, [], opportunity=dict(opp))
+            quality = inspect_application_quality(
+                subject=draft.get("subject") or "",
+                body=draft.get("body") or "",
+                researcher_name=(researcher["display_name"] if researcher else "") or "",
+                institution=(aff["institution"] if aff else None),
+                evidence=ev_graph,
+                opportunity=dict(opp),
+            )
             return TEMPLATES.TemplateResponse(request, "draft.html",
                 ctx(
                     request,
@@ -1192,6 +1238,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     opportunity_id=opportunity_id,
                     draft=draft,
                     error=error,
+                    quality=quality.to_dict(),
                     mailto=mailto_link(draft["recipient"], draft["subject"], draft["body"]),
                     ai_status=ai_status,
                     rewrite_note=request.query_params.get("rewrite"),

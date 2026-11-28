@@ -62,8 +62,25 @@
     {% endif %}
   </div>
   <div class="sheet">
-    <h2>Why it fits</h2>
-    {% if reasons %}
+    <h2>Research compatibility</h2>
+    {% if match_intel %}
+    <p class="score-pill">{{ match_intel.overall }}/100 · {{ match_intel.label }}</p>
+    <ul class="list">
+      <li>Research interests · {{ match_intel.topic }}/100</li>
+      <li>Technical skills · {{ match_intel.skills }}/100</li>
+      <li>Relevant publications · {{ match_intel.publications }}/100</li>
+      <li>Previous experience · {{ match_intel.experience }}/100</li>
+    </ul>
+    {% if match_intel.why %}
+    <h3>Why this researcher matches you</h3>
+    <ul class="list">{% for w in match_intel.why %}<li>{{ w }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if match_intel.gaps %}
+    <h3>Potential gaps</h3>
+    <ul class="list">{% for g in match_intel.gaps %}<li>{{ g }}</li>{% endfor %}</ul>
+    {% endif %}
+    <p class="fineprint">{{ match_intel.recruitment_note }} {{ match_intel.funding_note }} {{ match_intel.disclaimer }}</p>
+    {% elif reasons %}
     <ul class="list">
       {% for r in reasons %}
       <li>
@@ -75,7 +92,7 @@
       {% endfor %}
     </ul>
     {% else %}
-    <p class="muted">Fit is not scored yet, or no cited overlap was found.</p>
+    <p class="muted">Fit is not scored yet — rebuild the shortlist after confirming your profile.</p>
     {% endif %}
     <p><a class="button" href="/draft/{{ opp.id }}">Prepare draft</a></p>
     <form method="post" action="/shortlist/add/{{ opp.id }}">

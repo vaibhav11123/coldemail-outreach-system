@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 os.environ["STUDIO_FORCE_LOCAL_SECRETS"] = "1"
+os.environ.setdefault("STUDIO_FORCE_BOW_EMBEDDINGS", "1")
 
 
 @pytest.fixture()

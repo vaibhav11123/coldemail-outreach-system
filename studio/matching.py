@@ -8,7 +8,8 @@ import re
 from collections import Counter
 from typing import Any
 
-WEIGHTS = {"problem": 0.4, "method": 0.3, "skill": 0.15, "activity": 0.15}
+# Legacy keys kept for older reason types; primary scoring uses match_intel weights.
+WEIGHTS = {"problem": 0.4, "method": 0.25, "skill": 0.2, "activity": 0.15}
 
 STOP = {
     "the",
@@ -209,6 +210,8 @@ def score_opportunity(
 
 
 def rebuild_shortlist(conn) -> int:
+    from studio.match_intel import explain_match
+
     facts = [
         dict(r)
         for r in conn.execute(
@@ -226,13 +229,18 @@ def rebuild_shortlist(conn) -> int:
                 (opp["researcher_id"],),
             )
         ]
+        # Citeable legacy reasons (for draft citations) + Match Intelligence breakdown
         score, reasons = score_opportunity(facts, dict(opp), pubs)
+        intel = explain_match(facts, dict(opp), pubs)
+        payload = {"reasons": reasons, "intel": intel.to_dict()}
+        # Prefer explainable compatibility index when evidence exists
+        rank = (intel.overall / 100.0) if intel.overall > 0 else score
         conn.execute(
             """
             INSERT INTO shortlist_item(opportunity_id, rank_score, rank_explanation)
             VALUES (?, ?, ?)
             """,
-            (opp["id"], score, json.dumps(reasons)),
+            (opp["id"], rank, json.dumps(payload)),
         )
         count += 1
     return count

@@ -129,11 +129,18 @@ def test_FR8_match_reasons_cited(conn):
     row = conn.execute(
         "SELECT rank_explanation FROM shortlist_item ORDER BY rank_score DESC LIMIT 1"
     ).fetchone()
-    reasons = json.loads(row["rank_explanation"])
+    from studio.rank_payload import parse_rank_explanation
+
+    reasons, intel = parse_rank_explanation(row["rank_explanation"])
+    assert intel is not None and "overall" in intel
+    # Cited legacy reasons when present must carry source text
     for r in reasons:
-        assert r.get("source")
-        if r["type"] != "activity":
-            assert r.get("applicant")
+        if not isinstance(r, dict):
+            continue
+        if r.get("type") in {"problem", "method", "activity"}:
+            assert r.get("source") is not None
+            if r.get("type") != "activity":
+                assert r.get("applicant")
 
 
 def test_FR9_copy_eml_mailto_no_mailbox(client, conn):

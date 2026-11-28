@@ -111,7 +111,7 @@ def test_INV04_property_random_bodies_never_self_approve_without_evidence(title,
 def test_INV04_unconfirmed_profile_fact_not_in_deterministic_path():
     from studio.drafts import generate_draft
 
-    with pytest.raises(ValueError, match="confirmed project"):
+    with pytest.raises(ValueError, match="interest, skill, coursework, or project"):
         generate_draft(
             "Prof",
             "p@ex.edu",

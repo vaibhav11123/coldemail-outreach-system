@@ -258,6 +258,17 @@ def migrate(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK")
         raise
+    # v2: FTS5 + embedding tables (idempotent)
+    from studio.search.embeddings import ensure_embedding_table
+    from studio.search.fts import ensure_fts
+
+    ensure_fts(conn)
+    ensure_embedding_table(conn)
+    v2 = conn.execute(
+        "SELECT version FROM schema_migrations WHERE version = 2"
+    ).fetchone()
+    if v2 is None:
+        conn.execute("INSERT INTO schema_migrations(version) VALUES (2)")
 
 
 def recover_intents_on_startup(conn: sqlite3.Connection) -> int:

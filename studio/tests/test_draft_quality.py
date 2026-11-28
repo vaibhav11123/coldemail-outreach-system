@@ -29,15 +29,20 @@ def test_ten_pair_draft_beats_generic():
         ]
         draft = generate_draft("Professor Example", "p@ex.edu", facts, pubs, [])
         generic = f"I read your paper on {p['lab_title']}"
-        # win if draft cites project method/problem words beyond title alone
+        # win if draft grounds student evidence + faculty theme without a generic opener.
+        # URLs stay on the evidence/citation record — not forced into recipient-facing prose.
         project_tokens = set(p["applicant_project"].lower().split())
         specific = any(
             t in draft["body"].lower()
             for t in project_tokens
             if len(t) > 5 and t not in {"built", "implemented", "designed", "trained"}
         )
-        cites_url = pubs[0]["url"] in draft["body"]
-        win = specific and cites_url and generic.lower() not in draft["body"].lower()
+        cites_lab = any(
+            t in (draft["body"] + draft["subject"]).lower()
+            for t in p["lab_title"].lower().split()
+            if len(t) > 5
+        ) or any((c.get("url") or "") == pubs[0]["url"] for c in draft.get("citations") or [])
+        win = specific and cites_lab and generic.lower() not in draft["body"].lower()
         if win:
             wins += 1
         results.append(
@@ -45,8 +50,9 @@ def test_ten_pair_draft_beats_generic():
                 "id": p["id"],
                 "win": win,
                 "subject": draft["subject"],
-                "has_url": cites_url,
+                "cites_lab": cites_lab,
                 "specific": specific,
+                "strategy": draft.get("strategy"),
             }
         )
     RESULT.write_text(json.dumps({"wins": wins, "results": results}, indent=2), encoding="utf-8")

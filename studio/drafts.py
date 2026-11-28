@@ -19,40 +19,29 @@ def generate_draft(
     profile_facts: list[dict],
     publications: list[dict],
     reasons: list[dict],
+    opportunity: dict | None = None,
+    prefs: dict | None = None,
 ) -> dict:
-    projects = [f for f in profile_facts if f.get("kind") == "project" and f.get("confirmed")]
-    if not projects:
-        raise ValueError("Need at least one confirmed project line")
-    sourced = [p for p in publications if p.get("url") and (p.get("title") or p.get("abstract"))]
-    if not sourced and not any(r.get("url") for r in reasons):
-        raise ValueError("Need at least one sourced lab sentence")
+    """Evidence-grounded composition with strategy selection.
 
-    project = projects[0]["body"]
-    paper = sourced[0] if sourced else None
-    paper_title = (paper or {}).get("title") or next((r.get("source") for r in reasons if r.get("source")), "")
-    paper_url = (paper or {}).get("url") or next((r.get("url") for r in reasons if r.get("url")), "")
-    paper_bit = (paper or {}).get("abstract") or paper_title
+    Still requires confirmed student evidence (project, coursework, skill, or interest)
+    and sourced faculty material when claiming publications. Deterministic by default;
+    AI structured composition is optional inside compose_application.
+    """
+    from studio.drafting.composer import compose_application
+    from studio.drafting.schemas import WritingPreferences
 
-    first = researcher_name.split()[0] if researcher_name else "Professor"
-    subject = f"Interest in your work on {paper_title[:60]}"
-    body = (
-        f"Dear {first},\n\n"
-        f"I am writing about your paper \"{paper_title}\" ({paper_url}). "
-        f"{paper_bit}\n\n"
-        f"My recent project: {project}. "
-        f"I would like to explore whether this connects with openings in your group.\n\n"
-        f"Thank you for your time,\n"
+    wp = WritingPreferences(**(prefs or {})) if prefs else WritingPreferences()
+    return compose_application(
+        researcher_name=researcher_name,
+        recipient=recipient,
+        profile_facts=profile_facts,
+        publications=publications,
+        reasons=reasons,
+        opportunity=opportunity,
+        prefs=wp,
+        use_ai=False,  # keep send-path deterministic unless rewrite endpoint opts in
     )
-    # Strip any sentence that invents claims without evidence markers — keep only sourced parts
-    return {
-        "recipient": recipient,
-        "subject": subject,
-        "body": body,
-        "content_hash": content_hash(recipient, subject, body),
-        "citations": [
-            {"applicant": project, "source": paper_bit, "url": paper_url},
-        ],
-    }
 
 
 def has_uncited_claim(body: str, allowed_snippets: list[str]) -> bool:
