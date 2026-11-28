@@ -67,6 +67,24 @@ def test_editions_api(client):
     assert len(body["editions"]) == 2
 
 
+def test_payment_webhook_requires_configured_secret(studio_home, monkeypatch):
+    """Fail closed: missing STUDIO_LICENSING_WEBHOOK_SECRET must not mint licences."""
+    monkeypatch.delenv("STUDIO_LICENSING_WEBHOOK_SECRET", raising=False)
+    from studio.app import create_app
+
+    app = create_app(data_dir=studio_home)
+    bare = TestClient(app, base_url="http://127.0.0.1:8765")
+    r = bare.post(
+        "/api/licensing/webhook/payment",
+        json={
+            "customer_id": "c0",
+            "customer_email": "c0@example.com",
+            "sku": "academic_studio",
+        },
+    )
+    assert r.status_code == 401
+
+
 def test_payment_webhook_and_activate_local(client, studio_home):
     bad = client.post(
         "/api/licensing/webhook/payment",

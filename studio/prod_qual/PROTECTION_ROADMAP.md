@@ -72,7 +72,8 @@ Status: `[x]` implemented, tested, verified in-repo · `[~]` partial · `[ ]` no
 
 ## Production licensing control plane (P0)
 
-- [~] Payment webhook scaffold (shared secret) — needs real provider + idempotency
+- [~] Payment webhook scaffold (shared secret, **fail-closed if unset**) — needs real provider + idempotency
+- [~] Cloudflare security-audit skill run-1 **incomplete** — see `CLOUDFLARE_SECURITY_AUDIT.md` (not a release-gate pen-test)
 - [ ] Vaulted production issuer keys
 - [ ] Customer portal (purchase, devices, recovery)
 - [ ] Refund/chargeback entitlement automation beyond revoke flag

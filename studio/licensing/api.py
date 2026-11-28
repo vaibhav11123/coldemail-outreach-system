@@ -93,11 +93,11 @@ def build_licensing_router() -> APIRouter:
         x_studio_webhook_secret: str | None = Header(default=None),
     ) -> dict[str, Any]:
         expected = webhook_secret()
-        if expected:
-            if not x_studio_webhook_secret or not secrets.compare_digest(
-                x_studio_webhook_secret, expected
-            ):
-                raise HTTPException(status_code=401, detail="Invalid webhook secret")
+        # Fail closed: missing webhook secret must never authorize entitlement minting.
+        if not expected or not x_studio_webhook_secret or not secrets.compare_digest(
+            x_studio_webhook_secret, expected
+        ):
+            raise HTTPException(status_code=401, detail="Invalid webhook secret")
         try:
             get_edition(body.sku)
         except Exception as exc:  # noqa: BLE001
@@ -195,11 +195,10 @@ def build_licensing_router() -> APIRouter:
         x_studio_webhook_secret: str | None = Header(default=None),
     ) -> dict[str, Any]:
         expected = webhook_secret()
-        if expected:
-            if not x_studio_webhook_secret or not secrets.compare_digest(
-                x_studio_webhook_secret, expected
-            ):
-                raise HTTPException(status_code=401, detail="Invalid webhook secret")
+        if not expected or not x_studio_webhook_secret or not secrets.compare_digest(
+            x_studio_webhook_secret, expected
+        ):
+            raise HTTPException(status_code=401, detail="Invalid webhook secret")
         store = license_store()
         try:
             store.revoke(license_id)

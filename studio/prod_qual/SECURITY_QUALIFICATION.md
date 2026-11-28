@@ -32,7 +32,7 @@ Verification baseline command:
 
 | # | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| 13 | Reject forged payment webhooks | [x] | `test_payment_webhook_and_activate_local` wrong secret → 401 |
+| 13 | Reject forged payment webhooks | [x] | Wrong secret → 401; **fail-closed when secret unset** (`test_payment_webhook_requires_configured_secret`) |
 | 14 | Handle duplicate payment events | [ ] | Idempotency keys not fully proven |
 | 15 | Handle out-of-order payment events | [ ] | |
 | 16 | Test partial payment and packaging failures | [ ] | |

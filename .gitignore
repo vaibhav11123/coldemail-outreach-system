@@ -86,3 +86,7 @@ staffspy_*_snapshot_*.csv
 *.sqlite
 *.sqlite-*
 secrets.json
+
+# Local agent skills (installed per developer/agent)
+.agents/
+skills-lock.json
