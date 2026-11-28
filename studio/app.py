@@ -1937,6 +1937,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             return RedirectResponse(
                 f"/ai?err=1&flash={quote(result.message)}", status_code=303
             )
+        extra = result.extra or {}
         return TEMPLATES.TemplateResponse(
             request,
             "ai_setup.html",
@@ -1947,7 +1948,10 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 message=result.message,
                 redirect_url=result.redirect_url,
                 needs_paste=bool(result.needs_paste_code or not result.ok),
-                paste_kind=(result.extra or {}).get("paste_kind", "code"),
+                paste_kind=extra.get("paste_kind", "code"),
+                guided_title=extra.get("guided_title"),
+                guided_steps=extra.get("guided_steps") or [],
+                docs_url=extra.get("docs_url"),
             ),
         )
 
@@ -1956,6 +1960,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         p = get_provider(provider_id)
         if not p:
             return RedirectResponse("/ai?err=1&flash=Unknown%20provider", status_code=303)
+        started = p.connect_start("")
+        extra = started.extra or {}
         return TEMPLATES.TemplateResponse(
             request,
             "ai_setup.html",
@@ -1963,10 +1969,13 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 request,
                 nav="ai",
                 provider=p,
-                message=p.get_status().detail,
-                redirect_url=None,
+                message=started.message or p.get_status().detail,
+                redirect_url=started.redirect_url,
                 needs_paste=True,
-                paste_kind="api_key",
+                paste_kind=extra.get("paste_kind", "api_key"),
+                guided_title=extra.get("guided_title"),
+                guided_steps=extra.get("guided_steps") or [],
+                docs_url=extra.get("docs_url"),
             ),
         )
 

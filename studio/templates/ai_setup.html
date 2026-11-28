@@ -1,13 +1,33 @@
 {% extends "base.html" %}
-{% block title %}Set up {{ provider.display_name }} — Academic Outreach Studio{% endblock %}
+{% block title %}{% if guided_title %}{{ guided_title }}{% else %}Set up {{ provider.display_name }}{% endif %} — Academic Outreach Studio{% endblock %}
 {% block content %}
-<h1>{{ provider.display_name }}</h1>
-<p class="muted">{{ message }}</p>
-{% if redirect_url %}
-<p><a class="button" href="{{ redirect_url }}" rel="noopener">Continue in browser</a></p>
+<h1>{% if guided_title %}{{ guided_title }}{% else %}{{ provider.display_name }}{% endif %}</h1>
+
+{% if provider.id == 'groq' %}
+<p class="muted">Fast AI using your own GroqCloud free allowance. No AI subscription, no coding, and no shared product key.</p>
+<ul class="muted">
+  <li>No AI subscription required</li>
+  <li>No coding required</li>
+  <li>Your account, your allowance</li>
+</ul>
 {% endif %}
+
+{% if guided_steps %}
+<ol>
+  {% for step in guided_steps %}
+  <li>{{ step }}</li>
+  {% endfor %}
+</ol>
+{% else %}
+<p class="muted">{{ message }}</p>
+{% endif %}
+
+{% if redirect_url %}
+<p><a class="button" href="{{ redirect_url }}" rel="noopener" target="_blank">{% if provider.id == 'groq' %}Open GroqCloud{% else %}Continue in browser{% endif %}</a></p>
+{% endif %}
+
 {% if needs_paste %}
-<form method="post" action="/ai/finish/{{ provider.id }}">
+<form method="post" action="/ai/finish/{{ provider.id }}" class="sheet">
   <input type="hidden" name="page_token" value="{{ page_token }}">
   {% if paste_kind == 'custom' %}
   <label for="base_url">Base URL</label>
@@ -17,11 +37,21 @@
   <label for="model">Model</label>
   <input id="model" name="model">
   {% else %}
-  <label for="code">{% if paste_kind == 'api_key' %}API key{% else %}Code or token{% endif %}</label>
-  <input id="code" name="{% if paste_kind == 'api_key' %}api_key{% else %}code{% endif %}" {% if paste_kind == 'api_key' %}type="password" autocomplete="new-password"{% endif %}>
+  <label for="code">{% if paste_kind == 'api_key' %}{% if provider.id == 'groq' %}Paste your GroqCloud key{% else %}API key{% endif %}{% else %}Code or token{% endif %}</label>
+  <input id="code" name="{% if paste_kind == 'api_key' %}api_key{% else %}code{% endif %}" {% if paste_kind == 'api_key' %}type="password" autocomplete="new-password"{% endif %} placeholder="{% if provider.id == 'groq' %}gsk_…{% endif %}">
   {% endif %}
-  <button type="submit">Save and connect</button>
+  <button type="submit">{% if provider.id == 'groq' %}Validate and connect{% else %}Save and connect{% endif %}</button>
 </form>
+<p class="muted">{% if provider.id == 'groq' %}We validate the key with Groq, pick a supported model, configure the endpoint, and store the credential in your OS keychain. The full key is never shown again.{% else %}Credentials stay on this device.{% endif %}</p>
 {% endif %}
+
+{% if docs_url %}
+<p class="muted"><a href="{{ docs_url }}" rel="noopener" target="_blank">Groq documentation</a></p>
+{% endif %}
+
+{% if provider.id == 'groq' %}
+<p class="disabled-reason">This is a guided connection, not OAuth. GroqCloud authenticates with API keys today; we will switch to official delegated auth if Groq publishes one.</p>
+{% endif %}
+
 <p><a href="/ai">Back to Connect your AI</a></p>
 {% endblock %}

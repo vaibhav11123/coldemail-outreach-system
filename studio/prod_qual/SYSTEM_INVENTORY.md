@@ -21,7 +21,7 @@ Commit under test: see git HEAD at report generation time.
 
 ## External dependencies (runtime)
 
-OpenAlex, Crossref, OpenCitations, ROR (via connections), Gmail OAuth, Outlook scaffold, SMTP, OpenRouter, Ollama, managed Groq (env), GitHub public API, Zotero local `:23119`.
+OpenAlex, Crossref, OpenCitations, ROR (via connections), Gmail OAuth, Outlook scaffold, SMTP, OpenRouter, Ollama, BYOG Groq (student keychain), GitHub public API, Zotero local `:23119`.
 
 ## Explicitly unavailable / replaced
 

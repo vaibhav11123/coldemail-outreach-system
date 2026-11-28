@@ -10,7 +10,7 @@ from studio.ai.providers.copilot import CopilotProvider
 from studio.ai.providers.custom import CustomProvider
 from studio.ai.providers.gemini import GeminiProvider
 from studio.ai.providers.grok import GrokProvider
-from studio.ai.providers.groq_managed import GroqManagedProvider
+from studio.ai.providers.groq import GroqProvider
 from studio.ai.providers.huggingface import HuggingFaceProvider
 from studio.ai.providers.ollama import OllamaProvider
 from studio.ai.providers.openrouter import OpenRouterProvider
@@ -19,8 +19,8 @@ from studio.secrets_store import delete_secret, get_secret, set_secret
 ACTIVE_PROVIDER_KEY = "ai_active_provider"
 
 _PROVIDERS: list[Any] = [
+    GroqProvider(),
     OpenRouterProvider(),
-    GroqManagedProvider(),
     ChatGPTProvider(),
     CopilotProvider(),
     HuggingFaceProvider(),
@@ -79,6 +79,10 @@ def _button_label(provider: Any, status) -> str:
         return "Not available yet"
     if kind == "managed":
         return "Enable" if not status.connected else "Connected"
+    if kind == "guided_key" and getattr(provider, "id", "") == "groq":
+        return "Connect Groq"
+    if kind == "guided_key":
+        return "Connect"
     return "Set up"
 
 

@@ -22,25 +22,41 @@ def test_pkce_challenge_stable_shape():
     assert "callback_url=" in url
 
 
-def test_provider_cards_include_free_ai_first():
+def test_provider_cards_include_free_ai_first(data_dir):
+    from studio.ai.providers.groq import GroqProvider
+
+    GroqProvider().disconnect()
     cards = list_provider_cards()
-    assert cards[0]["id"] == "openrouter"
+    assert cards[0]["id"] == "groq"
     assert cards[0]["recommended"] is True
+    assert cards[0]["button_label"] == "Connect Groq"
     ids = {c["id"] for c in cards}
-    assert {"openrouter", "chatgpt", "copilot", "gemini", "ollama", "claude", "custom", "grok"} <= ids
+    assert {
+        "groq",
+        "openrouter",
+        "chatgpt",
+        "copilot",
+        "gemini",
+        "ollama",
+        "claude",
+        "custom",
+        "grok",
+    } <= ids
 
 
 def test_connect_ai_screen(client):
     r = client.get("/ai")
     assert r.status_code == 200
     assert "Connect your AI" in r.text
-    assert "Connect free AI" in r.text
+    assert "Activate free AI" in r.text
+    assert "Connect Groq" in r.text
+    assert "Connect OpenRouter" in r.text
     assert "Continue without AI" in r.text
     assert "Advanced settings" in r.text
     above = r.text.split("Advanced settings")[0]
-    # Student paste/key fields stay under Advanced — managed copy may say "no student account"
+    # Key paste happens on /ai/setup/groq — not on the main hero as a raw field
     assert 'name="api_key"' not in above
-    assert "Paste your" not in above
+    assert "Paste your GroqCloud key" not in above
 
 
 def test_continue_without_ai(client):

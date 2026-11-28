@@ -8,9 +8,42 @@
 <p class="stated">{{ step_heading }}</p>
 {% endif %}
 
+{% set groq_cards = cards|selectattr('id', 'equalto', 'groq')|list %}
+{% if groq_cards %}
+{% set groq = groq_cards[0] %}
 <div class="sheet ai-hero">
-  <h2>Free AI</h2>
-  <p class="muted">No subscription or payment required</p>
+  <h2>Activate free AI</h2>
+  <p class="muted">GroqCloud — fast AI using your own free allowance</p>
+  <ul class="muted">
+    <li>No AI subscription required</li>
+    <li>No coding required</li>
+    <li>Your account, your allowance</li>
+  </ul>
+  {% if groq.status.connected %}
+  <p><span class="stated">Connected</span> {{ groq.status.account_hint }}</p>
+  <p class="muted">{{ groq.status.detail }}</p>
+  <form method="post" action="/ai/disconnect/groq" style="display:inline">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary">Disconnect</button>
+  </form>
+  <form method="post" action="/ai/activate/groq" style="display:inline">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary"{% if groq.is_active %} disabled{% endif %}>Use for rewrite</button>
+  </form>
+  {% else %}
+  <p>{{ groq.status.detail }}</p>
+  <form method="post" action="/ai/connect/groq">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit">Connect Groq</button>
+  </form>
+  <p class="muted" style="margin-top:0.75rem">One-time guided setup. We do not run a shared Groq account or inference proxy.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="sheet">
+  <h2>Free AI via OpenRouter</h2>
+  <p class="muted">OAuth alternative — sign in once; uses your OpenRouter allowance</p>
   {% set free = cards|selectattr('id', 'equalto', 'openrouter')|list %}
   {% if free %}
   {% set card = free[0] %}
@@ -18,9 +51,8 @@
   {% if not card.status.connected %}
   <form method="post" action="/ai/connect/openrouter">
     <input type="hidden" name="page_token" value="{{ page_token }}">
-    <button type="submit">Connect free AI</button>
+    <button type="submit" class="secondary">Connect OpenRouter</button>
   </form>
-  <p class="muted" style="margin-top:0.75rem">You sign in once; we never see your password.</p>
   {% else %}
   <form method="post" action="/ai/disconnect/openrouter" style="display:inline">
     <input type="hidden" name="page_token" value="{{ page_token }}">
@@ -36,7 +68,7 @@
 
 <h2>Already have an AI subscription?</h2>
 <div class="ai-grid">
-  {% for card in cards if card.id != 'openrouter' and not card.advanced %}
+  {% for card in cards if card.id not in ['openrouter', 'groq'] and not card.advanced %}
   <div class="sheet ai-card">
     <h3>{{ card.title }}</h3>
     <p class="muted">{{ card.subtitle }}</p>
@@ -68,7 +100,7 @@
   <input type="hidden" name="page_token" value="{{ page_token }}">
   <button type="submit" class="secondary">Continue without AI</button>
 </form>
-<p class="muted">Your credentials stay on your device. You can disconnect at any time.</p>
+<p class="muted">Your credentials stay on your device. You can disconnect at any time. Default architecture is user-funded AI — we do not pay for student inference.</p>
 
 <details class="sheet">
   <summary>Advanced settings</summary>

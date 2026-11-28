@@ -18,7 +18,7 @@ def test_registry_alternative_decisions():
     assert spec_by_id("semanticscholar").production_status == "unavailable"
     assert "MCP" in spec_by_id("chatgpt").title or "mcp" in spec_by_id("chatgpt").purpose.lower()
     assert "extension" in spec_by_id("claude").title.lower() or "mcpb" in spec_by_id("claude").purpose.lower()
-    assert spec_by_id("groq").auth_method == "managed"
+    assert spec_by_id("groq").auth_method == "guided_key"
 
 
 def test_handoff_prompt_and_import_validation():
@@ -76,13 +76,14 @@ def test_mcp_packaging_channels():
     assert any(t["name"] == "save_draft" for t in m["tools"])
 
 
-def test_groq_managed_without_key(client):
-    from studio.ai.providers.groq_managed import GroqManagedProvider
+def test_groq_byog_without_key(client):
+    from studio.ai.providers.groq import GroqProvider
 
-    p = GroqManagedProvider()
+    p = GroqProvider()
     st = p.get_status()
     assert st.connected is False
-    assert "not configured" in st.detail.lower() or "Managed" in st.detail
+    assert st.auth_kind == "guided_key"
+    assert "groq" in st.detail.lower() or "key" in st.detail.lower()
 
 
 def test_connections_shows_handoff_and_graph(client):
@@ -91,7 +92,8 @@ def test_connections_shows_handoff_and_graph(client):
     assert "Improve with your AI" in r.text
     assert "Open academic graph" in r.text
     assert "Google Scholar import" in r.text
-    assert "Included AI" in r.text or "Groq" in r.text
+    assert "Groq" in r.text
+    assert "Connect Groq" in r.text or "Activate free AI" in r.text
 
 
 def test_bibliography_upload_route(client):
