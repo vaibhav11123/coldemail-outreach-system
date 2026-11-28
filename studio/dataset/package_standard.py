@@ -5,11 +5,9 @@ from __future__ import annotations
 import csv
 import json
 import sqlite3
+from datetime import date
 from pathlib import Path
 from typing import Any
-
-from openpyxl import Workbook
-from openpyxl.styles import Font
 
 from studio.dataset.fingerprint import (
     FingerprintContext,
@@ -19,6 +17,19 @@ from studio.dataset.fingerprint import (
     visible_licence_banner,
 )
 from studio.dataset.records import FACTUAL_FIELDS, attach_export_ids
+from studio.dataset.workbook import (
+    SHEET_CHANGELOG,
+    SHEET_COVERAGE,
+    SHEET_DICTIONARY,
+    SHEET_FACULTY,
+    SHEET_PUBLICATIONS,
+    SHEET_QUALITY,
+    SHEET_SOURCES,
+    SHEET_START,
+    build_workbook,
+    data_dictionary_text,
+    save_workbook,
+)
 from studio.licensing.crypto import IssuerKeys, sign_ed25519
 from studio.licensing.ledger import DeliveryLedger, sha256_bytes, sha256_file
 from studio.licensing.products import SKU
@@ -27,30 +38,22 @@ from studio.paths import PACKAGE_ROOT
 
 EXPORT_COLUMNS = ("export_id",) + FACTUAL_FIELDS
 
-DATA_DICTIONARY = """Global Research Dataset — data dictionary
-========================================
+DATA_DICTIONARY = data_dictionary_text()
 
-export_id       Customer-specific surrogate ID (HMAC). Use this in spreadsheets;
-                it is unique to your licensed delivery.
-canonical_id    Internal stable id for this faculty record in our catalog.
-display_name    Faculty member display name (factual).
-email           Professional email when known (factual; may be empty).
-university      Current institutional affiliation when known.
-status          Opening/recruiting status label when present.
-funding         Funding signal when present (unknown stays unknown).
-eligibility     Eligibility notes when present.
-deadline        Application deadline when present (ISO date or text).
-apply_url       Official application or lab URL when present.
-email_invited   Whether email invitation is indicated by source notes.
-note            Free-text opportunity note from sources.
-paper_title     Representative publication title when present.
-paper_year      Publication year when present.
-paper_url       Publication URL when present.
-paper_abstract  Publication abstract excerpt when present.
 
-Factual fields are not altered for fingerprinting. Only export_id values and
-row ordering are personalized. Redistribution of this package is prohibited.
-"""
+WORKBOOK_SHEET_GUIDE = "\n".join(
+    f"  - {name}: {purpose}"
+    for name, purpose in (
+        (SHEET_START, "counts, navigation and how to use the workbook"),
+        (SHEET_COVERAGE, "universities, research-area hints, completeness"),
+        (SHEET_FACULTY, "every faculty record as a filterable table"),
+        (SHEET_PUBLICATIONS, "representative papers (if packaged)"),
+        (SHEET_SOURCES, "unique application and paper URLs (if packaged)"),
+        (SHEET_DICTIONARY, "column meanings and how blanks are written"),
+        (SHEET_QUALITY, "completeness, freshness and known limits"),
+        (SHEET_CHANGELOG, "packaging date and record count"),
+    )
+)
 
 
 def write_sqlite(path: Path, rows: list[dict[str, Any]], provenance: dict) -> None:
@@ -98,6 +101,9 @@ def write_customer_docs(
         f"Licence id: {ctx.license_id}\n"
         f"Records in this delivery: {record_count}\n\n"
         "Open GlobalResearch.xlsx (or faculty_catalog.xlsx) in Excel/LibreOffice.\n"
+        "The workbook opens on the 'Start Here' sheet. Its sheets:\n"
+        f"{WORKBOOK_SHEET_GUIDE}\n"
+        "Publications and Sources appear only when the data contains papers or URLs.\n"
         "CSV/, JSON/, and SQLite copies contain the same factual fields.\n"
         "Read LICENSE.txt and Data_Dictionary.txt before sharing anything.\n\n"
         "Delivery is personalized. Do not upload this folder to public drives.\n"
@@ -156,35 +162,28 @@ def write_json(path: Path, rows: list[dict[str, Any]], provenance: dict) -> None
     path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
 
 
-def write_xlsx(path: Path, rows: list[dict[str, Any]], banner: str, provenance: dict) -> None:
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Faculty"
-    ws["A1"] = banner
-    ws["A1"].font = Font(bold=True, color="0B4F6C")
-    headers = list(EXPORT_COLUMNS)
-    for col, name in enumerate(headers, start=1):
-        ws.cell(row=3, column=col, value=name)
-    for i, row in enumerate(rows, start=4):
-        for col, name in enumerate(headers, start=1):
-            ws.cell(row=i, column=col, value=row.get(name))
+def write_xlsx(
+    path: Path,
+    rows: list[dict[str, Any]],
+    banner: str,
+    provenance: dict,
+    *,
+    packaged_on: date | None = None,
+    sample_of: int | None = None,
+) -> None:
+    """Write the customer workbook (Start Here, Coverage, Faculty Directory, ...).
 
-    props = wb.properties
-    props.creator = "Academic Outreach Studio"
-    props.title = "Global Research Faculty Dataset (licensed delivery)"
-    props.description = banner
-    props.keywords = f"license:{provenance.get('license_id')};customer:{provenance.get('customer_id')}"
-
-    prov = wb.create_sheet("Provenance")
-    prov["A1"] = "Do not delete — delivery provenance"
-    for i, (k, v) in enumerate(provenance.items(), start=3):
-        prov.cell(row=i, column=1, value=k)
-        prov.cell(row=i, column=2, value=str(v))
-    # Hide provenance sheet (still present until inspected/removed)
-    prov.sheet_state = "hidden"
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    wb.save(path)
+    Data sheets (Publications, Sources) exist only when the rows support them.
+    The Provenance sheet stays hidden.
+    """
+    wb = build_workbook(
+        rows,
+        banner=banner,
+        provenance=provenance,
+        packaged_on=packaged_on,
+        sample_of=sample_of,
+    )
+    save_workbook(path, wb)
 
 
 def write_manifest(
@@ -232,9 +231,11 @@ def package_standard_dataset(
     ledger: DeliveryLedger | None = None,
     customer_email: str | None = None,
     notes: str | None = None,
+    packaged_on: date | None = None,
 ) -> dict[str, Any]:
     """Build Standard Dataset package. Facts unchanged; only surrogate IDs + order."""
     out_dir.mkdir(parents=True, exist_ok=True)
+    packaged_on = packaged_on or date.today()
     id_map = build_export_id_map(records, ctx)
     ordered = permute_rows(records, ctx)
     rows = attach_export_ids(ordered, id_map)
@@ -250,7 +251,7 @@ def package_standard_dataset(
     sqlite_path = out_dir / "faculty_catalog.sqlite"
     write_csv(csv_path, rows, banner)
     write_json(json_path, rows, provenance)
-    write_xlsx(xlsx_path, rows, banner, provenance)
+    write_xlsx(xlsx_path, rows, banner, provenance, packaged_on=packaged_on)
     write_sqlite(sqlite_path, rows, provenance)
 
     file_hashes = {
@@ -278,7 +279,7 @@ def package_standard_dataset(
         provenance = provenance_payload(ctx, delivery_id)
         # Rewrite JSON/XLSX/SQLite provenance with real delivery_id
         write_json(json_path, rows, provenance)
-        write_xlsx(xlsx_path, rows, banner, provenance)
+        write_xlsx(xlsx_path, rows, banner, provenance, packaged_on=packaged_on)
         write_sqlite(sqlite_path, rows, provenance)
         file_hashes = {
             csv_path.name: sha256_file(csv_path),
