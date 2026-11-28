@@ -1,21 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Academic Data Reader · Academic Outreach Studio{% endblock %}
+{% block title %}Faculty Library — Academic Data Reader{% endblock %}
+{% block main_class %}layout-workspace{% endblock %}
 {% block content %}
-<section class="panel reader-hero">
-  <p class="eyebrow">Integrated Catalog Reader · Academic Studio</p>
-  <h1>Encrypted research catalog</h1>
-  <p class="lede">
-    Browse your device-bound SQLCipher catalog inside Academic Studio. All purchased records
-    stay on this device after activation. Lookups work offline until the signed licence needs
-    revalidation. The local Directory remains available for the workspace library.
-  </p>
-  <p class="meta-line"><a href="/directory">Open workspace Directory</a></p>
+<section class="reader-hero">
+  <p class="eyebrow">Purchased catalog · Integrated Catalog Reader</p>
+  <h1>Faculty Library</h1>
+  <p class="lede">Your purchased research catalog, opened inside Academic Studio. Everything stays on this device after activation and lookups work offline. The <a href="/directory">workspace library</a> remains available alongside it.</p>
   {% if entitlement %}
-  <p class="meta-line">
-    Licence <code>{{ entitlement.license_id }}</code>
-    · SKU <code>{{ entitlement.sku }}</code>
-    · {{ record_count }} records
-  </p>
+  <p class="meta-line">{{ record_count }} records available
+    · <a href="/directory">Open workspace library</a></p>
+  <details class="plain">
+    <summary>Catalog details</summary>
+    <dl class="kv">
+      <dt>Encryption</dt><dd>Device-bound SQLCipher catalog</dd>
+      <dt>Licence ID</dt><dd><code>{{ entitlement.license_id }}</code></dd>
+      <dt>Edition (SKU)</dt><dd><code>{{ entitlement.sku }}</code></dd>
+      <dt>Offline use</dt><dd>Works offline until the signed licence needs revalidation.</dd>
+    </dl>
+  </details>
+  {% else %}
+  <p class="meta-line"><a href="/directory">Open workspace library</a></p>
   {% endif %}
 </section>
 
@@ -23,76 +27,105 @@
 <div class="flash error" role="alert">{{ error }}</div>
 <form class="panel stack" method="post" action="/reader/configure">
   <input type="hidden" name="page_token" value="{{ page_token }}">
-  <label>
-    Protected package folder
-    <input type="text" name="package_dir" value="{{ package_dir }}" placeholder="/path/to/GlobalResearch2027" required>
-  </label>
-  <button type="submit" class="btn primary">Use this package</button>
+  <div>
+    <label for="package_dir">Folder with your purchased catalog</label>
+    <input id="package_dir" type="text" name="package_dir" value="{{ package_dir }}" placeholder="/path/to/GlobalResearch2027" required>
+    <p class="fineprint">This is the folder from your delivery that contains the catalog file and your licence. Need help? See <a href="/activate/help">installation &amp; recovery</a>.</p>
+  </div>
+  <button type="submit">Use this catalog</button>
 </form>
 {% else %}
 
-<form class="panel reader-filters" method="get" action="/reader">
-  <label>
-    Search
-    <input type="search" name="q" value="{{ q }}" placeholder="Name, email, paper, note">
-  </label>
-  <label>
-    University
-    <input type="text" name="university" value="{{ university }}" placeholder="Filter by institution">
-  </label>
-  <label>
-    Sort
-    <select name="sort">
+<form class="table-toolbar" method="get" action="/reader">
+  <div class="tt-search">
+    <label for="rd-q">Search</label>
+    <input id="rd-q" type="search" name="q" value="{{ q }}" placeholder="Name, email, paper, note">
+  </div>
+  <div class="tt-field">
+    <label for="rd-university">University</label>
+    <input id="rd-university" type="text" name="university" value="{{ university }}" placeholder="Filter by institution">
+  </div>
+  <div class="tt-field">
+    <label for="rd-status">Recruiting</label>
+    <select id="rd-status" name="status">
+      <option value="">Any</option>
+      <option value="stated-yes" {% if status=='stated-yes' %}selected{% endif %}>{{ 'stated-yes'|tri_state(kind='recruitment') }}</option>
+      <option value="unknown" {% if status=='unknown' %}selected{% endif %}>{{ 'unknown'|tri_state(kind='recruitment') }}</option>
+      <option value="stated-no" {% if status=='stated-no' %}selected{% endif %}>{{ 'stated-no'|tri_state(kind='recruitment') }}</option>
+    </select>
+  </div>
+  <div class="tt-field">
+    <label for="rd-funding">Funding</label>
+    <select id="rd-funding" name="funding">
+      <option value="">Any</option>
+      <option value="stated-yes" {% if funding=='stated-yes' %}selected{% endif %}>{{ 'stated-yes'|tri_state(kind='funding') }}</option>
+      <option value="unknown" {% if funding=='unknown' %}selected{% endif %}>{{ 'unknown'|tri_state(kind='funding') }}</option>
+      <option value="stated-no" {% if funding=='stated-no' %}selected{% endif %}>{{ 'stated-no'|tri_state(kind='funding') }}</option>
+    </select>
+  </div>
+  <div class="tt-field">
+    <label for="rd-sort">Sort</label>
+    <select id="rd-sort" name="sort">
       <option value="display_name" {% if sort=='display_name' %}selected{% endif %}>Name</option>
       <option value="university" {% if sort=='university' %}selected{% endif %}>University</option>
       <option value="-paper_year" {% if sort=='-paper_year' %}selected{% endif %}>Newest paper</option>
-      <option value="status" {% if sort=='status' %}selected{% endif %}>Status</option>
+      <option value="status" {% if sort=='status' %}selected{% endif %}>Recruiting status</option>
     </select>
-  </label>
-  <button type="submit" class="btn primary">Apply</button>
-  <a class="btn ghost" href="/reader/export.csv?limit=100">Controlled export (CSV)</a>
+  </div>
+  <div class="tt-actions">
+    <button type="submit">Apply</button>
+    <a class="button secondary" href="/reader/export.csv?limit=100">Controlled export (CSV)</a>
+  </div>
 </form>
 
-<section class="panel">
+<p class="meta-line">{{ rows|length }} of {{ record_count }} records shown</p>
+<div class="table-wrap">
+  <table class="reader-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>University</th>
+        <th>Email</th>
+        <th>Recruiting</th>
+        <th>Funding</th>
+        <th>Paper</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="row-title">{{ row.display_name }}</td>
+        <td>{{ row.university or "—" }}</td>
+        <td>{{ row.email or "—" }}</td>
+        <td>{{ row.status|tri_state(kind='recruitment') }}</td>
+        <td>{{ row.funding|tri_state(kind='funding') }}</td>
+        <td>
+          {% if row.paper_title %}
+            {{ row.paper_title }}{% if row.paper_year %} ({{ row.paper_year }}){% endif %}
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">No rows match this filter.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<details class="plain">
+  <summary>Export IDs and fingerprints</summary>
+  <p class="fineprint">Each record in your copy carries a customer-specific export ID. Controlled exports remain limited and fingerprinted — forwarding the unlocked session to another machine still requires that device’s own activation.</p>
   <div class="table-wrap">
-    <table class="data-table reader-table">
-      <thead>
-        <tr>
-          <th>Export ID</th>
-          <th>Name</th>
-          <th>University</th>
-          <th>Email</th>
-          <th>Status</th>
-          <th>Funding</th>
-          <th>Paper</th>
-        </tr>
-      </thead>
+    <table class="reader-table">
+      <thead><tr><th>Name</th><th>Export ID</th></tr></thead>
       <tbody>
-        {% for row in rows %}
-        <tr>
-          <td><code>{{ row.export_id }}</code></td>
-          <td>{{ row.display_name }}</td>
-          <td>{{ row.university or "—" }}</td>
-          <td>{{ row.email or "—" }}</td>
-          <td>{{ row.status or "—" }}</td>
-          <td>{{ row.funding or "—" }}</td>
-          <td>
-            {% if row.paper_title %}
-              {{ row.paper_title }}{% if row.paper_year %} ({{ row.paper_year }}){% endif %}
-            {% else %}—{% endif %}
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="7">No rows match this filter.</td></tr>
+        {% for row in rows[:25] %}
+        <tr><td>{{ row.display_name }}</td><td><code>{{ row.export_id }}</code></td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <p class="fineprint">
-    Export IDs are customer-specific fingerprints. Controlled exports remain limited and
-    fingerprinted — forwarding the unlocked session to another machine still requires that
-    device’s own activation.
-  </p>
-</section>
+  {% if rows|length > 25 %}<p class="fineprint">Showing the first 25 of {{ rows|length }}.</p>{% endif %}
+</details>
 {% endif %}
 {% endblock %}

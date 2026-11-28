@@ -1,17 +1,55 @@
 {% extends "base.html" %}
-{% block title %}Campaign — Academic Studio{% endblock %}
+{% block title %}Overview — Academic Studio{% endblock %}
+{% block main_class %}layout-workspace{% endblock %}
 {% block content %}
+{% set first_run = (not snap.profile_ready) and snap.shortlisted == 0 and snap.preparing == 0 and snap.applied == 0 and snap.responses == 0 %}
+
+{% if first_run %}
 <section class="hero hero-compact">
-  <p class="hero-kicker">Your campaign</p>
-  <h1>What to do next</h1>
-  <p class="lead">A living checklist from your profile, shortlist, applications and deadlines — not a generic welcome screen.</p>
+  <p class="eyebrow">Welcome</p>
+  <h1>Find the right researchers for your next step</h1>
+  <p class="lede">Start with the faculty library to see who is working on what. Add your CV when you want matches ranked against your own experience.</p>
+  <div class="hero-actions">
+    <a class="button" href="/directory">Explore faculty library</a>
+    <a class="button secondary" href="/profile">Import CV</a>
+  </div>
 </section>
 
-<div class="stat-strip" role="group" aria-label="Campaign counts">
-  <div><strong>{{ snap.shortlisted }}</strong><span>Shortlisted</span></div>
-  <div><strong>{{ snap.preparing }}</strong><span>Preparing</span></div>
-  <div><strong>{{ snap.applied }}</strong><span>Applied</span></div>
-  <div><strong>{{ snap.responses }}</strong><span>Responses</span></div>
+<div class="sheet">
+  <h2>What to do next</h2>
+  <ol class="action-list">
+    <li><a href="/directory"><strong>Browse the faculty library</strong></a>
+      <p class="muted">Search by topic, university or funding signal. Unknown stays unknown.</p></li>
+    <li><a href="/profile"><strong>Import your CV</strong></a>
+      <p class="muted">Confirm a few interests and a project so matches and letters use real evidence.</p></li>
+    <li><a href="/shortlist?view=recommended"><strong>Review research matches</strong></a>
+      <p class="muted">Available once your profile is confirmed.</p></li>
+  </ol>
+</div>
+{% else %}
+<section class="hero hero-compact">
+  <p class="eyebrow">Overview</p>
+  <h1>What to do next</h1>
+  <p class="lede">A living checklist built from your profile, shortlist, applications and deadlines.</p>
+  <div class="hero-actions">
+    <a class="button" href="/directory">Explore faculty library</a>
+    {% if not snap.profile_ready %}<a class="button secondary" href="/profile">Import CV</a>{% endif %}
+  </div>
+</section>
+
+<div class="stat-strip" role="group" aria-label="Application progress">
+  {% for key, label, href in [('shortlisted', 'Shortlisted', '/shortlist'), ('preparing', 'Preparing', '/tracker'), ('applied', 'Applied', '/tracker'), ('responses', 'Responses', '/tracker')] %}
+  {% set count = snap[key] %}
+  {% set ents = (snap.entities or {}).get(key) or [] %}
+  <div>
+    <strong>{{ count }}</strong><span>{{ label }}</span>
+    {% if ents %}
+    <small>
+      {% for e in ents %}<a href="/opportunity/{{ e.opportunity_id }}">{{ e.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% if count > ents|length %} · <a href="{{ href }}">+{{ count - ents|length }} more</a>{% endif %}
+    </small>
+    {% endif %}
+  </div>
+  {% endfor %}
 </div>
 
 <div class="sheet">
@@ -26,26 +64,26 @@
     {% endfor %}
   </ol>
   {% else %}
-  <p class="muted">Your workspace is quiet — open the directory to discover researchers.</p>
+  <p class="muted">Your workspace is quiet — open the faculty library to discover researchers.</p>
   {% endif %}
 </div>
+{% endif %}
 
 <div class="grid-2">
   <div class="sheet-quiet">
-    <h2>Quick links</h2>
+    <h2>Shortcuts</h2>
     <p>
-      <a href="/directory">Directory</a> ·
-      <a href="/reader">Catalog Reader</a> ·
+      <a href="/directory">Faculty library</a> ·
       <a href="/compare">Compare</a> ·
-      <a href="/tracker">Kanban</a> ·
-      <a href="/backup">Backup</a> ·
-      <a href="/offer">Products</a>
+      <a href="/tracker">Applications</a> ·
+      <a href="/reader">Purchased catalog</a> ·
+      <a href="/backup">Backup</a>
     </p>
   </div>
   <div class="sheet-quiet">
     <h2>Profile</h2>
     {% if snap.profile_ready %}
-    <p>Profile looks ready for matching.</p>
+    <p>Your profile is ready for matching. <a href="/profile">Review it</a></p>
     {% else %}
     <p><a href="/profile">Finish your CV profile</a> so matching and drafting can use real evidence.</p>
     {% endif %}

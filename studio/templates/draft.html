@@ -1,107 +1,168 @@
 {% extends "base.html" %}
-{% block title %}Draft — Academic Outreach Studio{% endblock %}
+{% block title %}Application letter — Academic Studio{% endblock %}
+{% block main_class %}layout-split{% endblock %}
 {% block content %}
-<p class="hero-kicker">Letter</p>
-<h1>Draft</h1>
-<p class="muted">Every research sentence must cite your confirmed profile or a sourced paper. Direct send is optional under Mail.</p>
-
-<ul class="step-rail" aria-label="Where you are">
-  <li>1 · Profile</li>
-  <li>2 · Openings</li>
-  <li>3 · Shortlist</li>
-  <li class="active">4 · Draft</li>
-  <li>5 · Track</li>
-</ul>
+<p class="breadcrumb"><a href="/opportunity/{{ opportunity_id }}">← {{ researcher_name or 'Opportunity' }}{% if institution %} · {{ institution }}{% endif %}</a> · <a href="/drafts">All drafts</a></p>
+<p class="eyebrow">Application letter</p>
+<h1>Write to {{ researcher_name or 'the researcher' }}</h1>
+<p class="muted">Every research sentence must cite your confirmed profile or a sourced paper. Sending from your own mailbox is optional.</p>
 
 {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
 
-<div class="draft-stage">
-<form method="post" action="/draft/{{ opportunity_id }}">
-  <input type="hidden" name="page_token" value="{{ page_token }}">
-  <label for="recipient">Recipient</label>
-  <input id="recipient" name="recipient" value="{{ draft.recipient }}">
-  <label for="subject">Subject</label>
-  <input id="subject" name="subject" value="{{ draft.subject }}">
-  <label for="body">Body</label>
-  <textarea id="body" name="body" rows="12">{{ draft.body }}</textarea>
-  <div class="toolbar">
-    <button type="submit" name="action" value="save">Save</button>
-    <button type="submit" name="action" value="approve" class="secondary">Approve this exact letter</button>
+{% set approved = draft.approved_hash and draft.approved_hash == draft.content_hash %}
+{% set hard_fail = quality and quality.hard_fail %}
+
+<div class="split-pane">
+  <div class="split-pane-main draft-stage">
+    <form method="post" action="/draft/{{ opportunity_id }}" class="sheet">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="recipient">Recipient</label>
+      <input id="recipient" name="recipient" value="{{ draft.recipient }}">
+      <label for="subject">Subject</label>
+      <input id="subject" name="subject" value="{{ draft.subject }}">
+      <label for="body">Body</label>
+      <textarea id="body" name="body" rows="14">{{ draft.body }}</textarea>
+      <div class="toolbar">
+        <button type="submit" name="action" value="save">Save &amp; re-check</button>
+        <button type="submit" name="action" value="approve" class="secondary" {% if hard_fail %}disabled aria-describedby="approve-blocked"{% endif %}>Approve this exact letter</button>
+      </div>
+      {% if hard_fail %}
+      <p id="approve-blocked" class="disabled-reason">Approval is blocked until the “Must fix” items are resolved. Edit the letter, then save to re-check.</p>
+      {% endif %}
+      {% if approved %}
+      <p class="status-badge ok">Approved — ready to send once you connect an address</p>
+      {% else %}
+      <p class="disabled-reason">Not approved. Changing the recipient, subject or body clears approval.</p>
+      {% endif %}
+    </form>
+
+    <div class="sheet">
+      <h2>Send or keep a copy</h2>
+      <div class="toolbar">
+        <button type="button" id="copy-btn" class="secondary">Copy letter</button>
+        <a class="button secondary" href="/draft/{{ draft.id }}/eml">Download .eml</a>
+        <a class="button secondary" href="{{ mailto }}">Open in mail app</a>
+        <form method="post" action="/draft/{{ draft.id }}/sent-by-me" class="inline-form">
+          <input type="hidden" name="page_token" value="{{ page_token }}">
+          <button type="submit" class="secondary">I sent this</button>
+        </form>
+      </div>
+      <p class="fineprint">Prefer to send from Academic Studio? Connect your <a href="/mail">email</a>, approve the letter, and send it from there.</p>
+    </div>
+
+    <div class="sheet">
+      <h2>Improve with your own AI</h2>
+      {% if ai_status and ai_status.connected %}
+      <p>Using <strong>{{ ai_status.label }}</strong>{% if ai_status.account_hint %} ({{ ai_status.account_hint }}){% endif %}. AI may only rephrase sentences that already cite your evidence.</p>
+      <form method="post" action="/draft/{{ opportunity_id }}/rewrite">
+        <input type="hidden" name="page_token" value="{{ page_token }}">
+        <button type="submit" class="secondary">Rewrite with connected AI</button>
+      </form>
+      {% else %}
+      <p>The built-in draft works without AI. To rewrite with AI, <a href="/ai/groq">connect your free AI (Groq)</a> or <a href="/ai#instant-ai">connect instant AI</a> — both use your own allowance.</p>
+      {% endif %}
+      {% if rewrite_note %}<p class="flash {% if rewrite_error %}error{% endif %}">{{ rewrite_note }}</p>{% endif %}
+
+      <details class="plain" style="margin-top:0.75rem">
+        <summary>Use ChatGPT, Claude, Gemini or another assistant instead</summary>
+        <p class="muted">We prepare a prompt with only your confirmed facts. You run it in your own assistant — we never handle those subscriptions — then paste the result back and we validate it before saving.</p>
+        <ol class="wizard-steps">
+          <li>
+            <h3>Copy the prompt</h3>
+            <label for="handoff_prompt" class="sr-only">Prompt for your AI</label>
+            <textarea id="handoff_prompt" rows="6" readonly>{{ handoff_prompt }}</textarea>
+            <div class="toolbar">
+              <button type="button" id="copy-handoff" class="secondary">Copy prompt</button>
+            </div>
+          </li>
+          <li>
+            <h3>Open your assistant</h3>
+            <div class="chip-row">
+              {% for t in handoff_targets %}
+              <a class="chip" href="{{ t.open_url }}" target="_blank" rel="noopener">{{ t.title }}</a>
+              {% endfor %}
+            </div>
+          </li>
+          <li>
+            <h3>Paste the improved letter back</h3>
+            <form method="post" action="/draft/{{ opportunity_id }}/handoff-import">
+              <input type="hidden" name="page_token" value="{{ page_token }}">
+              <label for="handoff_body" class="sr-only">Improved letter body</label>
+              <textarea id="handoff_body" name="body" rows="6" placeholder="Paste only the letter body from your AI"></textarea>
+              <p class="toolbar"><button type="submit">Import and validate</button></p>
+            </form>
+          </li>
+        </ol>
+      </details>
+    </div>
   </div>
-</form>
 
-{% if draft.approved_hash == draft.content_hash %}
-<p class="stated">Approved — ready for Mail when you connect an address</p>
-{% else %}
-<p class="disabled-reason">Not approved. Editing recipient, subject, or body clears approval.</p>
-{% endif %}
+  <aside class="split-pane-side" aria-label="Evidence and quality">
+    {% if quality %}
+    {% set fails = quality.checks|selectattr('status', 'equalto', 'fail')|list %}
+    {% set warns = quality.checks|selectattr('status', 'equalto', 'warn')|list %}
+    {% set passes = quality.checks|selectattr('status', 'equalto', 'pass')|list %}
+    <div class="sheet">
+      <h2>Letter quality</h2>
+      {% if hard_fail %}
+      <p class="flash error">{{ fails|length }} must-fix issue{{ '' if fails|length == 1 else 's' }}. You can’t approve this letter yet.</p>
+      {% elif warns %}
+      <p class="muted">No blockers. {{ warns|length }} suggestion{{ '' if warns|length == 1 else 's' }} below are optional.</p>
+      {% else %}
+      <p class="status-badge ok">All checks passed</p>
+      {% endif %}
 
-<div class="toolbar">
-  <button type="button" id="copy-btn" class="secondary">Copy</button>
-  <a class="button secondary" href="/draft/{{ draft.id }}/eml">Download .eml</a>
-  <a class="button secondary" href="{{ mailto }}">Open in mail app</a>
-  <form method="post" action="/draft/{{ draft.id }}/sent-by-me" style="display:inline">
-    <input type="hidden" name="page_token" value="{{ page_token }}">
-    <button type="submit" class="secondary">I sent this</button>
-  </form>
-</div>
-</div>
+      {% if fails %}
+      <h3>Must fix</h3>
+      <ul class="quality-list">
+        {% for c in fails %}
+        <li><span class="status-badge bad">Fix</span><strong>{{ c.label }}</strong><span class="q-detail">{{ c.detail }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if warns %}
+      <h3>Worth improving</h3>
+      <ul class="quality-list">
+        {% for c in warns %}
+        <li><span class="status-badge warn">Suggest</span><strong>{{ c.label }}</strong><span class="q-detail">{{ c.detail }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if passes %}
+      <details class="plain">
+        <summary>{{ passes|length }} check{{ '' if passes|length == 1 else 's' }} passed</summary>
+        <ul class="quality-list">
+          {% for c in passes %}
+          <li><span class="status-badge ok">Pass</span><strong>{{ c.label }}</strong><span class="q-detail">{{ c.detail }}</span></li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+      {% if quality.improvements %}
+      <h3>Suggested edits</h3>
+      <ul class="list">{% for i in quality.improvements %}<li>{{ i }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+    {% endif %}
 
-{% if quality %}
-<div class="sheet">
-  <h2>Application quality</h2>
-  <ul class="list">
-    {% for c in quality.checks %}
-    <li>
-      <strong>{{ c.label }}</strong>
-      {% if c.status=='pass' %}<span class="stated">{{ c.status }}</span>
-      {% elif c.status=='fail' %}<span class="expired">{{ c.status }}</span>
-      {% else %}<span class="unknown">{{ c.status }}</span>{% endif %}
-      — {{ c.detail }}
-    </li>
-    {% endfor %}
-  </ul>
-  {% if quality.improvements %}
-  <p class="muted">Suggested improvements (edit manually or via AI rewrite):</p>
-  <ul class="list">{% for i in quality.improvements %}<li>{{ i }}</li>{% endfor %}</ul>
-  {% endif %}
-  {% if quality.hard_fail %}
-  <p class="flash error">Hard failures must be fixed before you should approve this letter.</p>
-  {% endif %}
-</div>
-{% endif %}
-
-<div class="sheet">
-  <h2>Optional rewrite</h2>
-  {% if ai_status and ai_status.connected %}
-  <p>Using <strong>{{ ai_status.label }}</strong>{% if ai_status.account_hint %} ({{ ai_status.account_hint }}){% endif %}. AI may only rephrase cited sentences.</p>
-  <form method="post" action="/draft/{{ opportunity_id }}/rewrite">
-    <input type="hidden" name="page_token" value="{{ page_token }}">
-    <button type="submit" class="secondary">Rewrite with connected AI</button>
-  </form>
-  {% else %}
-  <p>Built-in draft works without AI. <a href="/ai/groq">Connect your free AI (Groq)</a> or <a href="/ai#instant-ai">Connect instant AI</a> — both use your own allowance.</p>
-  {% endif %}
-  {% if rewrite_note %}<p class="flash {% if rewrite_error %}error{% endif %}">{{ rewrite_note }}</p>{% endif %}
-</div>
-
-<div class="sheet">
-  <h2>Improve this letter with your AI</h2>
-  <p class="muted">We prepare a prompt with only confirmed facts. You submit it in ChatGPT, Claude, Gemini, Grok, DeepSeek or Copilot — we never handle those subscriptions. Paste the result back; we validate before saving.</p>
-  <label for="handoff_prompt">Prompt for your AI</label>
-  <textarea id="handoff_prompt" rows="8" readonly>{{ handoff_prompt }}</textarea>
-  <div class="toolbar">
-    <button type="button" id="copy-handoff" class="secondary">Copy prompt</button>
-    {% for t in handoff_targets %}
-    <a class="button secondary" href="{{ t.open_url }}" target="_blank" rel="noopener">{{ t.title }}</a>
-    {% endfor %}
-  </div>
-  <form method="post" action="/draft/{{ opportunity_id }}/handoff-import">
-    <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label for="handoff_body">Paste improved letter body</label>
-    <textarea id="handoff_body" name="body" rows="8" placeholder="Paste only the letter body from your AI"></textarea>
-    <button type="submit">Import and validate</button>
-  </form>
+    <div class="sheet">
+      <h2>Evidence you can cite</h2>
+      {% if evidence %}
+      <ul class="list">
+        {% for e in evidence[:8] %}
+        <li>
+          <span class="chip">{{ e.kind|replace('_', ' ')|title }}</span>
+          <div>{{ e.statement[:140] }}{% if e.statement|length > 140 %}…{% endif %}</div>
+          {% if e.url %}<a class="fineprint" href="{{ e.url }}" rel="noopener" target="_blank">Source</a>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% if evidence|length > 8 %}<p class="fineprint">+{{ evidence|length - 8 }} more items available to the letter.</p>{% endif %}
+      {% else %}
+      <p class="muted">No evidence yet. <a href="/profile">Confirm interests and projects</a> to give the letter something real to cite.</p>
+      {% endif %}
+    </div>
+  </aside>
 </div>
 
 <script>

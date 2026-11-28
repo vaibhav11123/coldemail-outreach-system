@@ -1,101 +1,148 @@
 {% extends "base.html" %}
-{% block title %}Profile — Academic Outreach Studio{% endblock %}
+{% block title %}My profile — Academic Studio{% endblock %}
 {% block content %}
-<p class="hero-kicker">Step 1 of 3</p>
+{% set step = 1 if not facts else (2 if not profile_ready else 3) %}
+<div class="progress-head">
+  <p class="eyebrow" style="margin:0">My profile</p>
+  <span class="progress-count">{{ step }} of 3</span>
+</div>
+<ol class="step-rail" aria-label="Profile progress">
+  <li class="{% if step == 1 %}active{% elif step > 1 %}done{% endif %}">CV</li>
+  <li class="{% if step == 2 %}active{% elif step > 2 %}done{% endif %}">Confirm</li>
+  <li class="{% if step == 3 %}active{% endif %}">Preferences</li>
+</ol>
+
 <h1>Tell us what you want to research</h1>
-<p class="lede">Import your CV, confirm extracted lines, then explore matching professors. AI is optional.</p>
-<ul class="step-rail" aria-label="Where you are">
-  <li class="active">1 · Profile</li>
-  <li>2 · Directory</li>
-  <li>3 · Shortlist</li>
-  <li>4 · Draft</li>
-  <li>5 · Track</li>
-</ul>
+<p class="lede">Drop in your CV, confirm what we found, then set your preferences. AI is optional.</p>
 
-<form method="post" action="/profile" enctype="multipart/form-data" class="panel">
+<form id="profile-form" method="post" action="/profile" enctype="multipart/form-data" class="panel">
   <input type="hidden" name="page_token" value="{{ page_token }}">
-
-  <label for="cv">Import CV (PDF, DOCX, or TXT)</label>
-  <input id="cv" name="cv" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
-  <p class="fineprint">Your CV stays on this device unless you later authorize an AI provider to process text.</p>
-
-  <label for="mode">Goal</label>
-  <select id="mode" name="mode">
-    <option value="internship" {% if applicant.mode=='internship' %}selected{% endif %}>Research internship</option>
-    <option value="phd" {% if applicant.mode=='phd' %}selected{% endif %}>PhD</option>
-    <option value="visiting" {% if applicant.mode=='visiting' %}selected{% endif %}>Visiting researcher</option>
-    <option value="ra" {% if applicant.mode=='ra' %}selected{% endif %}>Research assistant</option>
-  </select>
-
-  <label for="degree_level">Degree level</label>
-  <select id="degree_level" name="degree_level">
-    <option value="undergraduate" {% if applicant.degree_level=='undergraduate' %}selected{% endif %}>Undergraduate</option>
-    <option value="master" {% if applicant.degree_level=='master' %}selected{% endif %}>Master's</option>
-  </select>
-
-  <label for="degree_year">Year</label>
-  <input id="degree_year" name="degree_year" value="{{ applicant.degree_year or '' }}">
-
-  <label for="countries">Preferred countries</label>
-  <input id="countries" name="countries" value="{{ applicant.countries or '' }}">
-
-  <label for="funding_need">Funding need</label>
-  <select id="funding_need" name="funding_need">
-    <option value="need_funded" {% if applicant.funding_need=='need_funded' %}selected{% endif %}>Need funded</option>
-    <option value="can_unpaid" {% if applicant.funding_need=='can_unpaid' %}selected{% endif %}>Can be unpaid</option>
-    <option value="no_preference" {% if applicant.funding_need=='no_preference' %}selected{% endif %}>No preference</option>
-  </select>
-
-  <label for="dates_free">Dates free</label>
-  <input id="dates_free" name="dates_free" value="{{ applicant.dates_free or '' }}">
-
-  <label for="github_url">GitHub</label>
-  <input id="github_url" name="github_url" value="{{ applicant.github_url or '' }}">
-
-  <label for="portfolio_url">Portfolio</label>
-  <input id="portfolio_url" name="portfolio_url" value="{{ applicant.portfolio_url or '' }}">
-
-  <label for="interest">Add interest</label>
-  <input id="interest" name="interest" placeholder="e.g. GPU kernel optimization">
-
-  <label for="skill">Add skill</label>
-  <input id="skill" name="skill" placeholder="e.g. CUDA, PyTorch">
-
-  <label for="project">Add project</label>
-  <textarea id="project" name="project" placeholder="Title, what you built, method, result"></textarea>
-
-  <p style="margin-top:1rem"><button type="submit">Save &amp; extract</button>
-  <a class="button secondary" href="/directory">Skip to directory</a></p>
+  <div class="cv-dropzone" id="cv-dropzone">
+    <strong>Drag your CV here</strong>
+    <label for="cv">or choose a PDF, DOCX or TXT file</label>
+    <input id="cv" name="cv" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+    <p class="fineprint" style="margin:0">Your CV stays on this device unless you later authorize an AI provider to process text.</p>
+  </div>
+  <div class="toolbar">
+    <button type="submit">Save &amp; extract</button>
+    <a class="button secondary" href="/directory">Skip for now</a>
+    <span class="muted">You can browse the faculty library without a profile.</span>
+  </div>
 </form>
 
-<h2>Facts</h2>
-{% if not facts %}
-<p class="muted">Empty profile. Add at least one interest and one project, then confirm them.</p>
-{% else %}
-<ul class="list">
-  {% for f in facts %}
-  <li>
-    <strong>{{ f.kind }}</strong> — {{ f.body }}
-    {% if f.confirmed %}
-      <span class="stated">Confirmed</span>
-    {% else %}
-      <form method="post" action="/profile/confirm/{{ f.id }}" style="display:inline">
-        <input type="hidden" name="page_token" value="{{ page_token }}">
-        <button type="submit" class="secondary">Confirm</button>
-      </form>
-      <form method="post" action="/profile/reject/{{ f.id }}" style="display:inline">
-        <input type="hidden" name="page_token" value="{{ page_token }}">
-        <button type="submit" class="secondary">Reject</button>
-      </form>
-    {% endif %}
-  </li>
-  {% endfor %}
-</ul>
-{% endif %}
+<section class="panel" aria-labelledby="confirm-title">
+  <h2 id="confirm-title">Confirm what we found</h2>
+  {% if not facts %}
+  <p class="muted">Nothing yet. Import a CV above or add at least one interest and one project below, then confirm them.</p>
+  {% else %}
+  <ul class="list">
+    {% for f in facts %}
+    <li>
+      <span class="chip">{{ f.kind|replace('_', ' ')|title }}</span>
+      {{ f.body }}
+      {% if f.confirmed %}
+        <span class="status-badge ok">Confirmed</span>
+      {% else %}
+        <form method="post" action="/profile/confirm/{{ f.id }}" class="inline-form">
+          <input type="hidden" name="page_token" value="{{ page_token }}">
+          <button type="submit" class="small">Confirm</button>
+        </form>
+        <form method="post" action="/profile/reject/{{ f.id }}" class="inline-form">
+          <input type="hidden" name="page_token" value="{{ page_token }}">
+          <button type="submit" class="small secondary">Reject</button>
+        </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 
-{% if profile_ready %}
-<p><a class="button" href="/start">Continue to openings</a></p>
-{% else %}
-<p class="disabled-reason">Shortlist is blocked until you confirm at least one interest and one project.</p>
-{% endif %}
+  <details class="plain" style="margin-top:0.75rem">
+    <summary>Add something we missed</summary>
+    <label for="interest">Research interest</label>
+    <input id="interest" name="interest" form="profile-form" placeholder="e.g. GPU kernel optimization">
+
+    <label for="skill">Skill</label>
+    <input id="skill" name="skill" form="profile-form" placeholder="e.g. CUDA, PyTorch">
+
+    <label for="project">Project</label>
+    <textarea id="project" name="project" form="profile-form" placeholder="Title, what you built, method, result"></textarea>
+    <p class="toolbar"><button type="submit" form="profile-form" class="secondary">Save &amp; extract</button></p>
+  </details>
+
+  {% if profile_ready %}
+  <p style="margin-top:1rem"><a class="button" href="/shortlist?view=recommended">See research matches</a>
+  <a class="button secondary" href="/start">Expand library</a></p>
+  {% else %}
+  <p class="disabled-reason">Matches are blocked until you confirm at least one interest and one project, skill or coursework line.</p>
+  {% endif %}
+</section>
+
+<section class="panel" aria-labelledby="prefs-title">
+  <h2 id="prefs-title">Your preferences</h2>
+  <div class="grid-2">
+    <div>
+      <label for="mode">Goal</label>
+      <select id="mode" name="mode" form="profile-form">
+        <option value="internship" {% if applicant.mode=='internship' %}selected{% endif %}>Research internship</option>
+        <option value="phd" {% if applicant.mode=='phd' %}selected{% endif %}>PhD</option>
+        <option value="visiting" {% if applicant.mode=='visiting' %}selected{% endif %}>Visiting researcher</option>
+        <option value="ra" {% if applicant.mode=='ra' %}selected{% endif %}>Research assistant</option>
+      </select>
+    </div>
+    <div>
+      <label for="degree_level">Degree level</label>
+      <select id="degree_level" name="degree_level" form="profile-form">
+        <option value="undergraduate" {% if applicant.degree_level=='undergraduate' %}selected{% endif %}>Undergraduate</option>
+        <option value="master" {% if applicant.degree_level=='master' %}selected{% endif %}>Master's</option>
+      </select>
+    </div>
+    <div>
+      <label for="degree_year">Year</label>
+      <input id="degree_year" name="degree_year" form="profile-form" value="{{ applicant.degree_year or '' }}">
+    </div>
+    <div>
+      <label for="countries">Preferred countries</label>
+      <input id="countries" name="countries" form="profile-form" value="{{ applicant.countries or '' }}">
+    </div>
+    <div>
+      <label for="funding_need">Funding need</label>
+      <select id="funding_need" name="funding_need" form="profile-form">
+        <option value="need_funded" {% if applicant.funding_need=='need_funded' %}selected{% endif %}>Need funded</option>
+        <option value="can_unpaid" {% if applicant.funding_need=='can_unpaid' %}selected{% endif %}>Can be unpaid</option>
+        <option value="no_preference" {% if applicant.funding_need=='no_preference' %}selected{% endif %}>No preference</option>
+      </select>
+    </div>
+    <div>
+      <label for="dates_free">Dates free</label>
+      <input id="dates_free" name="dates_free" form="profile-form" value="{{ applicant.dates_free or '' }}">
+    </div>
+    <div>
+      <label for="github_url">GitHub</label>
+      <input id="github_url" name="github_url" form="profile-form" value="{{ applicant.github_url or '' }}">
+    </div>
+    <div>
+      <label for="portfolio_url">Portfolio</label>
+      <input id="portfolio_url" name="portfolio_url" form="profile-form" value="{{ applicant.portfolio_url or '' }}">
+    </div>
+  </div>
+  <p class="toolbar"><button type="submit" form="profile-form">Save preferences</button></p>
+</section>
+
+<script>
+(function () {
+  var zone = document.getElementById('cv-dropzone');
+  var input = document.getElementById('cv');
+  if (!zone || !input) return;
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    zone.addEventListener(ev, function (e) { e.preventDefault(); zone.classList.add('dragover'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    zone.addEventListener(ev, function (e) { e.preventDefault(); zone.classList.remove('dragover'); });
+  });
+  zone.addEventListener('drop', function (e) {
+    if (e.dataTransfer && e.dataTransfer.files.length) { input.files = e.dataTransfer.files; }
+  });
+})();
+</script>
 {% endblock %}

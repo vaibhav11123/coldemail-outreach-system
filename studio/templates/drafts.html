@@ -1,15 +1,41 @@
 {% extends "base.html" %}
-{% block title %}Drafts — Academic Outreach Studio{% endblock %}
+{% block title %}Drafts — Academic Studio{% endblock %}
 {% block content %}
+<p class="eyebrow">Applications</p>
 <h1>Drafts</h1>
 {% if not items %}
-<p class="muted">No drafts yet.</p>
+<div class="empty-state">
+  <h2>No drafts yet</h2>
+  <p class="muted">Pick a researcher and Academic Studio will prepare a first letter from your confirmed profile and their published work.</p>
+  <div class="hero-actions">
+    <a class="button" href="/shortlist?view=recommended">Choose researcher</a>
+    <a class="button secondary" href="/directory">Browse directory</a>
+  </div>
+</div>
 {% else %}
-<ul class="list">
+<ul class="list-card">
   {% for d in items %}
   <li>
-    <a href="/draft/{{ d.opportunity_id }}">{{ d.recipient }}</a> — {{ d.subject }}
-    {% if d.approved_hash == d.content_hash %}<span class="stated">Approved</span>{% endif %}
+    <div class="card-top">
+      <div>
+        <a class="title" href="/draft/{{ d.opportunity_id }}">{{ d.researcher_name or d.recipient or 'Untitled draft' }}</a>
+        <div class="meta">
+          {% if d.institution %}<span>{{ d.institution }}</span>{% endif %}
+          {% if d.recipient %}<span class="mono">{{ d.recipient }}</span>{% endif %}
+        </div>
+      </div>
+      {% if d.approved_hash and d.approved_hash == d.content_hash %}
+      <span class="status-badge ok">Approved</span>
+      {% else %}
+      <span class="status-badge neutral">Needs review</span>
+      {% endif %}
+    </div>
+    <p style="margin:0.5rem 0 0"><strong>{{ d.subject or 'No subject' }}</strong></p>
+    {% if d.body %}<p class="muted" style="margin:0.15rem 0 0">{{ d.body[:140]|trim }}{% if d.body|length > 140 %}…{% endif %}</p>{% endif %}
+    {% if d.updated_at %}<p class="fineprint" style="margin:0.4rem 0 0">Updated {{ d.updated_at }}</p>{% endif %}
+    <div class="card-actions">
+      <a class="button small" href="/draft/{{ d.opportunity_id }}">Continue editing</a>
+    </div>
   </li>
   {% endfor %}
 </ul>

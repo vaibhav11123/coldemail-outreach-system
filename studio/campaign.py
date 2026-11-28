@@ -23,6 +23,7 @@ class CampaignSnapshot:
     responses: int = 0
     profile_ready: bool = False
     actions: list[NextAction] = field(default_factory=list)
+    entities: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -48,12 +49,44 @@ def build_campaign_snapshot(conn, *, profile_ready: bool) -> CampaignSnapshot:
     applied = sum(1 for a in apps if a["state"] == "submitted_by_me")
     responses = sum(1 for a in apps if a["state"] in {"replied", "interview"})
 
+    shortlist_rows = [
+        dict(r)
+        for r in conn.execute(
+            """
+            SELECT s.opportunity_id, r.display_name AS name
+            FROM shortlist_item s
+            JOIN opportunity o ON o.id = s.opportunity_id
+            JOIN researcher r ON r.id = o.researcher_id
+            ORDER BY s.rank_score DESC, s.id DESC
+            LIMIT 3
+            """
+        )
+    ]
+
+    def _apps(states: set[str]) -> list[dict[str, Any]]:
+        return [
+            {
+                "opportunity_id": a["opportunity_id"],
+                "name": a["name"],
+                "state": a["state"],
+                "deadline": a.get("deadline"),
+            }
+            for a in apps
+            if a["state"] in states
+        ][:3]
+
     snap = CampaignSnapshot(
         shortlisted=int(shortlisted),
         preparing=preparing,
         applied=applied,
         responses=responses,
         profile_ready=profile_ready,
+        entities={
+            "shortlisted": shortlist_rows,
+            "preparing": _apps({"drafted", "ready"}),
+            "applied": _apps({"submitted_by_me"}),
+            "responses": _apps({"replied", "interview"}),
+        },
     )
     actions: list[NextAction] = []
     if not profile_ready:

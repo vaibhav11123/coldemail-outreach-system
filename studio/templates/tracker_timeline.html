@@ -1,18 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Timeline — Academic Studio{% endblock %}
+{% block main_class %}layout-default{% endblock %}
 {% block content %}
-<p class="hero-kicker">Application management</p>
+<p class="eyebrow">Applications</p>
 <h1>Application timeline</h1>
-<p><a href="/tracker">← Back to Kanban</a></p>
+<p class="breadcrumb"><a href="/tracker">← Back to Kanban</a></p>
 {% if not items %}
-<p class="muted">No applications yet.</p>
+<div class="empty-state">
+  <h2>No applications yet</h2>
+  <p class="muted">Applications appear here as you prepare and send letters.</p>
+  <a class="button" href="/directory">Browse faculty library</a>
+</div>
 {% else %}
 <ol class="timeline">
   {% for a in items %}
   <li>
-    <span class="mono">{{ a.updated_at }}</span>
-    <strong>{{ a.name }}</strong> — {{ a.state }}
-    {% if a.deadline %}<span class="muted"> · deadline {{ a.deadline }}</span>{% endif %}
+    <span class="muted">{{ a.updated_at|date_label }}</span>
+    <strong>{{ a.name }}</strong> — <span class="status-badge neutral">{{ a.state|app_state }}</span>
+    {% if a.deadline %}<span class="muted"> · deadline {{ a.deadline|deadline_label }}</span>{% endif %}
   </li>
   {% endfor %}
 </ol>
