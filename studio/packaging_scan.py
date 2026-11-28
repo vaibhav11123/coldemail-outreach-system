@@ -11,7 +11,16 @@ FORBIDDEN_NAMES = {
     "license_store.json",
     "secrets.json",
     "cipher_license",
+    "cold_email_outreach_all_cleaned_ranked.csv",
+    "delivery_ledger.sqlite",
+    "payment_events.jsonl",
 }
+
+FORBIDDEN_NAME_SUBSTRINGS = (
+    "cold_email_outreach",
+    "dev_issuer",
+    "issuer_vault",
+)
 
 FORBIDDEN_SUFFIXES = (".env", ".pem")
 
@@ -22,6 +31,18 @@ FORBIDDEN_CONTENT_MARKERS = (
 )
 
 
+def _forbidden_path(rel: str, name: str) -> str | None:
+    if name in FORBIDDEN_NAMES or name.endswith(".env"):
+        return f"{rel} (forbidden name)"
+    low = rel.lower().replace("\\", "/")
+    for sub in FORBIDDEN_NAME_SUBSTRINGS:
+        if sub in low or sub in name.lower():
+            return f"{rel} (forbidden private outreach/operator artifact)"
+    if name.endswith(".pem"):
+        return f"{rel} (forbidden suffix)"
+    return None
+
+
 def scan_package_dir(root: Path) -> None:
     bad: list[str] = []
     for path in root.rglob("*"):
@@ -29,14 +50,10 @@ def scan_package_dir(root: Path) -> None:
             continue
         rel = str(path.relative_to(root))
         name = path.name
-        if name in FORBIDDEN_NAMES or name.endswith(".env"):
-            bad.append(f"{rel} (forbidden name)")
+        hit = _forbidden_path(rel, name)
+        if hit:
+            bad.append(hit)
             continue
-        if name.endswith(FORBIDDEN_SUFFIXES) and name != "manifest.sig":
-            # allow .sig; block .pem
-            if name.endswith(".pem"):
-                bad.append(f"{rel} (forbidden suffix)")
-                continue
         # Skip large binary catalogs for content scan
         if path.suffix.lower() in {
             ".asdb",

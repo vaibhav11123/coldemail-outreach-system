@@ -2,10 +2,26 @@
 
 from __future__ import annotations
 
+import os
 import smtplib
 import time
 from email.message import EmailMessage
 from typing import Any
+
+
+def mail_transport_mode() -> str:
+    """Customer-safe transport modes.
+
+    - ``preview`` / ``simulation``: never contact a real SMTP/Gmail provider
+    - ``send_test``: only allowed when recipient matches STUDIO_MAIL_TEST_RECIPIENT
+    - ``production``: real send (default when credentials exist)
+    """
+    raw = (os.environ.get("STUDIO_MAIL_MODE") or "").strip().lower()
+    if raw in {"preview", "simulation", "send_test", "production"}:
+        return raw
+    if (os.environ.get("STUDIO_MAIL_DRY_RUN") or "").strip().lower() in {"1", "true", "yes"}:
+        return "simulation"
+    return "production"
 
 
 def create_intent(conn, draft_id: int, content_hash: str, provider: str = "smtp") -> int:
@@ -153,6 +169,20 @@ def perform_send(
         raise ValueError("Approval cleared")
 
     provider = (intent["provider"] or "smtp").lower()
+    mode = mail_transport_mode()
+    if mode in {"preview", "simulation"}:
+        if not mark_submitted(conn, intent_id):
+            raise ValueError("Send already in progress or completed")
+        mid = f"sim:{mode}:{int(time.time())}"
+        mark_sent(conn, intent_id, mid)
+        return "simulated"
+    if mode == "send_test":
+        allowed = (os.environ.get("STUDIO_MAIL_TEST_RECIPIENT") or "").strip().lower()
+        if not allowed or (draft["recipient"] or "").strip().lower() != allowed:
+            raise ValueError(
+                "Send-test mode only delivers to STUDIO_MAIL_TEST_RECIPIENT. "
+                "Confirm the test recipient before sending."
+            )
     # Atomic claim — concurrent double-submit must not both hit the provider.
     if not mark_submitted(conn, intent_id):
         refreshed = conn.execute(

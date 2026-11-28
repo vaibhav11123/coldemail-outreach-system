@@ -3,12 +3,37 @@
 from __future__ import annotations
 
 import hashlib
+import re
 
 from studio.drafting.schemas import EvidenceItem, StrategyName, StructuredDraft, WritingPreferences
 
 
 def _content_hash(recipient: str, subject: str, body: str) -> str:
     return hashlib.sha256(f"{recipient}\n{subject}\n{body}".encode()).hexdigest()
+
+
+def _student_name(evidence: list[EvidenceItem]) -> str:
+    for e in evidence:
+        if e.kind == "student_name" and e.statement:
+            return e.statement.strip()
+    # Strip leading "Name - " patterns from project lines without embedding them mid-sentence
+    return ""
+
+
+def _clean_student_line(statement: str, student_name: str) -> str:
+    text = (statement or "").strip()
+    if not text:
+        return "my coursework and research interests"
+    if student_name and text.lower().startswith(student_name.lower()):
+        text = re.sub(r"^[^—\-–:]+[—\-–:]\s*", "", text).strip()
+    # Drop internal field labels that leaked into profile facts
+    text = re.sub(
+        r"^(?:My relevant experience|Looking for|Relevant experience)\s*:\s*",
+        "",
+        text,
+        flags=re.I,
+    ).strip()
+    return text or "my coursework and research interests"
 
 
 def deterministic_compose(
@@ -21,18 +46,26 @@ def deterministic_compose(
 ) -> dict:
     prefs = prefs or WritingPreferences()
     first = researcher_name.split()[0] if researcher_name else "Professor"
+    if first and first.lower() not in {"professor", "dr", "dr."}:
+        greeting = f"Dear Professor {first}"
+    else:
+        greeting = "Dear Professor"
     student = [e for e in evidence if e.kind.startswith("student_")]
     faculty = [e for e in evidence if e.kind.startswith("faculty_")]
-    student_line = student[0].statement if student else "my coursework and research interests"
+    signature = _student_name(evidence)
+    student_line = _clean_student_line(
+        student[0].statement if student else "",
+        signature,
+    )
     faculty_line = faculty[0].source or faculty[0].statement if faculty else "your research"
     faculty_url = faculty[0].url if faculty else ""
+    sig_block = f"\n\nBest regards,\n{signature}" if signature else "\n\nBest regards,"
 
-    # Internal evidence keeps URLs; recipient-facing prose stays URL-light
     if strategy == "learning_oriented":
         subject = f"Research inquiry — learning-focused interest in {faculty_line[:50]}"
         intro = (
-            f"Dear {first},\n\n"
-            f"I am an undergraduate developing skills in areas related to your work on {faculty_line}. "
+            f"{greeting},\n\n"
+            f"I am interested in developing research skills related to your work on {faculty_line}. "
         )
         mid = (
             f"My preparation includes {student_line}. "
@@ -41,23 +74,26 @@ def deterministic_compose(
         )
         close = (
             "If you are open to undergraduate researchers, I would appreciate any advice on how "
-            "to prepare a stronger application to your group.\n\nBest regards,\n"
+            "to prepare a stronger application to your group."
         )
     elif strategy == "advertised_opening":
-        subject = f"Application interest — {faculty_line[:55]}"
+        subject = f"Summer 2027 research inquiry — {faculty_line[:55]}"
         intro = (
-            f"Dear {first},\n\n"
-            f"I am writing regarding research opportunities connected with your work on {faculty_line}. "
+            f"{greeting},\n\n"
+            f"I am interested in exploring research opportunities connected with your work on {faculty_line}. "
         )
-        mid = f"My relevant experience: {student_line}. "
+        mid = (
+            f"My recent projects include {student_line}. "
+            f"Your research particularly interests me because I would like to contribute carefully "
+            f"to an ongoing project in this area. "
+        )
         close = (
-            "I would welcome the chance to discuss whether my background fits an opening in your group.\n\n"
-            "Best regards,\n"
+            "I would welcome the chance to discuss whether my background fits an opening in your group."
         )
     elif strategy == "technical_contribution":
-        subject = f"Summer research inquiry — systems contribution"
+        subject = "Summer research inquiry — systems contribution"
         intro = (
-            f"Dear {first},\n\n"
+            f"{greeting},\n\n"
             f"I am interested in the systems challenges behind efficient research software. "
         )
         mid = (
@@ -66,12 +102,12 @@ def deterministic_compose(
         )
         close = (
             "I would like to contribute to an ongoing project this summer if you are considering "
-            "undergraduate researchers.\n\nBest regards,\n"
+            "undergraduate researchers."
         )
     else:  # research_alignment / publication_led / default
         subject = f"Research internship inquiry — {faculty_line[:55]}"
         intro = (
-            f"Dear {first},\n\n"
+            f"{greeting},\n\n"
             f"I am writing to explore research opportunities related to {faculty_line}. "
         )
         mid = (
@@ -80,16 +116,16 @@ def deterministic_compose(
         )
         close = (
             "If you are open to discussing undergraduate research, I would appreciate the opportunity "
-            "to learn where I might be useful.\n\nBest regards,\n"
+            "to learn where I might be useful."
         )
 
     if prefs.length == "concise":
-        body = intro + mid + close
+        body = intro + mid + close + sig_block
     elif prefs.length == "detailed":
         cite = f" (source on file{': ' + faculty_url if faculty_url else ''})" if faculty else ""
-        body = intro + mid + f"I have reviewed the available lab materials{cite}. " + close
+        body = intro + mid + f"I have reviewed the available lab materials{cite}. " + close + sig_block
     else:
-        body = intro + mid + close
+        body = intro + mid + close + sig_block
 
     citations = []
     for e in evidence[:6]:
