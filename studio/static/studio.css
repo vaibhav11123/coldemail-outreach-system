@@ -253,6 +253,23 @@ details.sheet > summary {
   min-height: 44px;
   display: flex;
   align-items: center;
+  list-style: none;
+}
+
+details.sheet > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.sheet > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.5rem;
+  color: var(--color-primary);
+  transition: transform 0.15s ease;
+}
+
+details.sheet[open] > summary::before {
+  transform: rotate(90deg);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,11 +1,131 @@
 {% extends "base.html" %}
-{% block title %}Mail — Academic Outreach Studio{% endblock %}
+{% block title %}Connect your email — Academic Outreach Studio{% endblock %}
 {% block content %}
-<h1>Mail</h1>
-<p class="muted">Connect a mailbox for optional direct send. Copy, .eml, and open-in-mail-app always work on the draft screen without a mailbox.</p>
+<h1>Connect your email</h1>
+<p>Send personalized research applications directly from your own email address.</p>
 
-<div class="sheet">
-  <h2>SMTP / school mail / app password</h2>
+{% if gmail.connected %}
+<div class="sheet ai-hero">
+  <h2>Gmail account</h2>
+  <p><span class="stated">Connected</span> {{ gmail.email or 'Gmail' }}</p>
+  <p class="muted">Account permissions: <strong>{{ gmail.permissions }}</strong></p>
+  <ul class="list">
+    {% for f in gmail.features %}
+    <li>{{ f }}</li>
+    {% endfor %}
+  </ul>
+  <p class="muted">Automatic reply detection — {{ gmail.reply_detail }}</p>
+  <form method="post" action="/mail/reply-consent" style="margin:0.75rem 0">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label><input type="checkbox" name="consent" value="1" {% if gmail.reply_detection %}checked{% endif %}> Request reply detection later (separate inbox permission)</label>
+    <button type="submit" class="secondary">Save</button>
+  </form>
+  <form method="post" action="/mail/disconnect/gmail">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary">Disconnect account</button>
+  </form>
+  <p class="muted" style="margin-top:0.75rem">{{ quota_label }}</p>
+</div>
+{% elif outlook.connected %}
+<div class="sheet ai-hero">
+  <h2>Microsoft Outlook</h2>
+  <p><span class="stated">Connected</span> {{ outlook.email or 'Outlook' }}</p>
+  <p class="muted">{{ outlook.detail }}</p>
+  <form method="post" action="/mail/disconnect/outlook">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary">Disconnect account</button>
+  </form>
+</div>
+{% else %}
+<div class="ai-grid">
+  <div class="sheet ai-card">
+    <h2>Gmail</h2>
+    <p class="muted">Personal and university Google accounts</p>
+    <form method="post" action="/mail/connect/gmail">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit">Continue with Google</button>
+    </form>
+    {% if not gmail.client_configured %}
+    <p class="disabled-reason" style="margin-top:0.75rem">App OAuth client not configured yet — use Advanced below, or Set up later.</p>
+    {% endif %}
+  </div>
+  <div class="sheet ai-card">
+    <h2>Microsoft Outlook</h2>
+    <p class="muted">University and personal Microsoft accounts</p>
+    <form method="post" action="/mail/connect/outlook">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="secondary">Continue with Microsoft</button>
+    </form>
+  </div>
+</div>
+<p class="muted" style="margin:1rem 0">We never ask for your email password. You can revoke access at any time.</p>
+<form method="post" action="/mail/setup-later">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <button type="submit" class="secondary">Set up later</button>
+</form>
+{% endif %}
+
+<div class="sheet" style="margin-top:1.5rem">
+  <h2>Send an approved draft</h2>
+  <p class="muted">Drafts stay in this app until you approve them. Automatic sending is off.</p>
+  {% if not drafts %}
+  <p class="muted">No approved drafts yet.</p>
+  {% else %}
+  <ul class="list">
+    {% for d in drafts %}
+    <li>
+      {{ d.recipient }} — {{ d.subject }}
+      {% set approved = d.approved_hash and d.approved_hash == d.content_hash %}
+      <form method="post" action="/mail/send/{{ d.id }}" style="display:inline">
+        <input type="hidden" name="page_token" value="{{ page_token }}">
+        <button type="submit" {% if not mailbox_ready or not approved %}disabled{% endif %}>Send</button>
+      </form>
+      {% if not mailbox_ready %}<span class="disabled-reason">No email connected.</span>
+      {% elif not approved %}<span class="disabled-reason">Not approved — approve the exact letter first.</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+
+<p style="margin:1.5rem 0"><a class="button secondary" href="/ai">Connect your AI</a>
+<span class="muted"> — optional, same one-click style</span></p>
+
+<details class="sheet">
+  <summary>Advanced email settings</summary>
+  <p class="muted">Operator setup and manual fallbacks. Students using Continue with Google never need these.</p>
+
+  <h3>Google Desktop OAuth client</h3>
+  <p class="muted">Register once in Google Cloud (Desktop app). Enables Continue with Google for everyone on this build. Scopes: identity + gmail.send only.</p>
+  <form method="post" action="/mail/google-client">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label for="google_client_id">OAuth client id</label>
+    <input id="google_client_id" name="client_id" value="{{ google_client_id }}" autocomplete="off">
+    <label for="google_client_secret">Client secret (optional for public desktop + PKCE)</label>
+    <input id="google_client_secret" name="client_secret" type="password" autocomplete="new-password">
+    <button type="submit" class="secondary">Save Google client</button>
+  </form>
+  <p class="muted">{{ gmail.verification_note }}</p>
+
+  <h3>Microsoft public client</h3>
+  <form method="post" action="/mail/microsoft-client">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label for="ms_client_id">Azure app (public) client id</label>
+    <input id="ms_client_id" name="client_id" value="{{ microsoft_client_id }}" autocomplete="off">
+    <button type="submit" class="secondary">Save Microsoft client</button>
+  </form>
+
+  <h3>Daily outreach limit</h3>
+  <form method="post" action="/mail/daily-limit">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label for="daily_limit">Emails per rolling 24 hours (default 20)</label>
+    <input id="daily_limit" name="limit" value="{{ daily_limit }}" inputmode="numeric">
+    <button type="submit" class="secondary">Save limit</button>
+  </form>
+
+  <h3>SMTP / school mail / app password</h3>
+  <p class="muted">Graceful manual fallback when OAuth is unavailable (university admin blocks, etc.).</p>
   <form method="post" action="/mail/connect">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <label for="host">Host</label>
@@ -19,57 +139,20 @@
     <label for="sender">From address</label>
     <input id="sender" name="sender" value="{{ smtp.sender or '' }}">
     <label><input type="checkbox" name="use_tls" value="1" {% if smtp.use_tls %}checked{% endif %}> Use STARTTLS</label>
-    <button type="submit">Save mailbox</button>
+    <button type="submit" class="secondary">Save SMTP mailbox</button>
   </form>
-  {% if connected %}<p class="stated">Mailbox settings saved</p>
-  {% else %}<p class="disabled-reason">No mailbox connected.</p>{% endif %}
-</div>
+  {% if smtp_connected %}<p class="stated">SMTP mailbox saved</p>
+  {% else %}<p class="disabled-reason">No SMTP mailbox connected.</p>{% endif %}
 
-<div class="sheet">
-  <h2>Gmail (OAuth PKCE)</h2>
-  <p class="muted">Opens a local browser loopback flow. Token stays in the keychain.</p>
-  <form method="post" action="/mail/gmail-start">
+  <h3>Paste Gmail authorization code</h3>
+  <p class="muted">If the browser cannot redirect back (SSH/remote), paste the code here.</p>
+  <form method="post" action="/mail/finish/gmail">
     <input type="hidden" name="page_token" value="{{ page_token }}">
-    <button type="submit" class="secondary">Start Gmail connect</button>
+    <label for="gmail_code">Authorization code</label>
+    <input id="gmail_code" name="code">
+    <label for="gmail_state">State (optional)</label>
+    <input id="gmail_state" name="state">
+    <button type="submit" class="secondary">Exchange code</button>
   </form>
-</div>
-
-<div class="sheet">
-  <h2>AI rewrite</h2>
-  <p>Connecting AI is optional and feels like signing into an account — not pasting keys. OpenAI-compatible keys stay under Advanced on the AI screen.</p>
-  <p><a class="button" href="/ai">Connect your AI</a></p>
-</div>
-
-<div class="sheet">
-  <h2>Send an approved draft</h2>
-  {% if not drafts %}
-  <p class="muted">No approved drafts.</p>
-  {% else %}
-  <ul class="list">
-    {% for d in drafts %}
-    <li>
-      {{ d.recipient }} — {{ d.subject }}
-      {% set approved = d.approved_hash and d.approved_hash == d.content_hash %}
-      <form method="post" action="/mail/send/{{ d.id }}" style="display:inline">
-        <input type="hidden" name="page_token" value="{{ page_token }}">
-        <button type="submit" {% if not connected or not approved %}disabled{% endif %}>Send</button>
-      </form>
-      {% if not connected %}<span class="disabled-reason">No mailbox connected.</span>
-      {% elif not approved %}<span class="disabled-reason">Not approved.</span>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-</div>
-
-<div class="sheet">
-  <h2>Reply detection consent</h2>
-  <p class="muted">Off by default. Inbox read needs a separate OAuth consent.</p>
-  <form method="post" action="/mail/reply-consent">
-    <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label><input type="checkbox" name="consent" value="1" {% if reply_consent %}checked{% endif %}> Allow reply detection</label>
-    <button type="submit" class="secondary">Save consent</button>
-  </form>
-</div>
+</details>
 {% endblock %}

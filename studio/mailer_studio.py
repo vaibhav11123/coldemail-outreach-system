@@ -94,10 +94,15 @@ def send_via_smtp(
     return f"smtp:{int(time.time())}"
 
 
-def perform_send(conn, intent_id: int, smtp_config: dict[str, Any]) -> str:
+def perform_send(
+    conn,
+    intent_id: int,
+    smtp_config: dict[str, Any] | None = None,
+) -> str:
     """
     Transition pending -> submitted -> sent/failed.
     Caller must not auto-retry unknown_delivery.
+    Provider is taken from the send_intent row (gmail | smtp).
     """
     intent = conn.execute("SELECT * FROM send_intent WHERE id = ?", (intent_id,)).fetchone()
     if not intent:
@@ -115,21 +120,38 @@ def perform_send(conn, intent_id: int, smtp_config: dict[str, Any]) -> str:
     if draft["approved_hash"] != draft["content_hash"]:
         raise ValueError("Approval cleared")
 
+    provider = (intent["provider"] or "smtp").lower()
     mark_submitted(conn, intent_id)
     try:
-        mid = send_via_smtp(
-            host=smtp_config["host"],
-            port=int(smtp_config.get("port", 587)),
-            username=smtp_config.get("username", ""),
-            password=smtp_config.get("password", ""),
-            sender=smtp_config.get("sender", smtp_config.get("username", "studio@localhost")),
-            recipient=draft["recipient"],
-            subject=draft["subject"],
-            body=draft["body"],
-            use_tls=bool(smtp_config.get("use_tls", True)),
-        )
+        if provider == "gmail":
+            from studio.mail.gmail import send_via_gmail
+
+            result = send_via_gmail(
+                recipient=draft["recipient"],
+                subject=draft["subject"],
+                body=draft["body"],
+            )
+            mid = result.get("provider_message_id") or ""
+            thread = result.get("thread_id") or ""
+            if thread:
+                mid = f"{mid}|thread:{thread}" if mid else f"thread:{thread}"
+        else:
+            if not smtp_config:
+                raise ValueError("SMTP settings missing")
+            mid = send_via_smtp(
+                host=smtp_config["host"],
+                port=int(smtp_config.get("port", 587)),
+                username=smtp_config.get("username", ""),
+                password=smtp_config.get("password", ""),
+                sender=smtp_config.get(
+                    "sender", smtp_config.get("username", "studio@localhost")
+                ),
+                recipient=draft["recipient"],
+                subject=draft["subject"],
+                body=draft["body"],
+                use_tls=bool(smtp_config.get("use_tls", True)),
+            )
         mark_sent(conn, intent_id, mid)
-        # application state
         app = conn.execute(
             "SELECT id FROM application WHERE opportunity_id = ?",
             (draft["opportunity_id"],),

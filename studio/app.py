@@ -33,6 +33,23 @@ from studio.faculty import collect_school, import_people, list_schools
 from studio.fetch_url import extract_opportunity_suggestions, fetch_text
 from studio.identity import flag_name_conflict, merge_researchers, undo_merge
 from studio.jobs import enqueue, get_job, register_handler, start_worker
+from studio.mail import (
+    can_send_now,
+    daily_limit as mail_daily_limit,
+    disconnect_gmail,
+    disconnect_outlook,
+    finish_gmail_oauth,
+    finish_outlook_oauth,
+    gmail_status,
+    outlook_status,
+    record_send,
+    set_reply_consent,
+    start_gmail_oauth,
+    start_outlook_oauth,
+)
+from studio.mail.gmail import CLIENT_ID_SECRET as GOOGLE_CLIENT_ID_SECRET
+from studio.mail.gmail import CLIENT_SECRET_SECRET as GOOGLE_CLIENT_SECRET_SECRET
+from studio.mail.outlook import CLIENT_ID_SECRET as MICROSOFT_CLIENT_ID_SECRET
 from studio.mailer_studio import create_intent, perform_send
 from studio.matching import rebuild_shortlist
 from studio.openalex import request_api_key, save_pasted_key
@@ -1212,7 +1229,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         delete_all_studio_secrets()
         return RedirectResponse("/profile?flash=Deleted", status_code=303)
 
-    # ---- S7 Mail ----
+    # ---- S7 Mail / Connect your email ----
     @app.get("/mail", response_class=HTMLResponse)
     async def mail_get(request: Request):
         conn = get_conn()
@@ -1231,15 +1248,28 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 "sender": get_secret("smtp_sender") or "",
                 "use_tls": get_secret("smtp_use_tls") == "1",
             }
-            connected = bool(get_secret("smtp_host") and get_secret("smtp_sender"))
-            return TEMPLATES.TemplateResponse(request, "mail.html",
+            gmail = gmail_status()
+            outlook = outlook_status()
+            smtp_connected = bool(get_secret("smtp_host") and get_secret("smtp_sender"))
+            mailbox_ready = bool(gmail["connected"] or outlook["connected"] or smtp_connected)
+            ok_quota, quota_label = can_send_now()
+            return TEMPLATES.TemplateResponse(
+                request,
+                "mail.html",
                 ctx(
                     request,
                     nav="mail",
                     drafts=drafts,
                     smtp=smtp,
-                    connected=connected,
-                    reply_consent=get_secret("reply_consent") == "1",
+                    smtp_connected=smtp_connected,
+                    mailbox_ready=mailbox_ready,
+                    gmail=gmail,
+                    outlook=outlook,
+                    quota_label=quota_label,
+                    quota_ok=ok_quota,
+                    daily_limit=mail_daily_limit(),
+                    google_client_id=get_secret(GOOGLE_CLIENT_ID_SECRET) or "",
+                    microsoft_client_id=get_secret(MICROSOFT_CLIENT_ID_SECRET) or "",
                 ),
             )
         finally:
@@ -1270,15 +1300,150 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         set_secret("smtp_use_tls", "1" if use_tls else "0")
         return RedirectResponse("/mail?flash=Mailbox%20saved", status_code=303)
 
-    @app.post("/mail/gmail-start")
-    async def mail_gmail_start(page_token: str = Form(...)):
+    @app.post("/mail/connect/gmail")
+    async def mail_connect_gmail(page_token: str = Form(...)):
         require_token(page_token)
-        # PKCE scaffolding — student completes in browser; no shared client secret
-        state = secrets.token_urlsafe(16)
-        set_secret("gmail_oauth_state", state)
+        port = os.environ.get("STUDIO_PORT", "8765")
+        callback_base = f"http://127.0.0.1:{port}"
+        result = start_gmail_oauth(callback_base)
+        if result.get("ok") and result.get("redirect_url"):
+            return RedirectResponse(result["redirect_url"], status_code=303)
         return RedirectResponse(
-            f"/mail?flash={quote('Gmail PKCE state saved. Configure client id to continue.')}",
+            f"/mail?err=1&flash={quote(result.get('message') or 'Gmail connect failed')}",
             status_code=303,
+        )
+
+    @app.post("/mail/connect/outlook")
+    async def mail_connect_outlook(page_token: str = Form(...)):
+        require_token(page_token)
+        port = os.environ.get("STUDIO_PORT", "8765")
+        callback_base = f"http://127.0.0.1:{port}"
+        result = start_outlook_oauth(callback_base)
+        if result.get("ok") and result.get("redirect_url"):
+            return RedirectResponse(result["redirect_url"], status_code=303)
+        return RedirectResponse(
+            f"/mail?err=1&flash={quote(result.get('message') or 'Outlook connect failed')}",
+            status_code=303,
+        )
+
+    @app.get("/mail/callback/gmail")
+    async def mail_callback_gmail(code: str = "", state: str = "", error: str = ""):
+        if error:
+            return RedirectResponse(
+                f"/mail?err=1&flash={quote(error)}", status_code=303
+            )
+        result = finish_gmail_oauth(code=code, state=state)
+        if result.get("ok"):
+            return RedirectResponse(
+                f"/mail?flash={quote(result.get('message') or 'Gmail connected')}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/mail?err=1&flash={quote(result.get('message') or 'Gmail connect failed')}",
+            status_code=303,
+        )
+
+    @app.get("/mail/callback/outlook")
+    async def mail_callback_outlook(code: str = "", state: str = "", error: str = ""):
+        if error:
+            return RedirectResponse(
+                f"/mail?err=1&flash={quote(error)}", status_code=303
+            )
+        result = finish_outlook_oauth(code=code, state=state)
+        if result.get("ok"):
+            return RedirectResponse(
+                f"/mail?flash={quote(result.get('message') or 'Outlook connected')}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/mail?err=1&flash={quote(result.get('message') or 'Outlook connect failed')}",
+            status_code=303,
+        )
+
+    @app.post("/mail/finish/gmail")
+    async def mail_finish_gmail(
+        page_token: str = Form(...),
+        code: str = Form(""),
+        state: str = Form(""),
+    ):
+        require_token(page_token)
+        result = finish_gmail_oauth(code=code, state=state)
+        if result.get("ok"):
+            return RedirectResponse(
+                f"/mail?flash={quote(result.get('message') or 'Gmail connected')}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/mail?err=1&flash={quote(result.get('message') or 'Exchange failed')}",
+            status_code=303,
+        )
+
+    @app.post("/mail/disconnect/gmail")
+    async def mail_disconnect_gmail(page_token: str = Form(...)):
+        require_token(page_token)
+        disconnect_gmail()
+        return RedirectResponse("/mail?flash=Gmail%20disconnected", status_code=303)
+
+    @app.post("/mail/disconnect/outlook")
+    async def mail_disconnect_outlook(page_token: str = Form(...)):
+        require_token(page_token)
+        disconnect_outlook()
+        return RedirectResponse("/mail?flash=Outlook%20disconnected", status_code=303)
+
+    @app.post("/mail/setup-later")
+    async def mail_setup_later(page_token: str = Form(...)):
+        require_token(page_token)
+        return RedirectResponse(
+            "/drafts?flash=You%20can%20connect%20email%20later%20from%20Mail",
+            status_code=303,
+        )
+
+    @app.post("/mail/google-client")
+    async def mail_google_client(
+        page_token: str = Form(...),
+        client_id: str = Form(""),
+        client_secret: str = Form(""),
+    ):
+        require_token(page_token)
+        if not client_id.strip():
+            return RedirectResponse(
+                "/mail?err=1&flash=Google%20client%20id%20required",
+                status_code=303,
+            )
+        set_secret(GOOGLE_CLIENT_ID_SECRET, client_id.strip())
+        if client_secret.strip():
+            set_secret(GOOGLE_CLIENT_SECRET_SECRET, client_secret.strip())
+        return RedirectResponse("/mail?flash=Google%20client%20saved", status_code=303)
+
+    @app.post("/mail/microsoft-client")
+    async def mail_microsoft_client(
+        page_token: str = Form(...),
+        client_id: str = Form(""),
+    ):
+        require_token(page_token)
+        if not client_id.strip():
+            return RedirectResponse(
+                "/mail?err=1&flash=Microsoft%20client%20id%20required",
+                status_code=303,
+            )
+        set_secret(MICROSOFT_CLIENT_ID_SECRET, client_id.strip())
+        return RedirectResponse(
+            "/mail?flash=Microsoft%20client%20saved", status_code=303
+        )
+
+    @app.post("/mail/daily-limit")
+    async def mail_set_daily_limit(page_token: str = Form(...), limit: str = Form("")):
+        require_token(page_token)
+        raw = (limit or "").strip()
+        if not raw.isdigit():
+            return RedirectResponse(
+                "/mail?err=1&flash=Limit%20must%20be%20a%20number",
+                status_code=303,
+            )
+        n = max(1, min(100, int(raw)))
+        set_secret("mail_daily_limit", str(n))
+        return RedirectResponse(
+            f"/mail?flash={quote(f'Daily limit set to {n}')}", status_code=303
         )
 
     @app.post("/mail/ai-key")
@@ -1444,17 +1609,28 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     @app.post("/mail/reply-consent")
     async def mail_reply_consent(page_token: str = Form(...), consent: str = Form("")):
         require_token(page_token)
-        set_secret("reply_consent", "1" if consent else "0")
-        return RedirectResponse("/mail?flash=Consent%20saved", status_code=303)
+        result = set_reply_consent(bool(consent))
+        return RedirectResponse(
+            f"/mail?flash={quote(result.get('message') or 'Consent saved')}",
+            status_code=303,
+        )
 
     @app.post("/mail/send/{draft_id}")
     async def mail_send(draft_id: int, page_token: str = Form(...)):
         require_token(page_token)
-        if not get_secret("smtp_host") or not get_secret("smtp_sender"):
+        gmail = gmail_status()
+        smtp_ready = bool(get_secret("smtp_host") and get_secret("smtp_sender"))
+        if not gmail["connected"] and not smtp_ready:
             return RedirectResponse(
-                "/mail?err=1&flash=No%20mailbox%20connected.%20Save%20SMTP%20settings%20first.",
+                "/mail?err=1&flash=No%20email%20connected.%20Continue%20with%20Google%20or%20use%20Advanced%20SMTP.",
                 status_code=303,
             )
+        ok_quota, quota_msg = can_send_now()
+        if not ok_quota:
+            return RedirectResponse(
+                f"/mail?err=1&flash={quote(quota_msg)}", status_code=303
+            )
+        provider = "gmail" if gmail["connected"] else "smtp"
         conn = get_conn()
         try:
             draft = conn.execute("SELECT * FROM draft WHERE id=?", (draft_id,)).fetchone()
@@ -1468,21 +1644,26 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     status_code=303,
                 )
             try:
-                intent_id = create_intent(conn, draft_id, draft["content_hash"], "smtp")
+                intent_id = create_intent(
+                    conn, draft_id, draft["content_hash"], provider
+                )
             except ValueError as exc:
                 return RedirectResponse(
                     f"/mail?err=1&flash={quote(str(exc))}", status_code=303
                 )
-            smtp_config = {
-                "host": get_secret("smtp_host"),
-                "port": get_secret("smtp_port") or "1025",
-                "username": get_secret("smtp_username") or "",
-                "password": get_secret("smtp_password") or "",
-                "sender": get_secret("smtp_sender"),
-                "use_tls": get_secret("smtp_use_tls") == "1",
-            }
+            smtp_config = None
+            if provider == "smtp":
+                smtp_config = {
+                    "host": get_secret("smtp_host"),
+                    "port": get_secret("smtp_port") or "1025",
+                    "username": get_secret("smtp_username") or "",
+                    "password": get_secret("smtp_password") or "",
+                    "sender": get_secret("smtp_sender"),
+                    "use_tls": get_secret("smtp_use_tls") == "1",
+                }
             try:
                 perform_send(conn, intent_id, smtp_config)
+                record_send()
             except Exception as exc:  # noqa: BLE001
                 return RedirectResponse(
                     f"/mail?err=1&flash={quote(str(exc))}", status_code=303

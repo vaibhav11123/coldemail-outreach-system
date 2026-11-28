@@ -234,7 +234,13 @@ def test_FR14_disabled_reason_words(client):
     r = client.get("/profile")
     assert "blocked" in r.text.lower() or "confirm" in r.text.lower()
     r2 = client.get("/mail")
-    assert "no mailbox" in r2.text.lower() or "Mailbox" in r2.text
+    low = r2.text.lower()
+    assert (
+        "no email connected" in low
+        or "no smtp mailbox" in low
+        or "continue with google" in low
+        or "mailbox" in low
+    )
 
 
 def test_FR15_faculty_ssrf_adds_nobody(conn):
