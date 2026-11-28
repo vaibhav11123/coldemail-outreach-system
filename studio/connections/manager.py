@@ -111,16 +111,22 @@ def _github_status() -> ConnectionStatus:
 
 def _orcid_status() -> ConnectionStatus:
     oid = get_secret("orcid_id") or ""
+    from studio.academic.orcid_local import load_records
+
+    n = len(load_records(limit=50))
     if oid:
         return ConnectionStatus(
             connected=True,
-            detail="ORCID iD saved as a profile link.",
+            detail=f"ORCID iD saved. Local CC0 snapshot loaded ({n}+ sample records).",
             account_hint=oid,
             can_disconnect=True,
         )
     return ConnectionStatus(
         connected=False,
-        detail="Optional for undergraduates. Paste an ORCID iD when you have one.",
+        detail=(
+            f"Look up public identities in the local CC0 ORCID snapshot ({n} sample records). "
+            "Paste an iD anytime — no paid API."
+        ),
     )
 
 
@@ -155,10 +161,13 @@ def _faculty_status() -> ConnectionStatus:
 
 
 def _zotero_status() -> ConnectionStatus:
+    from studio.zotero_local import detect_zotero
+
+    det = detect_zotero()
     return ConnectionStatus(
-        connected=False,
-        detail="Detect local Zotero API (localhost) — cloud OAuth needs clearance.",
-        disabled_reason="Local detect ships next; cloud disabled until terms clear.",
+        connected=bool(det.get("connected")),
+        detail=det.get("message") or "",
+        account_hint="local" if det.get("connected") else "",
     )
 
 
@@ -192,9 +201,39 @@ def _puter_status() -> ConnectionStatus:
 
 
 def _groq_status() -> ConnectionStatus:
+    return _ai_status("groq")
+
+
+def _handoff_status() -> ConnectionStatus:
     return ConnectionStatus(
         connected=False,
-        detail="Prefer Free AI (OpenRouter) with Groq routing, or a future managed allowance.",
+        detail="Available on every draft — no login. We prepare the prompt; you paste the result back for validation.",
+        account_hint="",
+    )
+
+
+def _open_graph_status() -> ConnectionStatus:
+    return ConnectionStatus(
+        connected=False,
+        detail="Built-in: OpenAlex + OpenCitations (CC0) + Crossref. Independent graph — not Semantic Scholar’s API.",
+        account_hint="",
+    )
+
+
+def _scholar_status() -> ConnectionStatus:
+    return ConnectionStatus(
+        connected=False,
+        detail="Import BibTeX/CSV exports from Google Scholar. No scraping.",
+    )
+
+
+def _mcp_channel_status(name: str) -> ConnectionStatus:
+    return ConnectionStatus(
+        connected=False,
+        detail=(
+            f"Reverse integration: {name} calls our local MCP tools. "
+            "Subscription stays in their client."
+        ),
     )
 
 
@@ -205,19 +244,26 @@ _STATUS_FN = {
     "openrouter": lambda: _ai_status("openrouter"),
     "huggingface": lambda: _ai_status("huggingface"),
     "ollama": lambda: _ai_status("ollama"),
-    "chatgpt": lambda: _ai_status("chatgpt"),
-    "claude": lambda: _ai_status("claude"),
-    "grok": lambda: _ai_status("grok"),
+    "chatgpt": lambda: _mcp_channel_status("ChatGPT"),
+    "claude": lambda: _mcp_channel_status("Claude"),
+    "grok": lambda: ConnectionStatus(
+        connected=False,
+        disabled_reason="No unofficial SuperGrok OAuth.",
+        detail="Use OpenRouter, Puter, or Improve with your AI.",
+    ),
     "puter": _puter_status,
     "groq": _groq_status,
+    "external_handoff": _handoff_status,
     "openalex": _openalex_status,
     "public_sources": _public_sources_status,
+    "open_graph": _open_graph_status,
     "faculty_directories": _faculty_status,
     "semanticscholar": lambda: ConnectionStatus(
         connected=False,
-        disabled_reason="Commercial license required.",
-        detail="Disabled until expanded Semantic Scholar license.",
+        disabled_reason="Replaced by open academic graph.",
+        detail="Do not use the restricted commercial API in the paid product.",
     ),
+    "google_scholar": _scholar_status,
     "github": _github_status,
     "orcid": _orcid_status,
     "zotero": _zotero_status,

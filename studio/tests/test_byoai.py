@@ -37,7 +37,10 @@ def test_connect_ai_screen(client):
     assert "Connect free AI" in r.text
     assert "Continue without AI" in r.text
     assert "Advanced settings" in r.text
-    assert "API key" not in r.text.split("Advanced settings")[0]  # no key jargon above the fold
+    above = r.text.split("Advanced settings")[0]
+    # Student paste/key fields stay under Advanced — managed copy may say "no student account"
+    assert 'name="api_key"' not in above
+    assert "Paste your" not in above
 
 
 def test_continue_without_ai(client):

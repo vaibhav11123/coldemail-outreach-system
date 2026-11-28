@@ -12,6 +12,7 @@ AuthKind = Literal[
     "detect",
     "guided_key",
     "custom",
+    "managed",
     "unavailable",
 ]
 

@@ -59,6 +59,10 @@ from studio.mail.outlook import CLIENT_ID_SECRET as MICROSOFT_CLIENT_ID_SECRET
 from studio.mailer_studio import create_intent, perform_send
 from studio.matching import rebuild_shortlist
 from studio.academic.crossref import lookup_doi
+from studio.academic.opencitations import citations_for_doi
+from studio.academic.orcid_local import lookup_orcid
+from studio.ai.handoff import HANDOFF_TARGETS, build_handoff_prompt, import_handoff_body
+from studio.bibliography import import_entries_as_facts, parse_bibliography
 from studio.calendar_export import build_ics, events_from_tracker
 from studio.connections import (
     connection_requirements,
@@ -73,6 +77,7 @@ from studio.github_import import (
     import_repos_as_facts,
     parse_github_login,
 )
+from studio.zotero_local import detect_zotero
 from studio.openalex import request_api_key, save_pasted_key
 from studio.paths import PACKAGE_ROOT, REPO_ROOT, app_data_dir, bundled_data_dir
 from studio.planner import (
@@ -701,31 +706,44 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         )
 
     # ---- Unified Connections ----
+    def connections_page(
+        request: Request,
+        *,
+        github_repos=None,
+        crossref_result=None,
+        citations_result=None,
+        orcid_lookup=None,
+        **extra,
+    ):
+        prefs = prefill_email_candidates()
+        return ctx(
+            request,
+            nav="connections",
+            sections=sections_for_ui(),
+            setup_steps=workspace_setup_steps(),
+            requirements=connection_requirements(),
+            openalex_prefill=(prefs[0] if prefs else ""),
+            github_login=github_login(),
+            github_repos=github_repos or [],
+            orcid_id=get_secret("orcid_id") or "",
+            crossref_result=crossref_result,
+            citations_result=citations_result,
+            orcid_lookup=orcid_lookup,
+            **extra,
+        )
+
     @app.get("/connections", response_class=HTMLResponse)
     async def connections_get(request: Request):
-        prefs = prefill_email_candidates()
         gh_repos = []
         login = github_login()
         if login and request.query_params.get("imported"):
-            # show last import preview from flash context — re-fetch lightly
             preview = fetch_public_repos(login, per_page=5)
             if preview.get("ok"):
                 gh_repos = preview.get("repos") or []
         return TEMPLATES.TemplateResponse(
             request,
             "connections.html",
-            ctx(
-                request,
-                nav="connections",
-                sections=sections_for_ui(),
-                setup_steps=workspace_setup_steps(),
-                requirements=connection_requirements(),
-                openalex_prefill=(prefs[0] if prefs else ""),
-                github_login=login,
-                github_repos=gh_repos,
-                orcid_id=get_secret("orcid_id") or "",
-                crossref_result=None,
-            ),
+            connections_page(request, github_repos=gh_repos),
         )
 
     @app.post("/connections/github")
@@ -754,7 +772,9 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         )
 
     @app.post("/connections/orcid")
-    async def connections_orcid(page_token: str = Form(...), orcid: str = Form("")):
+    async def connections_orcid(
+        request: Request, page_token: str = Form(...), orcid: str = Form("")
+    ):
         require_token(page_token)
         raw = (orcid or "").strip()
         if not raw:
@@ -762,13 +782,23 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             return RedirectResponse(
                 "/connections?flash=ORCID%20cleared#orcid", status_code=303
             )
-        # Accept URL or bare id
         if "orcid.org/" in raw:
             raw = raw.rstrip("/").split("orcid.org/")[-1]
         set_secret("orcid_id", raw)
-        return RedirectResponse(
-            "/connections?flash=ORCID%20saved%20as%20profile%20link#orcid",
-            status_code=303,
+        looked = lookup_orcid(raw)
+        return TEMPLATES.TemplateResponse(
+            request,
+            "connections.html",
+            connections_page(
+                request,
+                orcid_lookup=looked,
+                flash=(
+                    f"ORCID saved · {looked.get('name') or raw}"
+                    if looked.get("ok")
+                    else f"ORCID saved as link · {looked.get('message') or ''}"
+                ),
+                flash_error=False,
+            ),
         )
 
     @app.post("/connections/crossref")
@@ -777,24 +807,75 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     ):
         require_token(page_token)
         result = lookup_doi(doi)
-        prefs = prefill_email_candidates()
         return TEMPLATES.TemplateResponse(
             request,
             "connections.html",
-            ctx(
+            connections_page(
                 request,
-                nav="connections",
-                sections=sections_for_ui(),
-                setup_steps=workspace_setup_steps(),
-                requirements=connection_requirements(),
-                openalex_prefill=(prefs[0] if prefs else ""),
-                github_login=github_login(),
-                github_repos=[],
-                orcid_id=get_secret("orcid_id") or "",
                 crossref_result=result,
                 flash=result.get("title") if result.get("ok") else result.get("message"),
                 flash_error=not result.get("ok"),
             ),
+        )
+
+    @app.post("/connections/citations")
+    async def connections_citations(
+        request: Request, page_token: str = Form(...), doi: str = Form("")
+    ):
+        require_token(page_token)
+        result = citations_for_doi(doi)
+        return TEMPLATES.TemplateResponse(
+            request,
+            "connections.html",
+            connections_page(
+                request,
+                citations_result=result,
+                flash="OpenCitations result" if result.get("ok") else result.get("message"),
+                flash_error=not result.get("ok"),
+            ),
+        )
+
+    @app.post("/connections/bibliography")
+    async def connections_bibliography(
+        page_token: str = Form(...),
+        file: UploadFile = File(None),
+    ):
+        require_token(page_token)
+        if file is None or not file.filename:
+            return RedirectResponse(
+                "/connections?err=1&flash=Choose%20a%20BibTeX%2C%20RIS%2C%20or%20CSV%20file#google_scholar",
+                status_code=303,
+            )
+        raw = (await file.read()).decode("utf-8", errors="replace")
+        parsed = parse_bibliography(raw, file.filename or "")
+        if not parsed.get("ok"):
+            return RedirectResponse(
+                f"/connections?err=1&flash={quote(parsed.get('message') or 'Parse failed')}#google_scholar",
+                status_code=303,
+            )
+        conn = get_conn()
+        try:
+            n = import_entries_as_facts(
+                conn, parsed.get("entries") or [], source="bibliography"
+            )
+        finally:
+            conn.close()
+        return RedirectResponse(
+            f"/connections?flash={quote(f'Imported {n} publications for review on Profile')}#google_scholar",
+            status_code=303,
+        )
+
+    @app.post("/connections/zotero-detect")
+    async def connections_zotero_detect(page_token: str = Form(...)):
+        require_token(page_token)
+        det = detect_zotero()
+        msg = det.get("message") or "Zotero check complete"
+        err = "" if det.get("ok") else "1"
+        return RedirectResponse(
+            f"/connections?flash={quote(msg)}"
+            + (f"&err={err}" if err else "")
+            + "#zotero",
+            status_code=303,
         )
 
     @app.get("/connections/calendar.ics")
@@ -1062,6 +1143,42 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     }
             active = get_active_provider()
             ai_status = active.get_status() if active else None
+            facts_h = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT kind, body, confirmed FROM profile_fact WHERE confirmed=1"
+                )
+            ]
+            pubs_h = [
+                dict(p)
+                for p in conn.execute(
+                    "SELECT title, url, abstract FROM publication WHERE researcher_id=?",
+                    (opp["researcher_id"],),
+                )
+            ]
+            evidence_h = [f["body"] for f in facts_h]
+            evidence_h.extend([p.get("title") or "" for p in pubs_h])
+            evidence_h.extend([p.get("url") or "" for p in pubs_h])
+            handoff_req = EvidenceBoundRequest(
+                recipient=draft.get("recipient") or "",
+                subject=draft.get("subject") or "",
+                body=draft.get("body") or "",
+                evidence_snippets=evidence_h,
+                citations=[
+                    {
+                        "applicant": next(
+                            (f["body"] for f in facts_h if f["kind"] == "project"), ""
+                        ),
+                        "source": (
+                            pubs_h[0].get("abstract") or pubs_h[0].get("title")
+                            if pubs_h
+                            else ""
+                        ),
+                        "url": (pubs_h[0].get("url") if pubs_h else ""),
+                    }
+                ],
+            )
+            handoff_prompt = build_handoff_prompt(handoff_req)
             return TEMPLATES.TemplateResponse(request, "draft.html",
                 ctx(
                     request,
@@ -1073,7 +1190,99 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     ai_status=ai_status,
                     rewrite_note=request.query_params.get("rewrite"),
                     rewrite_error=request.query_params.get("rwerr") == "1",
+                    handoff_targets=HANDOFF_TARGETS,
+                    handoff_prompt=handoff_prompt,
                 ),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/draft/{opportunity_id}/handoff-import")
+    async def draft_handoff_import(
+        opportunity_id: int,
+        page_token: str = Form(...),
+        body: str = Form(""),
+    ):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM draft WHERE opportunity_id=?", (opportunity_id,)
+            ).fetchone()
+            if not row:
+                return RedirectResponse(
+                    f"/draft/{opportunity_id}?rewrite=No%20draft%20yet&rwerr=1",
+                    status_code=303,
+                )
+            facts = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT kind, body, confirmed FROM profile_fact WHERE confirmed=1"
+                )
+            ]
+            opp = conn.execute(
+                "SELECT * FROM opportunity WHERE id=?", (opportunity_id,)
+            ).fetchone()
+            pubs = [
+                dict(p)
+                for p in conn.execute(
+                    "SELECT title, url, abstract FROM publication WHERE researcher_id=?",
+                    (opp["researcher_id"],),
+                )
+            ] if opp else []
+            evidence = [f["body"] for f in facts]
+            evidence.extend([p.get("title") or "" for p in pubs])
+            evidence.extend([p.get("url") or "" for p in pubs])
+            evidence.extend([p.get("abstract") or "" for p in pubs])
+            req = EvidenceBoundRequest(
+                recipient=row["recipient"],
+                subject=row["subject"],
+                body=row["body"],
+                evidence_snippets=evidence,
+                citations=[
+                    {
+                        "applicant": next(
+                            (f["body"] for f in facts if f["kind"] == "project"), ""
+                        ),
+                        "source": (
+                            pubs[0].get("abstract") or pubs[0].get("title") if pubs else ""
+                        ),
+                        "url": (pubs[0].get("url") if pubs else ""),
+                    }
+                ],
+            )
+            result = import_handoff_body(req, body)
+            if result.ok and result.body:
+                clear_approval_if_edited(
+                    conn,
+                    int(row["id"]),
+                    row["recipient"],
+                    result.subject or row["subject"],
+                    result.body,
+                )
+                save_or_update_draft(
+                    conn,
+                    opportunity_id,
+                    {
+                        "recipient": row["recipient"],
+                        "subject": result.subject or row["subject"],
+                        "body": result.body,
+                        "content_hash": content_hash(
+                            row["recipient"],
+                            result.subject or row["subject"],
+                            result.body,
+                        ),
+                    },
+                )
+                note = "Imported from your AI and validated"
+                err = ""
+            else:
+                note = result.error or "Import failed evidence checks"
+                err = "1"
+            return RedirectResponse(
+                f"/draft/{opportunity_id}?rewrite={quote(note)}"
+                + (f"&rwerr={err}" if err else ""),
+                status_code=303,
             )
         finally:
             conn.close()

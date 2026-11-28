@@ -45,9 +45,28 @@
     <button type="submit" class="secondary">Rewrite with connected AI</button>
   </form>
   {% else %}
-  <p>Built-in draft works without AI. <a href="/ai">Connect free AI</a> to rephrase with your own account.</p>
+  <p>Built-in draft works without AI. <a href="/ai">Connect free AI</a> or enable Included AI when this build provides it.</p>
   {% endif %}
   {% if rewrite_note %}<p class="flash {% if rewrite_error %}error{% endif %}">{{ rewrite_note }}</p>{% endif %}
+</div>
+
+<div class="sheet">
+  <h2>Improve this letter with your AI</h2>
+  <p class="muted">We prepare a prompt with only confirmed facts. You submit it in ChatGPT, Claude, Gemini, Grok, DeepSeek or Copilot — we never handle those subscriptions. Paste the result back; we validate before saving.</p>
+  <label for="handoff_prompt">Prompt for your AI</label>
+  <textarea id="handoff_prompt" rows="8" readonly>{{ handoff_prompt }}</textarea>
+  <p style="margin:0.75rem 0">
+    <button type="button" id="copy-handoff" class="secondary">Copy prompt</button>
+    {% for t in handoff_targets %}
+    <a class="button secondary" href="{{ t.open_url }}" target="_blank" rel="noopener">{{ t.title }}</a>
+    {% endfor %}
+  </p>
+  <form method="post" action="/draft/{{ opportunity_id }}/handoff-import">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label for="handoff_body">Paste improved letter body</label>
+    <textarea id="handoff_body" name="body" rows="8" placeholder="Paste only the letter body from your AI"></textarea>
+    <button type="submit">Import and validate</button>
+  </form>
 </div>
 
 <script>
@@ -55,6 +74,11 @@ document.getElementById('copy-btn')?.addEventListener('click', async () => {
   const text = document.getElementById('body').value;
   await navigator.clipboard.writeText(text);
   alert('Copied');
+});
+document.getElementById('copy-handoff')?.addEventListener('click', async () => {
+  const text = document.getElementById('handoff_prompt').value;
+  await navigator.clipboard.writeText(text);
+  alert('Prompt copied');
 });
 </script>
 {% endblock %}

@@ -17,6 +17,7 @@ AuthMethod = Literal[
     "file_picker",
     "managed",
     "disabled",
+    "mcp",
 ]
 
 ProductionStatus = Literal[

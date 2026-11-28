@@ -43,7 +43,8 @@ def test_con_requirements_eighteen():
 def test_clearance_providers_explain_disabled():
     ss = spec_by_id("semanticscholar")
     assert ss is not None
-    assert ss.production_status == "clearance_required"
+    assert ss.production_status == "unavailable"
+    assert "open" in (ss.fallback or "").lower() or "graph" in (ss.fallback or "").lower()
     grok = spec_by_id("grok")
     assert grok is not None
     assert grok.production_status == "unavailable"

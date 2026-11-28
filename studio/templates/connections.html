@@ -63,18 +63,35 @@
     {% elif card.id == 'orcid' %}
     <form method="post" action="/connections/orcid">
       <input type="hidden" name="page_token" value="{{ page_token }}">
-      <label for="orcid_id">ORCID iD</label>
+      <label for="orcid_id">ORCID iD (CC0 snapshot lookup + save)</label>
       <input id="orcid_id" name="orcid" value="{{ orcid_id }}" placeholder="0000-0002-1825-0097">
       <button type="submit" class="secondary">{{ card.button_label }}</button>
     </form>
-    {% elif card.id == 'public_sources' %}
+    {% if orcid_lookup %}
+      {% if orcid_lookup.ok %}
+      <p class="stated">{{ orcid_lookup.name }} · {{ orcid_lookup.orcid }}</p>
+      <p class="muted">{{ orcid_lookup.affiliations|join(', ') }}</p>
+      <p class="disabled-reason">{{ orcid_lookup.note }}</p>
+      {% else %}
+      <p class="disabled-reason">{{ orcid_lookup.message }}</p>
+      {% endif %}
+    {% endif %}
+    {% elif card.id == 'public_sources' or card.id == 'open_graph' %}
     <form method="post" action="/connections/crossref">
       <input type="hidden" name="page_token" value="{{ page_token }}">
-      <label for="doi">Look up a DOI (Crossref)</label>
-      <input id="doi" name="doi" placeholder="10.1038/nature14539">
+      <label for="doi-{{ card.id }}">Look up a DOI (Crossref)</label>
+      <input id="doi-{{ card.id }}" name="doi" placeholder="10.1038/nature14539">
       <button type="submit" class="secondary">Verify publication</button>
     </form>
-    {% if crossref_result %}
+    {% if card.id == 'open_graph' %}
+    <form method="post" action="/connections/citations" style="margin-top:0.75rem">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="cite_doi">Citation links (OpenCitations CC0)</label>
+      <input id="cite_doi" name="doi" placeholder="10.1038/nature14539">
+      <button type="submit" class="secondary">Look up citations</button>
+    </form>
+    {% endif %}
+    {% if crossref_result and card.id == 'public_sources' %}
       {% if crossref_result.ok %}
       <p class="stated">{{ crossref_result.title }}</p>
       <p class="muted">{{ crossref_result.authors|join(', ') }} · {{ crossref_result.year }} · <a href="{{ crossref_result.url }}">{{ crossref_result.doi }}</a></p>
@@ -83,6 +100,30 @@
       <p class="disabled-reason">{{ crossref_result.message }}</p>
       {% endif %}
     {% endif %}
+    {% if citations_result and card.id == 'open_graph' %}
+      {% if citations_result.ok %}
+      <p class="stated">OpenCitations · {{ citations_result.doi }}</p>
+      <p class="muted">Citing: {{ citations_result.citing|length }} · Cited: {{ citations_result.cited|length }}</p>
+      <p class="disabled-reason">{{ citations_result.note }}</p>
+      {% else %}
+      <p class="disabled-reason">{{ citations_result.message }}</p>
+      {% endif %}
+    {% endif %}
+    {% elif card.id == 'google_scholar' %}
+    <form method="post" action="/connections/bibliography" enctype="multipart/form-data">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="bib_file">BibTeX, RIS, or CSV export</label>
+      <input id="bib_file" name="file" type="file" accept=".bib,.ris,.csv,text/plain">
+      <button type="submit">{{ card.button_label }}</button>
+    </form>
+    {% elif card.id == 'zotero' %}
+    <form method="post" action="/connections/zotero-detect">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="secondary">{{ card.button_label }}</button>
+    </form>
+    <p class="muted" style="margin-top:0.5rem">Or import a Zotero BibTeX/RIS export above under Google Scholar import.</p>
+    {% elif card.id == 'external_handoff' %}
+    <p><a class="button secondary" href="/drafts">Open a draft</a> to copy the evidence-bound prompt and import the result.</p>
     {% elif card.id == 'calendar' %}
     <form method="get" action="/connections/calendar.ics">
       <button type="submit" class="secondary">{{ card.button_label }}</button>
