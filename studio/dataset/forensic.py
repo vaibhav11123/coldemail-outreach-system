@@ -104,7 +104,23 @@ def inspect_path(path: Path, ledger: DeliveryLedger | None = None) -> ForensicRe
         tmp_extract = path.parent / f".forensic-extract-{path.stem}"
         tmp_extract.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(path, "r") as zf:
-            zf.extractall(tmp_extract)
+            for member in zf.infolist():
+                name = member.filename
+                if name.endswith("/"):
+                    continue
+                # Reject ZipSlip / absolute paths before writing
+                if name.startswith("/") or name.startswith("\\") or ".." in Path(name).parts:
+                    report.notes.append(f"Skipped unsafe zip member: {name}")
+                    continue
+                target = (tmp_extract / name).resolve()
+                try:
+                    target.relative_to(tmp_extract.resolve())
+                except ValueError:
+                    report.notes.append(f"Skipped unsafe zip member: {name}")
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(member) as src, open(target, "wb") as dst:
+                    dst.write(src.read())
         work = tmp_extract
         report.notes.append("Inspected zip by extracting to a temporary directory.")
     elif path.is_file():

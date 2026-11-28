@@ -32,3 +32,21 @@ def load_cached_dek(license_id: str, device_id: str) -> bytes | None:
 
 def clear_cached_dek(license_id: str, device_id: str) -> None:
     delete_secret(_key(license_id, device_id))
+
+
+def clear_all_cached_deks_for_license(license_id: str, device_ids: list[str] | None = None) -> int:
+    """Remove cached plaintext DEKs for a licence (call on revoke).
+
+    Clears known device ids plus any local secrets.json entries with the
+    licensing.dek.<license_id>. prefix. OS keyring entries without local
+    mirrors may remain until overwritten — operator should wipe keyring on
+    refund when using non-local secret backends.
+    """
+    from studio.secrets_store import delete_secrets_with_prefix
+
+    removed = 0
+    for device_id in device_ids or []:
+        clear_cached_dek(license_id, device_id)
+        removed += 1
+    removed += delete_secrets_with_prefix(f"licensing.dek.{license_id}.")
+    return removed

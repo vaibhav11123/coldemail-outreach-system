@@ -120,8 +120,14 @@ def build_reader_router(render_ctx) -> APIRouter:
         page_token: str = Form(...),
     ):
         # Token checked by comparing to cookie set for this process
+        import secrets as _secrets
+
         cookie = request.cookies.get("studio_page_token")
-        if not cookie or cookie != page_token:
+        if (
+            not cookie
+            or not page_token
+            or not _secrets.compare_digest(cookie, page_token)
+        ):
             return RedirectResponse("/reader?err=1&flash=Invalid+session+token", status_code=303)
         path = Path(package_dir).expanduser()
         dest = app_data_dir() / "protected_package_path.txt"

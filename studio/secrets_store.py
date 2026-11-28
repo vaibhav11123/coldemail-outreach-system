@@ -78,3 +78,18 @@ def delete_all_studio_secrets() -> None:
         delete_secret(key)
     if _local_store().exists():
         _local_store().unlink()
+
+
+def list_local_secret_names() -> list[str]:
+    """Names present in the local secrets.json fallback (not OS keyring enumeration)."""
+    return sorted(_read_local().keys())
+
+
+def delete_secrets_with_prefix(prefix: str) -> int:
+    """Delete local (and best-effort keyring) secrets whose names start with prefix."""
+    removed = 0
+    for name in list_local_secret_names():
+        if name.startswith(prefix):
+            delete_secret(name)
+            removed += 1
+    return removed

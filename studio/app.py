@@ -341,6 +341,12 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     )
             if cv is not None and cv.filename:
                 raw = await cv.read()
+                # Cap CV uploads (PDF/DOCX) to avoid unbounded memory use
+                if len(raw) > 5_000_000:
+                    return RedirectResponse(
+                        "/profile?err=1&flash=CV%20too%20large%20(max%205MB)",
+                        status_code=303,
+                    )
                 from studio.cv_import import parse_cv, persist_extracted_profile
 
                 parsed = parse_cv(cv.filename, raw)
@@ -1009,7 +1015,13 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 "/connections?err=1&flash=Choose%20a%20BibTeX%2C%20RIS%2C%20or%20CSV%20file#google_scholar",
                 status_code=303,
             )
-        raw = (await file.read()).decode("utf-8", errors="replace")
+        blob = await file.read()
+        if len(blob) > 2_000_000:
+            return RedirectResponse(
+                "/connections?err=1&flash=Bibliography%20too%20large%20(max%202MB)#google_scholar",
+                status_code=303,
+            )
+        raw = blob.decode("utf-8", errors="replace")
         parsed = parse_bibliography(raw, file.filename or "")
         if not parsed.get("ok"):
             return RedirectResponse(
@@ -2598,6 +2610,11 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         dest = workspace / "backups" / f"upload-{secrets.token_hex(6)}.zip"
         dest.parent.mkdir(parents=True, exist_ok=True)
         data = await zip.read()
+        if len(data) > 50_000_000:
+            return RedirectResponse(
+                "/backup?err=1&flash=Backup%20too%20large%20(max%2050MB)",
+                status_code=303,
+            )
         dest.write_bytes(data)
         try:
             restore_backup(dest, workspace)

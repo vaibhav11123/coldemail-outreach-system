@@ -43,6 +43,20 @@ def create_backup(workspace: Path, dest_dir: Path | None = None) -> Path:
     return out
 
 
+def _safe_member_path(workspace: Path, member_name: str) -> Path:
+    """Resolve a zip member under workspace; reject ZipSlip / absolute paths."""
+    # Zip members use forward slashes; reject absolute and parent traversal
+    if member_name.startswith("/") or member_name.startswith("\\") or ".." in Path(member_name).parts:
+        raise ValueError(f"Unsafe backup member path: {member_name}")
+    target = (workspace / member_name).resolve()
+    root = workspace.resolve()
+    try:
+        target.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"Unsafe backup member path: {member_name}") from exc
+    return target
+
+
 def restore_backup(zip_path: Path, workspace: Path) -> None:
     workspace.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path, "r") as zf:
@@ -59,11 +73,10 @@ def restore_backup(zip_path: Path, workspace: Path) -> None:
             shutil.copy2(db_file, bak)
         with zf.open(db_name) as src, open(db_file, "wb") as dst:
             shutil.copyfileobj(src, dst)
-        att_root = workspace / "attachments"
         for name in names:
             if not name.startswith("attachments/") or name.endswith("/"):
                 continue
-            target = workspace / name
+            target = _safe_member_path(workspace, name)
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(name) as src, open(target, "wb") as dst:
                 shutil.copyfileobj(src, dst)

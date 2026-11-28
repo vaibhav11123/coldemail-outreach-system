@@ -60,6 +60,15 @@ class CustomProvider:
             return ConnectionResult(ok=False, provider_id=self.id, message="Base URL is required.")
         if not (base.startswith("http://") or base.startswith("https://")):
             return ConnectionResult(ok=False, provider_id=self.id, message="Base URL must be http or https.")
+        # Block private/loopback/link-local destinations (SSRF)
+        from studio.security import resolve_and_validate
+
+        try:
+            resolve_and_validate(base)
+        except ValueError as exc:
+            return ConnectionResult(
+                ok=False, provider_id=self.id, message=f"Blocked base URL: {exc}"
+            )
         set_secret(BASE_SECRET, base)
         if kwargs.get("api_key"):
             set_secret(KEY_SECRET, kwargs["api_key"].strip())
@@ -80,6 +89,12 @@ class CustomProvider:
         base = get_secret(BASE_SECRET)
         if not base:
             return RewriteResult(ok=False, error="Custom provider not configured", provider_id=self.id)
+        from studio.security import resolve_and_validate
+
+        try:
+            resolve_and_validate(base)
+        except ValueError as exc:
+            return RewriteResult(ok=False, error=f"Blocked base URL: {exc}", provider_id=self.id)
         key = get_secret(KEY_SECRET)
         model = get_secret(MODEL_SECRET) or "default"
         headers = {"Content-Type": "application/json"}
@@ -97,6 +112,7 @@ class CustomProvider:
                     ],
                 },
                 timeout=60,
+                allow_redirects=False,
             )
         except requests.RequestException as exc:
             return RewriteResult(ok=False, error=str(exc), provider_id=self.id)

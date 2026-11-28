@@ -333,5 +333,40 @@ def test_revoke_blocks_later_activation(client):
         headers={"X-Studio-Webhook-Secret": "test-webhook-secret"},
     )
     assert rev.status_code == 200
+    assert rev.json().get("revoked") is True
+    assert "dek_cache_cleared" in rev.json()
     act = client.post("/api/licensing/activate-local", json={"license_id": license_id})
     assert act.status_code == 403
+
+
+def test_activate_rejects_aslic_path_traversal(client):
+    r = client.post(
+        "/api/licensing/webhook/payment",
+        json={
+            "customer_id": "trav",
+            "customer_email": "trav@example.com",
+            "sku": "academic_studio",
+        },
+        headers={"X-Studio-Webhook-Secret": "test-webhook-secret"},
+    )
+    assert r.status_code == 200
+    license_id = r.json()["license_id"]
+    from studio.licensing.activation import build_activation_request
+    from studio.licensing.device import create_device_identity
+    from studio.licensing.crypto import b64e
+
+    device = create_device_identity()
+    req = build_activation_request(device, license_id)
+    bad = client.post(
+        "/api/licensing/activate",
+        json={
+            **req.to_dict(),
+            "ed25519_public": b64e(req.ed25519_public),
+            "x25519_public": b64e(req.x25519_public),
+            "challenge": b64e(req.challenge),
+            "challenge_signature": b64e(req.challenge_signature),
+            "aslic_basename": "../escape.aslic",
+        },
+    )
+    assert bad.status_code == 400
+

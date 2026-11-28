@@ -140,7 +140,11 @@ def build_licensing_router() -> APIRouter:
             raise HTTPException(status_code=400, detail="Malformed activation request") from exc
         out_dir = app_data_dir() / "activations" / body.license_id
         out_dir.mkdir(parents=True, exist_ok=True)
-        aslic_path = out_dir / body.aslic_basename
+        # Basename only — reject path traversal via aslic_basename
+        safe_name = Path(body.aslic_basename).name
+        if safe_name != body.aslic_basename or not safe_name.endswith(".aslic"):
+            raise HTTPException(status_code=400, detail="Invalid aslic_basename")
+        aslic_path = out_dir / safe_name
         try:
             ent = activate_device(
                 store,
@@ -167,7 +171,17 @@ def build_licensing_router() -> APIRouter:
         req = build_activation_request(device, body.license_id)
         store = license_store()
         if body.package_dir:
-            aslic_path = Path(body.package_dir) / "CustomerLicense.aslic"
+            # Confine writes to the app data tree (no arbitrary filesystem paths)
+            root = app_data_dir().resolve()
+            candidate = Path(body.package_dir).expanduser().resolve()
+            try:
+                candidate.relative_to(root)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail="package_dir must be under the Studio data directory",
+                ) from exc
+            aslic_path = candidate / "CustomerLicense.aslic"
         else:
             aslic_path = (
                 app_data_dir() / "activations" / body.license_id / "CustomerLicense.aslic"
@@ -204,10 +218,21 @@ def build_licensing_router() -> APIRouter:
             raise HTTPException(status_code=401, detail="Invalid webhook secret")
         store = license_store()
         try:
+            rec = store.get(license_id)
             store.revoke(license_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Unknown licence") from exc
-        return {"ok": True, "license_id": license_id, "revoked": True}
+        # Drop cached plaintext DEKs so revoked licences stop unlocking catalogs locally
+        from studio.licensing.dek_cache import clear_all_cached_deks_for_license
+
+        device_ids = list((rec.activated_devices if rec else {}) or {})
+        cleared = clear_all_cached_deks_for_license(license_id, device_ids)
+        return {
+            "ok": True,
+            "license_id": license_id,
+            "revoked": True,
+            "dek_cache_cleared": cleared,
+        }
 
     @router.get("/status/{license_id}")
     def status(license_id: str) -> dict[str, Any]:
