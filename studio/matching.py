@@ -210,6 +210,7 @@ def score_opportunity(
 
 
 def rebuild_shortlist(conn) -> int:
+    """Refresh recommendation scores without wiping manually pinned shortlist rows."""
     from studio.match_intel import explain_match
 
     facts = [
@@ -219,7 +220,14 @@ def rebuild_shortlist(conn) -> int:
         )
     ]
     opps = conn.execute("SELECT * FROM opportunity").fetchall()
-    conn.execute("DELETE FROM shortlist_item")
+    # Keep customer-saved (pinned) rows; replace only auto recommendations.
+    conn.execute("DELETE FROM shortlist_item WHERE COALESCE(pinned, 0) = 0")
+    pinned_ids = {
+        int(r["opportunity_id"])
+        for r in conn.execute(
+            "SELECT opportunity_id FROM shortlist_item WHERE COALESCE(pinned, 0) = 1"
+        ).fetchall()
+    }
     count = 0
     for opp in opps:
         pubs = [
@@ -235,12 +243,22 @@ def rebuild_shortlist(conn) -> int:
         payload = {"reasons": reasons, "intel": intel.to_dict()}
         # Prefer explainable compatibility index when evidence exists
         rank = (intel.overall / 100.0) if intel.overall > 0 else score
-        conn.execute(
-            """
-            INSERT INTO shortlist_item(opportunity_id, rank_score, rank_explanation)
-            VALUES (?, ?, ?)
-            """,
-            (opp["id"], rank, json.dumps(payload)),
-        )
+        if opp["id"] in pinned_ids:
+            conn.execute(
+                """
+                UPDATE shortlist_item
+                SET rank_score = ?, rank_explanation = ?
+                WHERE opportunity_id = ? AND COALESCE(pinned, 0) = 1
+                """,
+                (rank, json.dumps(payload), opp["id"]),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO shortlist_item(opportunity_id, rank_score, rank_explanation, pinned)
+                VALUES (?, ?, ?, 0)
+                """,
+                (opp["id"], rank, json.dumps(payload)),
+            )
         count += 1
     return count

@@ -58,13 +58,39 @@ def test_packaging_scan_rejects_hr_csv(tmp_path):
         scan_package_dir(tmp_path)
 
 
-def test_reader_trusts_package_issuer_not_operator(studio_home, mini_records, tmp_path, monkeypatch):
+def test_reader_trusts_package_issuer_not_operator(tmp_path, monkeypatch):
     """Package signed by key A opens even when local operator issuer is key B."""
+    home = tmp_path / "studio_home"
+    home.mkdir()
+    monkeypatch.setenv("STUDIO_DATA_DIR", str(home))
+    monkeypatch.delenv("STUDIO_ISSUER_PRIVATE_HEX", raising=False)
+    monkeypatch.delenv("STUDIO_TRUSTED_ISSUER_PUBLIC", raising=False)
+
     package_issuer = IssuerKeys.generate()
     operator = IssuerKeys.generate()
     assert package_issuer.export_public_hex() != operator.export_public_hex()
 
-    store = LicenseStore(studio_home / "license_store.json", package_issuer)
+    mini_records = [
+        {
+            "canonical_id": "ada",
+            "display_name": "Ada Example",
+            "email": "ada@ex.edu",
+            "university": "Example U",
+            "status": "unknown",
+            "funding": "unknown",
+            "eligibility": "unknown",
+            "deadline": "",
+            "apply_url": "",
+            "email_invited": "unknown",
+            "note": "",
+            "paper_title": "Systems paper",
+            "paper_year": 2024,
+            "paper_url": "https://example.edu/p",
+            "paper_abstract": "Abs",
+        }
+    ]
+
+    store = LicenseStore(home / "license_store.json", package_issuer)
     purchase = store.register_purchase(
         customer_id="cust_cx",
         customer_email="cx@example.com",
@@ -85,8 +111,7 @@ def test_reader_trusts_package_issuer_not_operator(studio_home, mini_records, tm
         license_id=purchase.license_id,
     )
 
-    # Poison local operator issuer so a naive issuer_keys() would mismatch
-    (studio_home / "dev_issuer.json").write_text(
+    (home / "dev_issuer.json").write_text(
         json.dumps(
             {
                 "private_hex": operator.export_private_hex(),
@@ -95,8 +120,6 @@ def test_reader_trusts_package_issuer_not_operator(studio_home, mini_records, tm
         ),
         encoding="utf-8",
     )
-    monkeypatch.delenv("STUDIO_ISSUER_PRIVATE_HEX", raising=False)
-    monkeypatch.delenv("STUDIO_TRUSTED_ISSUER_PUBLIC", raising=False)
 
     hex_key = _package_issuer_public_hex(out)
     assert hex_key == package_issuer.export_public_hex()
@@ -105,7 +128,6 @@ def test_reader_trusts_package_issuer_not_operator(studio_home, mini_records, tm
     assert hits
     assert session.record_count() == len(mini_records)
 
-    # Operator key must still raise mismatch when forced
     with pytest.raises(PermissionError, match="issuer public key mismatch"):
         activate_local_catalog(
             out,

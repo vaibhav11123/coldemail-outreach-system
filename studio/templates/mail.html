@@ -88,19 +88,29 @@
 
   {% elif discovery.auth_method == 'oauth_google' %}
   <p class="status-badge ok">{{ discovery.detail }}</p>
+  {% if gmail_oauth_ready %}
   <form method="post" action="/mail/connect/gmail">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit">Continue with Google</button>
   </form>
   <p class="muted">We never ask for your email password. You can revoke access at any time.</p>
+  {% else %}
+  <p><span class="status-badge warn">Not available in this release</span></p>
+  <p class="muted">Production Google sign-in is not packaged for this build. Download a <code>.eml</code> from a draft instead.</p>
+  {% endif %}
 
   {% elif discovery.auth_method == 'oauth_microsoft' %}
   <p class="status-badge ok">{{ discovery.detail }}</p>
+  {% if outlook_oauth_ready %}
   <form method="post" action="/mail/connect/outlook">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit">Continue with Microsoft</button>
   </form>
   <p class="muted">We never ask for your email password. You can revoke access at any time.</p>
+  {% else %}
+  <p><span class="status-badge warn">Not available in this release</span></p>
+  <p class="muted">Production Microsoft sign-in is not packaged for this build. Download a <code>.eml</code> from a draft instead.</p>
+  {% endif %}
 
   {% else %}
   <p class="muted">{{ discovery.detail }}</p>
@@ -114,18 +124,28 @@
   <div class="sheet ai-card">
     <h2>Gmail</h2>
     <p class="muted">Personal and university Google accounts</p>
+    {% if gmail_oauth_ready %}
     <form method="post" action="/mail/connect/gmail">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <button type="submit"{% if discovery %} class="secondary"{% endif %}>Continue with Google</button>
     </form>
+    {% else %}
+    <p><span class="status-badge warn">Not available in this release</span></p>
+    <p class="muted">Production Google sign-in is not packaged for this build. Use institute email, advanced SMTP, or download a <code>.eml</code> from a draft.</p>
+    {% endif %}
   </div>
   <div class="sheet ai-card">
     <h2>Microsoft Outlook</h2>
     <p class="muted">University and personal Microsoft accounts</p>
+    {% if outlook_oauth_ready %}
     <form method="post" action="/mail/connect/outlook">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <button type="submit" class="secondary">Continue with Microsoft</button>
     </form>
+    {% else %}
+    <p><span class="status-badge warn">Not available in this release</span></p>
+    <p class="muted">Production Microsoft sign-in is not packaged for this build. Use institute email, advanced SMTP, or download a <code>.eml</code> from a draft.</p>
+    {% endif %}
   </div>
 </div>
 {% endif %}

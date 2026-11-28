@@ -1304,7 +1304,15 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             ).fetchone()
             if not exists:
                 conn.execute(
-                    "INSERT INTO shortlist_item(opportunity_id, rank_score, rank_explanation) VALUES (?, 0, '[]')",
+                    """
+                    INSERT INTO shortlist_item(opportunity_id, rank_score, rank_explanation, pinned)
+                    VALUES (?, 0, '[]', 1)
+                    """,
+                    (opp_id,),
+                )
+            else:
+                conn.execute(
+                    "UPDATE shortlist_item SET pinned = 1 WHERE opportunity_id = ?",
                     (opp_id,),
                 )
         finally:
@@ -2003,6 +2011,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     daily_limit=mail_daily_limit(),
                     google_client_id=get_secret(GOOGLE_CLIENT_ID_SECRET) or "",
                     microsoft_client_id=get_secret(MICROSOFT_CLIENT_ID_SECRET) or "",
+                    gmail_oauth_ready=bool(get_secret(GOOGLE_CLIENT_ID_SECRET)),
+                    outlook_oauth_ready=bool(get_secret(MICROSOFT_CLIENT_ID_SECRET)),
                 ),
             )
         finally:
