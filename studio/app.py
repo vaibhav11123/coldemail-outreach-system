@@ -58,6 +58,21 @@ from studio.mail.gmail import CLIENT_SECRET_SECRET as GOOGLE_CLIENT_SECRET_SECRE
 from studio.mail.outlook import CLIENT_ID_SECRET as MICROSOFT_CLIENT_ID_SECRET
 from studio.mailer_studio import create_intent, perform_send
 from studio.matching import rebuild_shortlist
+from studio.academic.crossref import lookup_doi
+from studio.calendar_export import build_ics, events_from_tracker
+from studio.connections import (
+    connection_requirements,
+    prefill_email_candidates,
+    sections_for_ui,
+    workspace_setup_steps,
+)
+from studio.github_import import (
+    disconnect_github,
+    fetch_public_repos,
+    github_login,
+    import_repos_as_facts,
+    parse_github_login,
+)
 from studio.openalex import request_api_key, save_pasted_key
 from studio.paths import PACKAGE_ROOT, REPO_ROOT, app_data_dir, bundled_data_dir
 from studio.planner import (
@@ -659,18 +674,155 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         require_token(page_token)
         try:
             data = request_api_key(email.strip())
-            msg = data.get("message") or f"OpenAlex status {data.get('http_status')}"
-            if data.get("http_status") == 409:
-                msg = "agent_key_exists — revoke at Settings or paste your key."
+            if data.get("http_status") == 201:
+                msg = (
+                    "OpenAlex sent an activation email. Click the link in your inbox, "
+                    "then return to Academic Outreach Studio."
+                )
+            elif data.get("http_status") == 409:
+                msg = (
+                    "An OpenAlex key may already exist for this email. "
+                    "Activate from the email link, or paste your key under Advanced on Openings."
+                )
+            else:
+                msg = data.get("message") or f"OpenAlex status {data.get('http_status')}"
         except Exception as exc:  # noqa: BLE001
             msg = str(exc)
-        return RedirectResponse(f"/start?flash={quote(msg)}", status_code=303)
+        return RedirectResponse(
+            f"/connections?flash={quote(msg)}#openalex", status_code=303
+        )
 
     @app.post("/openalex/paste")
     async def openalex_paste(page_token: str = Form(...), api_key: str = Form(...)):
         require_token(page_token)
         save_pasted_key(api_key)
-        return RedirectResponse("/start?flash=OpenAlex%20key%20saved", status_code=303)
+        return RedirectResponse(
+            "/connections?flash=OpenAlex%20key%20saved#openalex", status_code=303
+        )
+
+    # ---- Unified Connections ----
+    @app.get("/connections", response_class=HTMLResponse)
+    async def connections_get(request: Request):
+        prefs = prefill_email_candidates()
+        gh_repos = []
+        login = github_login()
+        if login and request.query_params.get("imported"):
+            # show last import preview from flash context — re-fetch lightly
+            preview = fetch_public_repos(login, per_page=5)
+            if preview.get("ok"):
+                gh_repos = preview.get("repos") or []
+        return TEMPLATES.TemplateResponse(
+            request,
+            "connections.html",
+            ctx(
+                request,
+                nav="connections",
+                sections=sections_for_ui(),
+                setup_steps=workspace_setup_steps(),
+                requirements=connection_requirements(),
+                openalex_prefill=(prefs[0] if prefs else ""),
+                github_login=login,
+                github_repos=gh_repos,
+                orcid_id=get_secret("orcid_id") or "",
+                crossref_result=None,
+            ),
+        )
+
+    @app.post("/connections/github")
+    async def connections_github(page_token: str = Form(...), github: str = Form("")):
+        require_token(page_token)
+        login = parse_github_login(github)
+        if not login:
+            return RedirectResponse(
+                "/connections?err=1&flash=Enter%20a%20GitHub%20username%20or%20profile%20URL#github",
+                status_code=303,
+            )
+        result = fetch_public_repos(login)
+        if not result.get("ok"):
+            return RedirectResponse(
+                f"/connections?err=1&flash={quote(result.get('message') or 'Import failed')}#github",
+                status_code=303,
+            )
+        conn = get_conn()
+        try:
+            n = import_repos_as_facts(conn, login, result.get("repos") or [])
+        finally:
+            conn.close()
+        return RedirectResponse(
+            f"/connections?imported=1&flash={quote(f'Imported {n} public projects for review')}#github",
+            status_code=303,
+        )
+
+    @app.post("/connections/orcid")
+    async def connections_orcid(page_token: str = Form(...), orcid: str = Form("")):
+        require_token(page_token)
+        raw = (orcid or "").strip()
+        if not raw:
+            delete_secret("orcid_id")
+            return RedirectResponse(
+                "/connections?flash=ORCID%20cleared#orcid", status_code=303
+            )
+        # Accept URL or bare id
+        if "orcid.org/" in raw:
+            raw = raw.rstrip("/").split("orcid.org/")[-1]
+        set_secret("orcid_id", raw)
+        return RedirectResponse(
+            "/connections?flash=ORCID%20saved%20as%20profile%20link#orcid",
+            status_code=303,
+        )
+
+    @app.post("/connections/crossref")
+    async def connections_crossref(
+        request: Request, page_token: str = Form(...), doi: str = Form("")
+    ):
+        require_token(page_token)
+        result = lookup_doi(doi)
+        prefs = prefill_email_candidates()
+        return TEMPLATES.TemplateResponse(
+            request,
+            "connections.html",
+            ctx(
+                request,
+                nav="connections",
+                sections=sections_for_ui(),
+                setup_steps=workspace_setup_steps(),
+                requirements=connection_requirements(),
+                openalex_prefill=(prefs[0] if prefs else ""),
+                github_login=github_login(),
+                github_repos=[],
+                orcid_id=get_secret("orcid_id") or "",
+                crossref_result=result,
+                flash=result.get("title") if result.get("ok") else result.get("message"),
+                flash_error=not result.get("ok"),
+            ),
+        )
+
+    @app.get("/connections/calendar.ics")
+    async def connections_calendar_ics():
+        conn = get_conn()
+        try:
+            events = events_from_tracker(conn)
+            if not events:
+                # Always produce a usable calendar file with a sample follow-up window
+                from datetime import datetime, timedelta
+
+                events = [
+                    {
+                        "summary": "Follow-up with professor",
+                        "description": "Review before sending. Add deadlines in Tracker to populate this calendar.",
+                        "start": datetime.utcnow() + timedelta(days=8),
+                    }
+                ]
+            body = build_ics(events)
+        finally:
+            conn.close()
+        return Response(
+            body,
+            media_type="text/calendar",
+            headers={
+                "Content-Disposition": "attachment; filename=academic-outreach.ics"
+            },
+        )
 
     @app.get("/job/{job_id}", response_class=HTMLResponse)
     async def job_status(request: Request, job_id: int):
@@ -1232,8 +1384,13 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             raise
         finally:
             conn.close()
+        # Personal credentials only — bundled library / demo / binaries preserved (FR-23)
         delete_all_studio_secrets()
-        return RedirectResponse("/profile?flash=Deleted", status_code=303)
+        disconnect_github()
+        return RedirectResponse(
+            "/profile?flash=Personal%20records%20deleted.%20Bundled%20library%20kept.",
+            status_code=303,
+        )
 
     # ---- S7 Mail / Connect your email ----
     @app.get("/mail", response_class=HTMLResponse)

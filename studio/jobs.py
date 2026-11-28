@@ -1,4 +1,9 @@
-"""In-process lease-based job queue backed by SQLite."""
+"""In-process lease-based job queue backed by SQLite.
+
+Retryable work only (search, fetch, import, match). Campaign controllers may
+orchestrate progress but must never enqueue email submission. Non-retryable
+send intents live in studio.mailer_studio.
+"""
 
 from __future__ import annotations
 

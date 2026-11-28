@@ -64,19 +64,17 @@
 </div>
 
 <div class="sheet">
-  <h2>OpenAlex account</h2>
-  <p class="muted">Connect your own free OpenAlex key. There is no shared key in the app.</p>
-  <form method="post" action="/openalex/connect">
-    <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label for="oa_email">Email for OpenAlex</label>
-    <input id="oa_email" name="email" type="email">
-    <button type="submit">Email me an activation link</button>
-  </form>
-  <form method="post" action="/openalex/paste" style="margin-top:1rem">
-    <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label for="oa_key">Or paste your key from Settings → API key</label>
-    <input id="oa_key" name="api_key">
-    <button type="submit" class="secondary">Save key</button>
-  </form>
+  <h2>Enable live research discovery</h2>
+  <p class="muted">Search academic publications beyond the included library. OpenAlex emails an activation link — no payment for the free allowance.</p>
+  <p><a class="button" href="/connections#openalex">Activate on Connections</a></p>
+  <details style="margin-top:1rem">
+    <summary class="muted">Advanced: paste an existing OpenAlex key</summary>
+    <form method="post" action="/openalex/paste" style="margin-top:0.75rem">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="oa_key">API key</label>
+      <input id="oa_key" name="api_key">
+      <button type="submit" class="secondary">Save key</button>
+    </form>
+  </details>
 </div>
 {% endblock %}

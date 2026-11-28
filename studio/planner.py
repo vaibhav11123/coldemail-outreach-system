@@ -12,6 +12,8 @@ from studio.paths import REPO_ROOT
 
 HR_CSV = REPO_ROOT / "data" / "processed" / "cold_email_outreach_all_cleaned_ranked.csv"
 
+# Technical ceiling awareness for legacy HR planner UI only.
+# Academic outreach enforces studio.mail.quotas.DEFAULT_DAILY_LIMIT (20), not this number.
 PERSONAL_GMAIL_CAP = 400
 WORKSPACE_CAP = 2000
 WORKSPACE_TRIAL_CAP = 500
