@@ -33,17 +33,17 @@ Legend: `[x]` verified in repo · `[~]` partial / scaffold · `[ ]` not built
 - [x] Advanced filtering and saved searches (`/directory` filters + `saved_search`)
 - [x] CV-to-faculty matching (`cv_import`, `matching`, `match_intel`)
 - [x] Faculty comparison workspace (`/compare`, `studio/compare.py`)
-- [ ] Research relationship graph
-- [ ] Research trajectory analysis
+- [ ] Research relationship graph — **tracked; not demand-blocked**
+- [ ] Research trajectory analysis — **tracked; not demand-blocked**
 
 ## 03 — Research preparation · 1/6 verified
 
 - [~] Publication reading workspace (reader + opportunity pubs; not a full paper workspace)
-- [ ] Research knowledge base
-- [ ] Skill gap analysis
-- [ ] Research roadmap generation
-- [ ] Research proposal builder
-- [ ] Interview preparation
+- [ ] Research knowledge base — **tracked; not demand-blocked**
+- [ ] Skill gap analysis — **tracked; not demand-blocked**
+- [ ] Research roadmap generation — **tracked; not demand-blocked**
+- [ ] Research proposal builder — **tracked; not demand-blocked**
+- [ ] Interview preparation — **tracked; not demand-blocked**
 
 ## 04 — Application intelligence · 6/8 verified
 
@@ -76,27 +76,27 @@ Legend: `[x]` verified in repo · `[~]` partial / scaffold · `[ ]` not built
 - [~] Universal search and keyboard navigation (directory HTMX; global cmd-K pending)
 - [x] Helpful empty states (directory/tracker/dashboard)
 - [~] Accessibility and responsive layouts (improved; audit incomplete)
-- [ ] Complete customer documentation
+- [ ] Complete customer documentation — **tracked; real usability polish not demand-blocked**
 
-## 07 — Security and delivery · 4/10 verified
+## 07 — Security and delivery · 6/10 verified
 
 - [x] Shared licensing implementation (Ed25519, X25519 DEK, SQLCipher, fingerprints, manifests)
-- [~] Production issuer and protected keys (dev issuer local; production ops incomplete)
-- [~] Payment and entitlement lifecycle (webhook + store; live payment provider incomplete)
+- [~] Production issuer vault (`issuer_vault` + `STUDIO_ISSUER_MODE=production`); live ops still owner-held
+- [~] Payment lifecycle (idempotent webhook + events log + fulfil); live merchant still required
 - [x] Device replacement and revocation APIs
 - [x] Dataset fingerprinting + signed manifests
 - [x] Encrypted catalog (`.asdb` / `.aspkg`)
-- [ ] Signed Windows and macOS installers
-- [ ] Secure software updates
+- [ ] Signed Windows and macOS OS installers — **tracked; needs Store/Apple credentials**
+- [~] Secure software updates (app-level signed manifests shipped; OS trust UX open)
 - [x] Backup and recovery (`/backup`)
-- [~] Piracy monitoring (scaffold CLI)
+- [~] Piracy monitoring (local + allowlisted live URL crawl CLI)
 
 ## 08 — Production qualification · 2/10 verified
 
 - [x] Unit and integration testing (studio/tests; non-live suite green)
 - [~] End-to-end customer journeys (partial automated coverage)
 - [ ] Adversarial AI testing (full)
-- [ ] Security penetration testing
+- [~] Security penetration testing — Cloudflare run-2 incomplete; **not** a release gate
 - [~] Fault injection and crash recovery (some INV tests)
 - [ ] Performance benchmarking
 - [ ] Cross-platform installation testing
@@ -129,3 +129,17 @@ Legend: `[x]` verified in repo · `[~]` partial / scaffold · `[ ]` not built
 ## Finished means
 
 A nontechnical student can purchase, install, import a CV, discover researchers, understand their work, prepare credible applications, contact them, and manage the process without operator assistance — with every advertised feature working and known limitations documented.
+
+## Explicitly unfinished (tracked — not demand-blocked)
+
+These remain open product workstreams; shipping commercial Option A fulfilment does **not** wait on them:
+
+| Item | Tracker |
+| --- | --- |
+| Research relationship graph | §02 |
+| Trajectory / skill-gap engines | §02–§03 |
+| Proposal / interview prep | §03 |
+| Production issuer ops + live payments | §07 + `PAYMENT_LIFECYCLE_OPS.md` |
+| OS-signed installers / notarization | §07 + `packaging/SIGNING.md` |
+| Release-gate penetration test | §08 + `CLOUDFLARE_SECURITY_AUDIT.md` |
+| Real-user usability testing | §08 |

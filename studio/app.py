@@ -167,13 +167,14 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
 
     @app.middleware("http")
     async def security_middleware(request: Request, call_next):
-        if request.url.path.startswith("/static"):
-            return await call_next(request)
         try:
             require_localhost_host(request)
         except Exception as exc:  # noqa: BLE001
             detail = getattr(exc, "detail", str(exc))
             return Response(str(detail), status_code=403)
+        # Static assets still require Host allowlist; skip only cookie minting noise
+        if request.url.path.startswith("/static"):
+            return await call_next(request)
         response = await call_next(request)
         if _page_token_missing(request):
             set_page_token_cookie(response, PAGE_TOKEN)
@@ -2589,7 +2590,10 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         )
 
     @app.get("/backup/download/{name}")
-    async def backup_download(name: str):
+    async def backup_download(request: Request, name: str):
+        # Require an established session cookie (same-origin browser download)
+        if not request.cookies.get("studio_page_token"):
+            return RedirectResponse("/backup?err=1&flash=Session%20required", status_code=303)
         safe = Path(name).name
         if not safe.startswith("studio-backup-") or not safe.endswith(".zip"):
             return RedirectResponse("/backup?err=1&flash=Bad%20file", status_code=303)

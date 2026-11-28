@@ -157,9 +157,85 @@ def is_plausible_public_url(url: str) -> bool:
         for domain in (
             "github.com",
             "githubusercontent.com",
+            "gist.github.com",
             "gumroad.com",
             "reddit.com",
+            "old.reddit.com",
             "t.me",
             "telegram.me",
         )
     )
+
+
+def fetch_public_text(url: str, *, timeout: float = 20.0) -> str:
+    """Fetch allowlisted public HTML/text with SSRF guards. Operator-initiated only."""
+    if not is_plausible_public_url(url):
+        raise ValueError(f"URL host not on piracy-monitor allowlist: {url}")
+    from studio.security import resolve_and_validate
+
+    resolve_and_validate(url)
+    import requests
+
+    resp = requests.get(
+        url,
+        timeout=timeout,
+        allow_redirects=False,
+        headers={"User-Agent": "AcademicStudio-PiracyMonitor/1.0 (+manual-review)"},
+    )
+    if resp.status_code >= 400:
+        raise ValueError(f"HTTP {resp.status_code} for {url}")
+    # Cap body size
+    return resp.content[:2_000_000].decode("utf-8", errors="ignore")
+
+
+def scan_public_urls(urls: list[str], ledger: DeliveryLedger) -> list[MonitorFinding]:
+    """Live crawl of operator-supplied public URLs (allowlisted hosts only)."""
+    findings: list[MonitorFinding] = []
+    for url in urls:
+        try:
+            text = fetch_public_text(url)
+        except Exception as exc:  # noqa: BLE001 — surface per-URL failure as note
+            findings.append(
+                MonitorFinding(
+                    source="public_url_error",
+                    url=url,
+                    matched_markers=[],
+                    export_ids=[],
+                    file_hashes=[],
+                    notes=f"Fetch failed: {exc}",
+                    discovered_at=int(time.time()),
+                )
+            )
+            continue
+        finding = evaluate_public_text(
+            source="public_url",
+            text=text,
+            ledger=ledger,
+            url=url,
+        )
+        if finding:
+            findings.append(finding)
+    return findings
+
+
+def github_code_search_urls(query: str, *, limit: int = 10) -> list[str]:
+    """Build public GitHub search URLs for manual or automated follow-up.
+
+    Uses the public web search UI path (no paid API). Operators may open these
+    in a browser or pass resulting item URLs into ``scan_public_urls``.
+    """
+    from urllib.parse import quote_plus
+
+    q = quote_plus(query)
+    # Search page itself is allowlisted via github.com
+    return [f"https://github.com/search?q={q}&type=code"][:limit]
+
+
+def default_leak_queries() -> list[str]:
+    return [
+        '"CustomerLicense.aslic"',
+        '"ResearchCatalog.asdb"',
+        '"Global Research Dataset"',
+        '"hmac-sha256-v1" faculty_catalog',
+        "R- filename:manifest.json",
+    ]

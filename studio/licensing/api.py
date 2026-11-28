@@ -104,12 +104,34 @@ def build_licensing_router() -> APIRouter:
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=400, detail=f"Unknown SKU: {body.sku}") from exc
         store = license_store()
-        rec = store.register_purchase(
-            customer_id=body.customer_id,
-            customer_email=body.customer_email,
-            sku=body.sku,
-            external_payment_id=body.external_payment_id,
-            payment_provider=body.payment_provider,
+        try:
+            existing = (
+                store.find_by_external_payment_id(body.external_payment_id)
+                if body.external_payment_id
+                else None
+            )
+            rec = store.register_purchase(
+                customer_id=body.customer_id,
+                customer_email=body.customer_email,
+                sku=body.sku,
+                external_payment_id=body.external_payment_id,
+                payment_provider=body.payment_provider,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        # Append durable payment event for ops/refund reconciliation
+        from studio.licensing.payments import append_payment_event
+
+        append_payment_event(
+            {
+                "event": "purchase_registered",
+                "license_id": rec.license_id,
+                "customer_id": rec.customer_id,
+                "sku": rec.sku,
+                "external_payment_id": body.external_payment_id,
+                "payment_provider": body.payment_provider,
+                "idempotent_replay": bool(existing and existing.license_id == rec.license_id),
+            }
         )
         return {
             "ok": True,
@@ -118,6 +140,7 @@ def build_licensing_router() -> APIRouter:
             "sku": rec.sku,
             "fingerprint_salt": rec.fingerprint_salt,
             "external_payment_id": body.external_payment_id,
+            "idempotent_replay": bool(existing and existing.license_id == rec.license_id),
             "notice": "DEK retained server-side only; never returned on this endpoint.",
         }
 
@@ -224,9 +247,17 @@ def build_licensing_router() -> APIRouter:
             raise HTTPException(status_code=404, detail="Unknown licence") from exc
         # Drop cached plaintext DEKs so revoked licences stop unlocking catalogs locally
         from studio.licensing.dek_cache import clear_all_cached_deks_for_license
+        from studio.licensing.payments import record_refund
 
         device_ids = list((rec.activated_devices if rec else {}) or {})
         cleared = clear_all_cached_deks_for_license(license_id, device_ids)
+        # Persist refund/revoke lifecycle event (operator still confirms marketplace refund)
+        raw = store._read().get("purchases", {}).get(license_id) or {}
+        record_refund(
+            license_id=license_id,
+            external_payment_id=raw.get("external_payment_id"),
+            reason="api_revoke",
+        )
         return {
             "ok": True,
             "license_id": license_id,

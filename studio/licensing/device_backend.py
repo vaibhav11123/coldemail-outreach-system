@@ -34,6 +34,7 @@ import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 
@@ -216,10 +217,47 @@ def select_device_backend() -> DeviceKeyBackend:
     return SoftwareFileBackend()
 
 
+def probe_hardware_presence() -> dict[str, Any]:
+    """Best-effort presence signals — never claims usable binding.
+
+    Detection only. A positive signal means the host *might* support a future
+    adapter; it does not unlock HardwareBackendStub.
+    """
+    plat = sys.platform
+    out: dict[str, Any] = {
+        "platform": plat,
+        "secure_enclave_hint": False,
+        "tpm_hint": False,
+        "notes": [],
+    }
+    if plat == "darwin":
+        # Apple Silicon typically exposes Secure Enclave; Intel Macs vary.
+        machine = platform.machine().lower()
+        out["secure_enclave_hint"] = machine in {"arm64", "aarch64"}
+        out["notes"].append(
+            "Secure Enclave adapter not implemented; hint based on machine arch only."
+        )
+    elif plat.startswith("win"):
+        # Presence of TPM WMI/CIM is environment-specific; avoid claiming without API.
+        out["notes"].append(
+            "Windows TPM probe deferred to CNG/NCrypt adapter implementation."
+        )
+    elif plat.startswith("linux"):
+        tpm_paths = [Path(p) for p in ("/dev/tpm0", "/dev/tpmrm0")]
+        out["tpm_hint"] = any(p.exists() for p in tpm_paths)
+        out["notes"].append(
+            "Linux /dev/tpm* presence is not proof of usable sealed keys."
+        )
+    else:
+        out["notes"].append("Unrecognized platform for hardware probe.")
+    return out
+
+
 def describe_device_security() -> dict[str, Any]:
     backend = select_device_backend()
     caps = backend.capabilities()
     hw_stub = HardwareBackendStub().capabilities()
+    probe = probe_hardware_presence()
     return {
         "active_backend": caps.backend_id,
         "binding": caps.binding.value,
@@ -235,6 +273,7 @@ def describe_device_security() -> dict[str, Any]:
             "status": "not_implemented",
             "backend_id": hw_stub.backend_id,
             "notes": hw_stub.limitations,
+            "presence_probe": probe,
         },
         "honest_claim": (
             "Device identity today is cryptographic software identity, not "

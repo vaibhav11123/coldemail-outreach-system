@@ -80,6 +80,16 @@ class LicenseStore:
     def _write(self, data: dict) -> None:
         self.path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
+    def find_by_external_payment_id(self, external_payment_id: str) -> PurchaseRecord | None:
+        """Idempotency lookup for payment provider transaction ids."""
+        if not external_payment_id:
+            return None
+        data = self._read()
+        for raw in data.get("purchases", {}).values():
+            if str(raw.get("external_payment_id") or "") == external_payment_id:
+                return self.get(raw["license_id"])
+        return None
+
     def register_purchase(
         self,
         *,
@@ -93,6 +103,15 @@ class LicenseStore:
     ) -> PurchaseRecord:
         sku_value = sku.value if isinstance(sku, SKU) else str(sku)
         get_edition(sku_value)  # validate
+        # Replay-safe: identical external_payment_id returns the existing entitlement
+        if external_payment_id:
+            existing = self.find_by_external_payment_id(external_payment_id)
+            if existing:
+                if existing.sku != sku_value:
+                    raise ValueError(
+                        f"external_payment_id already bound to sku={existing.sku}, not {sku_value}"
+                    )
+                return existing
         rec = PurchaseRecord(
             license_id=f"lic_{uuid.uuid4().hex[:16]}",
             customer_id=customer_id,
@@ -115,6 +134,7 @@ class LicenseStore:
             "activated_devices": {},
             "payment_provider": payment_provider,
             "external_payment_id": external_payment_id,
+            "used_nonces": [],
         }
         self._write(data)
         return rec
@@ -137,7 +157,9 @@ class LicenseStore:
 
     def save(self, rec: PurchaseRecord) -> None:
         data = self._read()
+        prev = dict(data.get("purchases", {}).get(rec.license_id) or {})
         data["purchases"][rec.license_id] = {
+            **prev,
             "license_id": rec.license_id,
             "customer_id": rec.customer_id,
             "customer_email": rec.customer_email,
@@ -203,9 +225,23 @@ def activate_device(
     if expected != request.challenge:
         raise PermissionError("Challenge mismatch (possible replay)")
 
+    now = int(time.time())
+    # Reject stale or far-future challenges (clock skew / replay window)
+    if request.requested_at > now + 120:
+        raise PermissionError("Activation challenge timestamp is in the future")
+    if now - request.requested_at > 600:
+        raise PermissionError("Activation challenge expired")
+
     edition = get_edition(rec.sku)
     if edition.max_devices <= 0:
         raise PermissionError("This SKU does not use device activation")
+
+    # Nonce replay check before mutating device slots
+    data = store._read()
+    raw = data["purchases"].get(rec.license_id) or {}
+    used = list(raw.get("used_nonces") or [])
+    if request.nonce in used:
+        raise PermissionError("Activation nonce already used (replay)")
 
     if replace_device_id and replace_device_id in rec.activated_devices:
         del rec.activated_devices[replace_device_id]
@@ -226,6 +262,10 @@ def activate_device(
         if known["fingerprint"] != request.device_fingerprint:
             raise PermissionError("Device fingerprint changed — contact support for replacement")
 
+    used.append(request.nonce)
+    raw["used_nonces"] = used[-256:]
+    data["purchases"][rec.license_id] = raw
+    store._write(data)
     store.save(rec)
 
     # Reconstruct a DeviceIdentity-shaped object for sealing without private keys

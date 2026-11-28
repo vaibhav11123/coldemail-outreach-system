@@ -7,11 +7,20 @@ Skill path: `.agents/skills/security-audit` (local agent install; not required f
 
 | Field | Value |
 | --- | --- |
-| Profile | `standard` scoped to `studio/` (partial) |
+| Profile | `standard` scoped to `studio/` (partial; wave-2 hunter resumed) |
 | Output | `~/security-audit-skill/coldemail-outreach-system/run-2` |
-| Status | **incomplete** — `partial_hunting_parent_verified_remediation` |
-| Validators | `findings.json` PASS (11); `coverage-ledger.json` PASS (14 units) |
-| Independent pen-test gate | **Not satisfied** — full hunter-wave matrix and fresh verifier pool incomplete |
+| Status | **incomplete** — remediations + production-path hardening shipped; hunter matrix not exhaustive |
+| Validators | `findings.json` PASS (11+); `coverage-ledger.json` PASS |
+| Independent pen-test gate | **Not satisfied** — do not treat as release-gate penetration test |
+
+### Production-path follow-ups after findings (still ₹0 fixed cost)
+
+- Issuer vault + `STUDIO_ISSUER_MODE=production` refuse plaintext autogen
+- Payment `external_payment_id` idempotency + `payment_events.jsonl`
+- Activation nonce replay rejection + challenge expiry
+- App-level signed update manifests (`sign-update`)
+- Piracy monitor allowlisted URL crawl + GitHub search URL emit
+- Hardware presence probe (honest: binding still not implemented)
 
 ### Confirmed defects remediated in-tree
 

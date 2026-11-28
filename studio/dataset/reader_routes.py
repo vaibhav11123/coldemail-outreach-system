@@ -129,14 +129,37 @@ def build_reader_router(render_ctx) -> APIRouter:
             or not _secrets.compare_digest(cookie, page_token)
         ):
             return RedirectResponse("/reader?err=1&flash=Invalid+session+token", status_code=303)
-        path = Path(package_dir).expanduser()
+        path = Path(package_dir).expanduser().resolve()
+        if not path.is_dir():
+            return RedirectResponse("/reader?err=1&flash=Package+folder+not+found", status_code=303)
+        # Allow customer Downloads / Studio data; reject arbitrary system paths
+        def _under(root: Path) -> bool:
+            try:
+                path.relative_to(root)
+                return True
+            except ValueError:
+                return False
+
+        if not (_under(app_data_dir().resolve()) or _under(Path.home().resolve())):
+            return RedirectResponse(
+                "/reader?err=1&flash=Package+must+be+under+your+home+or+Studio+data+directory",
+                status_code=303,
+            )
+        markers = ("ResearchCatalog.asdb", "ResearchCatalog.aspkg", "CustomerLicense.aslic", "manifest.json")
+        if not any((path / m).exists() for m in markers):
+            return RedirectResponse(
+                "/reader?err=1&flash=Folder+does+not+look+like+a+Studio+package",
+                status_code=303,
+            )
         dest = app_data_dir() / "protected_package_path.txt"
-        dest.write_text(str(path.resolve()) + "\n", encoding="utf-8")
-        os.environ["STUDIO_PROTECTED_PACKAGE"] = str(path.resolve())
+        dest.write_text(str(path) + "\n", encoding="utf-8")
+        os.environ["STUDIO_PROTECTED_PACKAGE"] = str(path)
         return RedirectResponse("/reader", status_code=303)
 
     @router.get("/reader/export.csv")
-    def reader_export_csv(limit: int = 100):
+    def reader_export_csv(request: Request, limit: int = 100):
+        if not request.cookies.get("studio_page_token"):
+            return RedirectResponse("/reader?err=1&flash=Session+required", status_code=303)
         package_dir = _default_package_dir()
         if not package_dir:
             return RedirectResponse("/reader", status_code=303)

@@ -138,6 +138,13 @@ def connect_manual_smtp(
 ) -> dict[str, Any]:
     if not host.strip() or not sender.strip():
         return {"ok": False, "message": "Host and From address are required."}
+    # Block private/loopback destinations (same policy as HTTP SSRF guards)
+    from studio.security import resolve_and_validate
+
+    try:
+        resolve_and_validate(f"https://{host.strip()}/")
+    except ValueError as exc:
+        return {"ok": False, "message": f"Blocked SMTP host: {exc}"}
     port_i = int(port or (465 if use_ssl else 587))
     if use_ssl or port_i == 465:
         use_ssl, use_tls = True, False

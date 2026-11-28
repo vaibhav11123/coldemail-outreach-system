@@ -355,14 +355,82 @@ def cmd_forensic(args: argparse.Namespace) -> int:
 
 
 def cmd_monitor(args: argparse.Namespace) -> int:
-    from studio.licensing.monitor import append_findings_log, scan_local_corpus
+    from studio.licensing.monitor import (
+        append_findings_log,
+        default_leak_queries,
+        github_code_search_urls,
+        scan_local_corpus,
+        scan_public_urls,
+    )
     from studio.licensing.service import delivery_ledger
 
-    paths = [Path(p) for p in args.path]
-    findings = scan_local_corpus(paths, delivery_ledger())
+    ledger = delivery_ledger()
+    findings = []
+    if getattr(args, "path", None):
+        findings.extend(scan_local_corpus([Path(p) for p in args.path], ledger))
+    if getattr(args, "url", None):
+        findings.extend(scan_public_urls(list(args.url), ledger))
+    search_urls = []
+    if getattr(args, "github_search", False):
+        for q in default_leak_queries():
+            search_urls.extend(github_code_search_urls(q))
     log_path = Path(args.log) if args.log else app_data_dir() / "piracy_findings.json"
     append_findings_log(log_path, findings)
-    print(json.dumps({"findings": len(findings), "log": str(log_path), "items": [f.to_dict() for f in findings]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "findings": len(findings),
+                "log": str(log_path),
+                "github_search_urls": search_urls,
+                "items": [f.to_dict() for f in findings],
+                "notice": "Hits are candidates for human review — never auto-accuse.",
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
+def cmd_issuer_vault(args: argparse.Namespace) -> int:
+    from studio.licensing.crypto import IssuerKeys
+    from studio.licensing.issuer_vault import default_vault_path, load_vault, write_vault
+
+    path = Path(args.path) if args.path else default_vault_path()
+    if args.init:
+        keys = IssuerKeys.generate()
+        write_vault(keys, args.passphrase, path)
+        print(
+            json.dumps(
+                {
+                    "ok": True,
+                    "path": str(path),
+                    "public_hex": keys.export_public_hex(),
+                    "notice": "Store passphrase offline; set STUDIO_ISSUER_VAULT_PASSPHRASE to unlock",
+                },
+                indent=2,
+            )
+        )
+        return 0
+    keys = load_vault(args.passphrase, path)
+    print(json.dumps({"ok": True, "path": str(path), "public_hex": keys.export_public_hex()}, indent=2))
+    return 0
+
+
+def cmd_sign_update(args: argparse.Namespace) -> int:
+    from studio.licensing.service import issuer_keys
+    from studio.licensing.updates import build_update_manifest, write_signed_update_manifest
+
+    issuer = issuer_keys()
+    manifest = build_update_manifest(
+        version=args.version,
+        channel=args.channel,
+        payload_path=Path(args.payload),
+        payload_url=args.url,
+        min_version=args.min_version,
+        release_notes=args.notes or "",
+    )
+    man, sig = write_signed_update_manifest(Path(args.out), manifest, issuer)
+    print(json.dumps({"manifest": str(man), "signature": str(sig), "version": args.version}, indent=2))
     return 0
 
 
@@ -443,10 +511,35 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, default=20)
     p.set_defaults(func=cmd_read)
 
-    p = sub.add_parser("monitor", help="Scan local corpus for piracy markers (ledger compare)")
-    p.add_argument("--path", action="append", required=True, help="File or directory (repeatable)")
+    p = sub.add_parser(
+        "monitor",
+        help="Scan local corpus and/or allowlisted public URLs for piracy markers",
+    )
+    p.add_argument("--path", action="append", default=[], help="File or directory (repeatable)")
+    p.add_argument("--url", action="append", default=[], help="Allowlisted public URL (repeatable)")
+    p.add_argument(
+        "--github-search",
+        action="store_true",
+        help="Emit public GitHub code-search URLs for default leak queries",
+    )
     p.add_argument("--log", help="Findings JSON log path")
     p.set_defaults(func=cmd_monitor)
+
+    p = sub.add_parser("issuer-vault", help="Create or unlock passphrase-encrypted issuer key vault")
+    p.add_argument("--passphrase", required=True)
+    p.add_argument("--path", help="Vault file path (default under STUDIO_DATA_DIR)")
+    p.add_argument("--init", action="store_true", help="Generate new keys into vault")
+    p.set_defaults(func=cmd_issuer_vault)
+
+    p = sub.add_parser("sign-update", help="Sign an update payload manifest with the issuer key")
+    p.add_argument("--payload", required=True, help="Update archive/binary path")
+    p.add_argument("--url", required=True, help="Public download URL for the payload")
+    p.add_argument("--version", required=True)
+    p.add_argument("--out", required=True, help="Output directory for manifest + signature")
+    p.add_argument("--channel", default="stable")
+    p.add_argument("--min-version", default="0.0.0")
+    p.add_argument("--notes", default="")
+    p.set_defaults(func=cmd_sign_update)
 
     p = sub.add_parser(
         "forensic",

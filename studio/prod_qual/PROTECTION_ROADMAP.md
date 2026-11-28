@@ -32,10 +32,10 @@ Status: `[x]` implemented, tested, verified in-repo · `[~]` partial · `[ ]` no
 | X25519 sealed DEK | [x] | activation / package_protected |
 | SQLCipher `.asdb` | [x] | `dataset/asdb.py` |
 | `.aslic` licence format | [x] | activation |
-| Device identity | [~] software/keyring; hardware stub | `device.py`, `device_backend.py` |
-| Device activation | [~] local store; needs production DB | `activation.py`, API |
+| Device identity | [~] software/keyring; HW probe + stub (not binding) | `device.py`, `device_backend.py` |
+| Device activation | [~] local store; nonce replay + skew window | `activation.py`, API |
 | Device replacement | [~] tested locally | activation tests |
-| Licence revocation | [~] flag + next validation | API revoke |
+| Licence revocation | [~] flag + DEK clear + payment event | API revoke |
 | HMAC export IDs | [x] | `fingerprint.py` |
 | Customer row ordering | [x] | `permute_rows` |
 | XLSX provenance | [x] | package_standard |
@@ -44,19 +44,19 @@ Status: `[x]` implemented, tested, verified in-repo · `[~]` partial · `[ ]` no
 | Reader CLI | [x] | `python -m studio.dataset read` |
 | Graphical Reader | [~] localhost UI integrated; desktop polish remains | `/reader` |
 | Feature entitlements | [x] | products + entitlement |
-| Local `LicenseStore` | [~] **dev/test only** — not production issuer | `activation.py` |
+| Local `LicenseStore` | [~] operator JSON store; vaulted issuer for prod mode | `activation.py`, `issuer_vault.py` |
 | Forensic inspector | [x] scaffold | `dataset/forensic.py` + CLI |
-| Piracy monitor | [~] local corpus + ledger; no live crawlers | `monitor.py` |
+| Piracy monitor | [~] local + allowlisted URL crawl + GitHub search URL emit | `monitor.py` CLI |
 
 ## Device identity & licence protection (P0)
 
 - [x] Cryptographic device keypair (Ed25519 + X25519) — not MAC locking
 - [x] Versioned backend adapter + documented software fallback guarantees/limitations
 - [x] Honest `/api/licensing/device` security summary (`exportable_private_keys`, hardware stub status)
-- [ ] Hardware-backed non-exportable keys (Secure Enclave / TPM) — adapter stub only
+- [ ] Hardware-backed non-exportable keys (Secure Enclave / TPM) — stub + presence probe only
 - [ ] Atomic server-side device allocation under concurrency
-- [ ] Activation replay/nonce protection
-- [ ] Clock rollback detection + trusted server time
+- [x] Activation nonce replay rejection + challenge expiry window (10 min)
+- [~] Clock skew guard on challenge timestamps (not full trusted time / rollback defense)
 - [ ] Signing-key rotation & emergency revocation
 - [ ] Integrity checks against patched validation binaries
 
@@ -77,30 +77,32 @@ Status: `[x]` implemented, tested, verified in-repo · `[~]` partial · `[ ]` no
 - [x] Manual fulfilment path (`fulfil --verified-payment` → package → ledger) for low volume
 - [x] Purchase lifecycle + failure matrix — `PURCHASE_LIFECYCLE.md`
 - [x] Graphical `/activate` + offline activation request / `issue-licence`
-- [~] Payment webhook scaffold (shared secret, **fail-closed if unset**) — needs approved provider + idempotency
-- [~] Cloudflare security-audit skill run-1 **incomplete** — see `CLOUDFLARE_SECURITY_AUDIT.md` (not a release-gate pen-test)
+- [~] Payment webhook (fail-closed secret + **external_payment_id idempotency** + `payment_events.jsonl`) — live provider still required
+- [~] Cloudflare security-audit run-2 **incomplete** — remediations shipped; not a release-gate pen-test (`CLOUDFLARE_SECURITY_AUDIT.md`)
 - [ ] Optional Workers + D1 entitlement API (only when automation thresholds hit)
-- [ ] Vaulted / encrypted-backup production issuer keys
+- [x] Passphrase-encrypted issuer vault + production mode refuses plaintext autogen (`issuer_vault.py`)
 - [ ] Customer portal (purchase, devices, recovery) — defer; email recovery first
-- [ ] Refund/chargeback entitlement automation beyond revoke flag
-- [ ] Durable audit trail / monitoring / DR drills
+- [~] Refund/chargeback: revoke API + payment event; marketplace confirmation still manual
+- [~] Durable payment event log; DR drills still open
 - [ ] Keygen adapter — **N/A unless policy changes** (see `KEYGEN_EVALUATION.md`)
+- [x] Ops notes — `PAYMENT_LIFECYCLE_OPS.md`
 
 ## Application delivery security (P0)
 
 - [ ] Windows: prefer Microsoft Store MSIX (free eligible signing) + direct download
 - [ ] Signed Windows installers (Authenticode) if distributing outside Store
 - [ ] Signed + notarized macOS installers — Apple $99/yr if selected; local browser Studio is $0 interim
-- [ ] Signed software update manifests/payloads
+- [x] Application-level signed update manifests (`licensing/updates.py`, `dataset sign-update`) — OS signing still required for trust UX
 - [x] Packaging scan excludes issuer secrets
 - [~] OS-backed customer credential storage (keyring)
 - [~] Localhost API host + page-token CSRF
 - [x] Workspace backup/restore (`/backup`)
+- [x] Signing procedure honesty — `packaging/SIGNING.md`
 
 ## Piracy monitoring (P1)
 
 - [~] Marker + export-ID scan of local corpora
-- [ ] Scheduled public source checks (storefronts, GitHub, forums) without bypassing access controls
+- [~] Operator-initiated allowlisted public URL crawl + GitHub search URL emit (`monitor --url` / `--github-search`)
 - [ ] Incident dedupe + manual review workflow UI
 - [x] Takedown procedure draft — `legal/TAKEDOWN.md`
 
