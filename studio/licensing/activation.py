@@ -249,7 +249,11 @@ def activate_device(
         features={
             "encrypted_catalog": edition.encrypted_catalog,
             "studio_features": edition.includes_studio_features,
-            "controlled_exports": not edition.machine_readable_exports,
+            # Studio includes machine-readable access inside the app; Reader CSV
+            # still uses the controlled_export path (fingerprinted, limited).
+            "controlled_exports": bool(
+                edition.encrypted_catalog or not edition.machine_readable_exports
+            ),
         },
         nonce=request.nonce,
     )

@@ -55,7 +55,9 @@ class CatalogSession:
             conn.close()
 
     def controlled_export(self, limit: int | None = 100) -> list[dict[str, Any]]:
-        if not self.entitlement.features.get("controlled_exports", True):
+        feats = self.entitlement.features
+        allowed = bool(feats.get("controlled_exports", True) or feats.get("studio_features", False))
+        if not allowed:
             raise PermissionError("Exports not permitted for this entitlement")
         conn = self.connect()
         try:
