@@ -29,7 +29,8 @@ def test_return_alerts_and_profiles(client):
     assert "Sibling" in r2.text
 
 
-def test_hosted_accounts_isolated(client, conn):
+def test_hosted_accounts_isolated(client, conn, monkeypatch):
+    monkeypatch.setenv("STUDIO_SHOW_HOSTED", "1")
     client.post(
         "/hosted/create",
         data={

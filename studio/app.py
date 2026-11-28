@@ -2827,9 +2827,14 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             conn.close()
         return RedirectResponse("/return?flash=Profile%20added", status_code=303)
 
-    # ---- Hosted edition ----
+    # ---- Hosted edition (dev/operator only) ----
     @app.get("/hosted", response_class=HTMLResponse)
     async def hosted_get(request: Request):
+        if not show_hosted_ui():
+            return HTMLResponse(
+                "<h1>Not available</h1><p>Hosted edition setup is not part of the local Academic Studio product.</p>",
+                status_code=404,
+            )
         conn = get_conn()
         try:
             accounts = conn.execute("SELECT * FROM hosted_account ORDER BY id").fetchall()
@@ -2846,6 +2851,11 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         display_name: str = Form(""),
     ):
         require_token(page_token)
+        if not show_hosted_ui():
+            return HTMLResponse(
+                "<h1>Not available</h1><p>Hosted edition setup is not part of the local Academic Studio product.</p>",
+                status_code=404,
+            )
         conn = get_conn()
         try:
             conn.execute(

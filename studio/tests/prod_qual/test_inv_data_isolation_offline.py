@@ -45,12 +45,14 @@ def test_INV08_delete_personal_keeps_bundled(client, conn):
     assert facts == 0
 
 
-def test_INV06_hosted_accounts_are_scaffolding_not_isolated_tenants(client):
+def test_INV06_hosted_accounts_are_scaffolding_not_isolated_tenants(client, monkeypatch):
     """Release gate: multi-tenant isolation is NOT production-ready.
 
     Hosted account rows exist, but drafts/profile still live in a single desktop DB.
     This test documents the gap so we cannot claim INV-06 PASS for hosted.
+    Hosted UI is gated behind STUDIO_SHOW_HOSTED (default off for customers).
     """
+    monkeypatch.setenv("STUDIO_SHOW_HOSTED", "1")
     token = client.page_token  # type: ignore[attr-defined]
     r = client.post(
         "/hosted/create",
