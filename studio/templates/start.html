@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Openings — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>How do you want to start?</h1>
+{% if not profile_ready %}
+<p class="flash error">Confirm at least one interest and one project on your profile first.</p>
+{% endif %}
+
+<div class="grid-2">
+  <div class="sheet">
+    <h2>Summer 2027 library</h2>
+    <p>Search the researchers included with the app. Unknown stays unknown.</p>
+    <a class="button" href="/library">Open library</a>
+  </div>
+  <div class="sheet">
+    <h2>Explore a demo</h2>
+    <p>Synthetic openings labeled demo. Works offline.</p>
+    <a class="button" href="/demo">Open demo</a>
+  </div>
+  <div class="sheet">
+    <h2>Paste one official URL</h2>
+    <form method="post" action="/fetch-url">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="url">Lab or program page</label>
+      <input id="url" name="url" placeholder="https://…">
+      <button type="submit">Fetch page</button>
+    </form>
+  </div>
+  <div class="sheet">
+    <h2>Import CSV or Excel</h2>
+    <form method="post" action="/import" enctype="multipart/form-data">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="file">File</label>
+      <input id="file" name="file" type="file" accept=".csv,.xlsx">
+      <button type="submit">Preview mapping</button>
+    </form>
+  </div>
+  <div class="sheet">
+    <h2>Add one person</h2>
+    <form method="post" action="/add-person">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="name">Name</label>
+      <input id="name" name="name">
+      <label for="affiliation">University</label>
+      <input id="affiliation" name="affiliation">
+      <label for="email">Email (optional)</label>
+      <input id="email" name="email">
+      <button type="submit">Add</button>
+    </form>
+  </div>
+  <div class="sheet">
+    <h2>Collect a department directory</h2>
+    <form method="post" action="/faculty">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="school">School</label>
+      <select id="school" name="school">
+        {% for s in schools %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Collect</button>
+    </form>
+  </div>
+</div>
+
+<div class="sheet">
+  <h2>Enable live research discovery</h2>
+  <p class="muted">Search academic publications beyond the included library. OpenAlex emails an activation link — no payment for the free allowance.</p>
+  <p><a class="button" href="/connections#openalex">Activate on Connections</a></p>
+  <details style="margin-top:1rem">
+    <summary class="muted">Advanced: paste an existing OpenAlex key</summary>
+    <form method="post" action="/openalex/paste" style="margin-top:0.75rem">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="oa_key">API key</label>
+      <input id="oa_key" name="api_key">
+      <button type="submit" class="secondary">Save key</button>
+    </form>
+  </details>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+# Dataset packaging & licensing
+
+Two customer products. Licence is included in the purchase price — never a separate activation fee or protected-tier upsell.
+
+| SKU | Price (provisional) | Delivery |
+| --- | --- | --- |
+| `standard_dataset` — **Global Research Dataset** | $14.99 | Fingerprinted Excel/CSV/JSON/SQLite — full facts, unique export IDs, signed manifest |
+| `academic_studio` — **Academic Studio** | $39.99 | Complete software + encrypted catalog, two authorized devices, device-bound `.aslic` |
+
+`protected_dataset` remains an **internal packaging alias** for Studio encrypted catalogs (not sold separately).
+
+## What this does
+
+- Customer-specific **export IDs** (HMAC) without changing names, emails, pubs, or affiliations
+- Signed **delivery manifests** (Ed25519) and a **delivery ledger** for leak attribution
+- **Device identity** via Ed25519 + X25519 (not MAC spoofing)
+- **DEK sealed** to the authorized device; SQLCipher encrypts the catalog at rest
+- Outer **AES-256-GCM `.aspkg`** transit container
+- Offline entitlements with TTL; revocation takes effect on next validation
+- FastAPI **`/api/licensing/*`** (payment webhook, activate, revoke, status)
+- Localhost **Academic Data Reader** at `/reader` (`STUDIO_PROTECTED_PACKAGE=…`)
+- Piracy **monitor scaffold** (`python -m studio.dataset monitor --path …`)
+
+## What this does not claim
+
+- Absolute prevention of extraction after authorized decryption
+- That fingerprint hits alone prove a buyer pirated (theft from the buyer is possible)
+- Production Keygen / payment webhooks (local `LicenseStore` is the scaffold)
+
+## CLI
+
+```bash
+export STUDIO_FORCE_LOCAL_SECRETS=1
+.venv/bin/python -m studio.dataset editions
+.venv/bin/python -m studio.dataset package-standard --out /tmp/std --customer cust_a --email a@example.com
+.venv/bin/python -m studio.dataset package-protected --out /tmp/prot --customer cust_a --email a@example.com --activate
+.venv/bin/python -m studio.dataset read --package /tmp/prot --query Ada
+```
+
+Issuer private keys belong on the licensing server only. For local demos, a `dev_issuer.json` is created under the studio data dir — never ship it in customer packages (`packaging_scan` rejects it).

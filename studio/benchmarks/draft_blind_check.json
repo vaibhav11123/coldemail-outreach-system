@@ -1,0 +1,85 @@
+{
+  "wins": 10,
+  "results": [
+    {
+      "id": 1,
+      "win": true,
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
+    },
+    {
+      "id": 2,
+      "win": true,
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
+    },
+    {
+      "id": 4,
+      "win": true,
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
+    },
+    {
+      "id": 6,
+      "win": true,
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
+    },
+    {
+      "id": 7,
+      "win": true,
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
+    },
+    {
+      "id": 9,
+      "win": true,
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
+    },
+    {
+      "id": 10,
+      "win": true,
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
+    },
+    {
+      "id": 12,
+      "win": true,
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
+    },
+    {
+      "id": 13,
+      "win": true,
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
+    },
+    {
+      "id": 15,
+      "win": true,
+      "subject": "Summer research inquiry \u2014 systems contribution",
+      "cites_lab": true,
+      "specific": true,
+      "strategy": "technical_contribution"
+    }
+  ]
+}

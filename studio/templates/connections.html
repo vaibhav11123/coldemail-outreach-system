@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Connections — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Connections</h1>
+<p>Make your research workspace yours. Every connection is optional — the included library, profile, drafts and tracker work without accounts.</p>
+
+<div class="sheet ai-hero">
+  <h2>Set up your workspace</h2>
+  <p class="muted">No developer accounts or API keys required for the standard workflow.</p>
+  <ul class="list">
+    {% for step in setup_steps %}
+    <li>
+      {% if step.done %}<span class="stated">Ready</span>{% endif %}
+      <strong>{{ step.title }}</strong> — {{ step.detail }}
+      <a class="button secondary" href="{{ step.href }}" style="margin-left:0.5rem">{{ step.cta }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+  <p><a class="button" href="/start">Start exploring research opportunities</a></p>
+</div>
+
+{% for section in sections %}
+<h2 id="section-{{ section.id }}">{{ section.title }}</h2>
+<div class="ai-grid">
+  {% for card in section.cards %}
+  <div class="sheet ai-card" id="{{ card.id }}">
+    <h3>{{ card.title }}</h3>
+    <p class="muted">{{ card.purpose }}</p>
+    {% if card.status.connected %}
+    <p><span class="stated">Connected</span> {{ card.status.account_hint }}</p>
+    <p class="muted">{{ card.status.detail }}</p>
+    {% elif card.status.disabled_reason or card.production_status in ['clearance_required', 'unavailable'] %}
+    <p class="disabled-reason">{{ card.status.disabled_reason or card.commercial_note or 'Not available yet' }}</p>
+    <p class="muted">{{ card.status.detail }}</p>
+    {% else %}
+    <p class="muted">{{ card.status.detail }}</p>
+    {% endif %}
+
+    {% if card.id == 'openalex' and not card.status.connected %}
+    <form method="post" action="/openalex/connect">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="oa_email">Email address</label>
+      <input id="oa_email" name="email" type="email" value="{{ openalex_prefill }}" required>
+      <button type="submit">Activate research search</button>
+    </form>
+    <p class="muted" style="margin-top:0.5rem">OpenAlex will send you an activation email. No technical setup or payment is required for its free allowance.</p>
+    {% elif card.id == 'github' %}
+    <form method="post" action="/connections/github">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="gh_user">GitHub username or profile URL</label>
+      <input id="gh_user" name="github" value="{{ github_login }}" placeholder="octocat">
+      <button type="submit">{{ card.button_label }}</button>
+    </form>
+    {% if github_repos %}
+    <p class="stated" style="margin-top:0.75rem">Suggested projects — confirm each on Profile</p>
+    <ul class="list">
+      {% for repo in github_repos %}
+      <li><strong>{{ repo.name }}</strong> — {{ repo.language }}{% if repo.description %}: {{ repo.description[:80] }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+    <p><a href="/profile">Review on Profile</a></p>
+    {% endif %}
+    {% elif card.id == 'orcid' %}
+    <form method="post" action="/connections/orcid">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="orcid_id">ORCID iD (CC0 snapshot lookup + save)</label>
+      <input id="orcid_id" name="orcid" value="{{ orcid_id }}" placeholder="0000-0002-1825-0097">
+      <button type="submit" class="secondary">{{ card.button_label }}</button>
+    </form>
+    {% if orcid_lookup %}
+      {% if orcid_lookup.ok %}
+      <p class="stated">{{ orcid_lookup.name }} · {{ orcid_lookup.orcid }}</p>
+      <p class="muted">{{ orcid_lookup.affiliations|join(', ') }}</p>
+      <p class="disabled-reason">{{ orcid_lookup.note }}</p>
+      {% else %}
+      <p class="disabled-reason">{{ orcid_lookup.message }}</p>
+      {% endif %}
+    {% endif %}
+    {% elif card.id == 'public_sources' or card.id == 'open_graph' %}
+    <form method="post" action="/connections/crossref">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="doi-{{ card.id }}">Look up a DOI (Crossref)</label>
+      <input id="doi-{{ card.id }}" name="doi" placeholder="10.1038/nature14539">
+      <button type="submit" class="secondary">Verify publication</button>
+    </form>
+    {% if card.id == 'open_graph' %}
+    <form method="post" action="/connections/citations" style="margin-top:0.75rem">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="cite_doi">Citation links (OpenCitations CC0)</label>
+      <input id="cite_doi" name="doi" placeholder="10.1038/nature14539">
+      <button type="submit" class="secondary">Look up citations</button>
+    </form>
+    {% endif %}
+    {% if crossref_result and card.id == 'public_sources' %}
+      {% if crossref_result.ok %}
+      <p class="stated">{{ crossref_result.title }}</p>
+      <p class="muted">{{ crossref_result.authors|join(', ') }} · {{ crossref_result.year }} · <a href="{{ crossref_result.url }}">{{ crossref_result.doi }}</a></p>
+      <p class="disabled-reason">{{ crossref_result.note }}</p>
+      {% else %}
+      <p class="disabled-reason">{{ crossref_result.message }}</p>
+      {% endif %}
+    {% endif %}
+    {% if citations_result and card.id == 'open_graph' %}
+      {% if citations_result.ok %}
+      <p class="stated">OpenCitations · {{ citations_result.doi }}</p>
+      <p class="muted">Citing: {{ citations_result.citing|length }} · Cited: {{ citations_result.cited|length }}</p>
+      <p class="disabled-reason">{{ citations_result.note }}</p>
+      {% else %}
+      <p class="disabled-reason">{{ citations_result.message }}</p>
+      {% endif %}
+    {% endif %}
+    {% elif card.id == 'google_scholar' %}
+    <form method="post" action="/connections/bibliography" enctype="multipart/form-data">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="bib_file">BibTeX, RIS, or CSV export</label>
+      <input id="bib_file" name="file" type="file" accept=".bib,.ris,.csv,text/plain">
+      <button type="submit">{{ card.button_label }}</button>
+    </form>
+    {% elif card.id == 'zotero' %}
+    <form method="post" action="/connections/zotero-detect">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="secondary">{{ card.button_label }}</button>
+    </form>
+    <p class="muted" style="margin-top:0.5rem">Or import a Zotero BibTeX/RIS export above under Google Scholar import.</p>
+    {% elif card.id == 'external_handoff' %}
+    <p><a class="button secondary" href="/drafts">Open a draft</a> to copy the evidence-bound prompt and import the result.</p>
+    {% elif card.id == 'calendar' %}
+    <form method="get" action="/connections/calendar.ics">
+      <button type="submit" class="secondary">{{ card.button_label }}</button>
+    </form>
+    {% elif card.production_status in ['clearance_required', 'unavailable'] %}
+    <button type="button" class="secondary" disabled>{{ card.button_label }}</button>
+    {% else %}
+    <p><a class="button secondary" href="{{ card.connect_href }}">{{ card.button_label }}</a></p>
+    {% endif %}
+
+    {% if card.fallback %}
+    <p class="muted" style="margin-top:0.5rem">Fallback: {{ card.fallback }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+<details class="sheet" style="margin-top:1.5rem">
+  <summary>Connection requirements (CON-01–18)</summary>
+  <ul class="list">
+    {% for req in requirements %}
+    <li><code>{{ req.id }}</code> — {{ req.text }}</li>
+    {% endfor %}
+  </ul>
+  <p class="muted">Commercially restricted integrations stay disabled until approval. A documented interface alone is not production-ready.</p>
+</details>
+{% endblock %}

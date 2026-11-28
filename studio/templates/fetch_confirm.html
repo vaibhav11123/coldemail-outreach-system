@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Confirm page facts — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Confirm facts from the page</h1>
+<p class="muted">Suggestions are unconfirmed until you check them. Unconfirmed text is not a green badge.</p>
+{% if error %}<p class="flash error">{{ error }}</p>{% endif %}
+<form method="post" action="/fetch-url/confirm">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <input type="hidden" name="fetch_id" value="{{ fetch_id }}">
+  <label for="name">Researcher or lab name</label>
+  <input id="name" name="name" value="{{ name }}">
+  <label for="email">Email (optional)</label>
+  <input id="email" name="email" value="{{ email }}">
+  {% if suggestions %}
+  <ul class="list">
+    {% for s in suggestions %}
+    <li>
+      <label>
+        <input type="checkbox" name="confirm" value="{{ loop.index0 }}">
+        {{ s.field }}: {{ s.value }} — "{{ s.quote }}"
+      </label>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No candidate facts found. The person can still be added with unknowns.</p>
+  {% endif %}
+  <button type="submit">Save confirmed facts</button>
+</form>
+{% endblock %}

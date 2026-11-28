@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Hosted accounts — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Hosted edition accounts</h1>
+<p class="muted">Separate accounts. Profile B cannot read profile A's drafts.</p>
+<form method="post" action="/hosted/create">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <label for="email">Account email</label>
+  <input id="email" name="email" type="email">
+  <label for="display_name">Display name</label>
+  <input id="display_name" name="display_name">
+  <button type="submit">Create account</button>
+</form>
+<ul class="list">
+  {% for a in accounts %}
+  <li>{{ a.display_name or a.email }} &lt;{{ a.email }}&gt;</li>
+  {% endfor %}
+</ul>
+{% endblock %}

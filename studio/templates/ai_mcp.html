@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}MCP server — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Bring the app into their AI</h1>
+<p>Reverse integration: the student's AI client calls our tools. We do not hold their inference credentials.</p>
+<div class="sheet">
+  <h2>Planned tools</h2>
+  <ul class="list">
+    <li><span class="mono">search_professors</span></li>
+    <li><span class="mono">get_professor_profile</span></li>
+    <li><span class="mono">find_research_openings</span></li>
+    <li><span class="mono">get_research_papers</span></li>
+    <li><span class="mono">get_student_profile</span></li>
+    <li><span class="mono">generate_evidence_bound_draft</span></li>
+    <li><span class="mono">validate_draft</span></li>
+    <li><span class="mono">save_draft</span></li>
+  </ul>
+  <p class="muted">Local stdio MCP scaffold lives in <span class="mono">studio/ai/mcp_server.py</span>. Client-specific distribution still needs verification.</p>
+</div>
+<p><a class="button secondary" href="/ai">Back</a></p>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Faculty Directory — Academic Outreach Studio{% endblock %}
+{% block content %}
+<p class="hero-kicker">Dataset</p>
+<h1>Faculty directory</h1>
+<p class="lede">Browse the complete local catalog with keyword and semantic hybrid search. No AI connection required. Encrypted licensed catalogs open in the integrated <a href="/reader">Academic Data Reader</a>.</p>
+
+<form class="panel reader-filters" method="get" action="/directory" id="directory-search">
+  <label>
+    Search
+    <input type="search" name="q" value="{{ q }}" placeholder="GPU systems, distributed training, compilers…"
+           hx-get="/directory" hx-trigger="keyup changed delay:300ms" hx-target="#directory-results" hx-select="#directory-results" hx-swap="outerHTML" hx-include="[name='funding'],[name='status'],[name='university']">
+  </label>
+  <label>
+    University
+    <input type="text" name="university" value="{{ university }}" placeholder="Filter institution">
+  </label>
+  <label>
+    Funding
+    <select name="funding">
+      <option value="">Any</option>
+      <option value="stated-yes" {% if funding=='stated-yes' %}selected{% endif %}>Stated yes</option>
+      <option value="stated-no" {% if funding=='stated-no' %}selected{% endif %}>Stated no</option>
+      <option value="unknown" {% if funding=='unknown' %}selected{% endif %}>Unknown</option>
+    </select>
+  </label>
+  <label>
+    Status
+    <select name="status">
+      <option value="">Any</option>
+      <option value="stated-yes" {% if status=='stated-yes' %}selected{% endif %}>Opening stated</option>
+      <option value="unknown" {% if status=='unknown' %}selected{% endif %}>Unconfirmed</option>
+      <option value="stated-no" {% if status=='stated-no' %}selected{% endif %}>Not recruiting</option>
+    </select>
+  </label>
+  <button type="submit" class="btn primary">Search</button>
+</form>
+
+<form class="sheet-quiet" method="post" action="/directory/save-search">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <input type="hidden" name="q" value="{{ q }}">
+  <input type="hidden" name="funding" value="{{ funding }}">
+  <input type="hidden" name="status" value="{{ status }}">
+  <input type="hidden" name="university" value="{{ university }}">
+  <label for="save-name">Save this search</label>
+  <input id="save-name" name="name" placeholder="Name for this filter set" maxlength="80">
+  <button type="submit" class="secondary">Save search</button>
+</form>
+
+{% if saved_searches %}
+<div class="sheet-quiet">
+  <h2>Saved searches</h2>
+  <ul class="saved-search-list">
+    {% for s in saved_searches %}
+    <li>
+      <a href="/directory?q={{ s.query|urlencode }}&amp;funding={{ (s.funding or '')|urlencode }}&amp;status={{ (s.status or '')|urlencode }}&amp;university={{ (s.university or '')|urlencode }}">{{ s.name }}</a>
+      <form method="post" action="/directory/saved/{{ s.id }}/delete" style="display:inline">
+        <input type="hidden" name="page_token" value="{{ page_token }}">
+        <button type="submit" class="secondary">Delete</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div id="directory-results">
+  <p class="meta-line">{{ total }} researchers shown{% if q %} · hybrid retrieval{% endif %}</p>
+  {% if not items %}
+  <p class="muted">{{ empty_reason }}</p>
+  {% else %}
+  <div class="table-wrap panel">
+    <table class="reader-table" id="faculty-table">
+      <thead>
+        <tr>
+          <th>Researcher</th>
+          <th>Institution</th>
+          <th>Research signal</th>
+          <th>Funding</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>{{ item.name }}</td>
+          <td>{{ item.institution or "—" }}</td>
+          <td>
+            {% if item.paper_title %}{{ item.paper_title }}{% elif item.snippet %}{{ item.snippet|safe }}{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if item.funding=='stated-yes' %}<span class="stated">Stated</span>
+            {% elif item.funding=='stated-no' %}Stated no
+            {% else %}<span class="unknown">Unknown</span>{% endif %}
+          </td>
+          <td>{{ item.status or "—" }}</td>
+          <td>
+            {% if item.opportunity_id %}
+            <a href="/opportunity/{{ item.opportunity_id }}">Open</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

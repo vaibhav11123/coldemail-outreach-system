@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Demo — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Demo openings</h1>
+<p class="muted">Every card is labeled demo. Synthetic people only. Works offline.</p>
+{% if not items %}
+<p class="flash error">No demo openings loaded.</p>
+{% else %}
+<ul class="list">
+  {% for item in items %}
+  <li>
+    <span class="stated">Demo</span>
+    <a href="/opportunity/{{ item.id }}">{{ item.name }}</a>
+    — {{ item.institution }}
+    · Applications:
+    {% if item.status == 'stated-yes' %}<span class="stated">Stated open</span>
+    {% elif item.status == 'stated-no' %}Stated closed
+    {% else %}<span class="unknown">Unknown</span>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

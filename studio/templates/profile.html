@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Profile — Academic Outreach Studio{% endblock %}
+{% block content %}
+<p class="hero-kicker">Step 1 of 3</p>
+<h1>Tell us what you want to research</h1>
+<p class="lede">Import your CV, confirm extracted lines, then explore matching professors. AI is optional.</p>
+<ul class="step-rail" aria-label="Where you are">
+  <li class="active">1 · Profile</li>
+  <li>2 · Directory</li>
+  <li>3 · Shortlist</li>
+  <li>4 · Draft</li>
+  <li>5 · Track</li>
+</ul>
+
+<form method="post" action="/profile" enctype="multipart/form-data" class="panel">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+
+  <label for="cv">Import CV (PDF, DOCX, or TXT)</label>
+  <input id="cv" name="cv" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+  <p class="fineprint">Your CV stays on this device unless you later authorize an AI provider to process text.</p>
+
+  <label for="mode">Goal</label>
+  <select id="mode" name="mode">
+    <option value="internship" {% if applicant.mode=='internship' %}selected{% endif %}>Research internship</option>
+    <option value="phd" {% if applicant.mode=='phd' %}selected{% endif %}>PhD</option>
+    <option value="visiting" {% if applicant.mode=='visiting' %}selected{% endif %}>Visiting researcher</option>
+    <option value="ra" {% if applicant.mode=='ra' %}selected{% endif %}>Research assistant</option>
+  </select>
+
+  <label for="degree_level">Degree level</label>
+  <select id="degree_level" name="degree_level">
+    <option value="undergraduate" {% if applicant.degree_level=='undergraduate' %}selected{% endif %}>Undergraduate</option>
+    <option value="master" {% if applicant.degree_level=='master' %}selected{% endif %}>Master's</option>
+  </select>
+
+  <label for="degree_year">Year</label>
+  <input id="degree_year" name="degree_year" value="{{ applicant.degree_year or '' }}">
+
+  <label for="countries">Preferred countries</label>
+  <input id="countries" name="countries" value="{{ applicant.countries or '' }}">
+
+  <label for="funding_need">Funding need</label>
+  <select id="funding_need" name="funding_need">
+    <option value="need_funded" {% if applicant.funding_need=='need_funded' %}selected{% endif %}>Need funded</option>
+    <option value="can_unpaid" {% if applicant.funding_need=='can_unpaid' %}selected{% endif %}>Can be unpaid</option>
+    <option value="no_preference" {% if applicant.funding_need=='no_preference' %}selected{% endif %}>No preference</option>
+  </select>
+
+  <label for="dates_free">Dates free</label>
+  <input id="dates_free" name="dates_free" value="{{ applicant.dates_free or '' }}">
+
+  <label for="github_url">GitHub</label>
+  <input id="github_url" name="github_url" value="{{ applicant.github_url or '' }}">
+
+  <label for="portfolio_url">Portfolio</label>
+  <input id="portfolio_url" name="portfolio_url" value="{{ applicant.portfolio_url or '' }}">
+
+  <label for="interest">Add interest</label>
+  <input id="interest" name="interest" placeholder="e.g. GPU kernel optimization">
+
+  <label for="skill">Add skill</label>
+  <input id="skill" name="skill" placeholder="e.g. CUDA, PyTorch">
+
+  <label for="project">Add project</label>
+  <textarea id="project" name="project" placeholder="Title, what you built, method, result"></textarea>
+
+  <p style="margin-top:1rem"><button type="submit">Save &amp; extract</button>
+  <a class="button secondary" href="/directory">Skip to directory</a></p>
+</form>
+
+<h2>Facts</h2>
+{% if not facts %}
+<p class="muted">Empty profile. Add at least one interest and one project, then confirm them.</p>
+{% else %}
+<ul class="list">
+  {% for f in facts %}
+  <li>
+    <strong>{{ f.kind }}</strong> — {{ f.body }}
+    {% if f.confirmed %}
+      <span class="stated">Confirmed</span>
+    {% else %}
+      <form method="post" action="/profile/confirm/{{ f.id }}" style="display:inline">
+        <input type="hidden" name="page_token" value="{{ page_token }}">
+        <button type="submit" class="secondary">Confirm</button>
+      </form>
+      <form method="post" action="/profile/reject/{{ f.id }}" style="display:inline">
+        <input type="hidden" name="page_token" value="{{ page_token }}">
+        <button type="submit" class="secondary">Reject</button>
+      </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if profile_ready %}
+<p><a class="button" href="/start">Continue to openings</a></p>
+{% else %}
+<p class="disabled-reason">Shortlist is blocked until you confirm at least one interest and one project.</p>
+{% endif %}
+{% endblock %}

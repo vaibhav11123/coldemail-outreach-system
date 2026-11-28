@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Tracker — Academic Studio{% endblock %}
+{% block content %}
+<p class="hero-kicker">Application management</p>
+<h1>Application Kanban</h1>
+<p class="lede">Move each application through preparation, sending, replies and outcomes. Deadlines create reminders automatically.</p>
+
+{% if reminders %}
+<div class="sheet flash-warn" role="status">
+  <h2>Reminders</h2>
+  <ul>
+    {% for rem in reminders %}
+    <li>
+      <strong>{{ rem.name }}</strong> — {{ rem.kind }} due {{ rem.due_on }}
+      <form method="post" action="/tracker/reminder/{{ rem.id }}/dismiss" style="display:inline">
+        <input type="hidden" name="page_token" value="{{ page_token }}">
+        <button type="submit" class="secondary">Dismiss</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if not items %}
+<p class="muted">No applications yet. Prepare a draft from an opening first.</p>
+{% else %}
+<div class="kanban" role="list">
+  {% for col in columns %}
+  <section class="kanban-col sheet" role="listitem" aria-label="{{ col.label }}">
+    <h2>{{ col.label }} <span class="muted">({{ col.cards|length }})</span></h2>
+    {% for a in col.cards %}
+    <article class="kanban-card">
+      <strong>{{ a.name }}</strong>
+      <p class="muted mono">{{ a.state }}{% if a.deadline %} · due {{ a.deadline }}{% endif %}</p>
+      {% if a.notes %}<p>{{ a.notes }}</p>{% endif %}
+      <form method="post" action="/tracker/{{ a.id }}/state">
+        <input type="hidden" name="page_token" value="{{ page_token }}">
+        <label for="state-{{ a.id }}" class="sr-only">State</label>
+        <select id="state-{{ a.id }}" name="state">
+          {% for s in states %}
+          <option value="{{ s }}" {% if a.state==s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="secondary">Update</button>
+      </form>
+      <form method="post" action="/tracker/{{ a.id }}/notes" class="notes-form">
+        <input type="hidden" name="page_token" value="{{ page_token }}">
+        <label for="notes-{{ a.id }}" class="sr-only">Notes</label>
+        <input id="notes-{{ a.id }}" name="notes" value="{{ a.notes or '' }}" placeholder="Notes">
+        <button type="submit" class="secondary">Save note</button>
+      </form>
+    </article>
+    {% else %}
+    <p class="muted">Empty</p>
+    {% endfor %}
+  </section>
+  {% endfor %}
+</div>
+{% endif %}
+
+<p>
+  <a class="button secondary" href="/tracker/export">Export CSV</a>
+  <a class="button secondary" href="/tracker/timeline">Timeline</a>
+</p>
+
+<div class="sheet">
+  <h2>Delete my data</h2>
+  <p>Removes your profile, drafts, applications, user-imported people, and this app's secrets. Bundled Summer rows and the HR CSV stay.</p>
+  <form method="post" action="/tracker/delete-all">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label for="confirm">Type DELETE to confirm</label>
+    <input id="confirm" name="confirm" autocomplete="off">
+    <button type="submit" class="danger">Delete all my data</button>
+  </form>
+</div>
+{% endblock %}

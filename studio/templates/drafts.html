@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Drafts — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Drafts</h1>
+{% if not items %}
+<p class="muted">No drafts yet.</p>
+{% else %}
+<ul class="list">
+  {% for d in items %}
+  <li>
+    <a href="/draft/{{ d.opportunity_id }}">{{ d.recipient }}</a> — {{ d.subject }}
+    {% if d.approved_hash == d.content_hash %}<span class="stated">Approved</span>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

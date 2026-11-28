@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Summer 2027 library — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Summer 2027 library</h1>
+<p class="muted">Bundled researchers. Unstated openings stay unknown.</p>
+<form method="get" action="/library" class="sheet">
+  <label for="q">Search</label>
+  <input id="q" name="q" value="{{ q }}">
+  <button type="submit" class="secondary">Search</button>
+</form>
+{% if not items %}
+<p class="muted">No researchers match. {{ empty_reason }}</p>
+{% else %}
+<ul class="list">
+  {% for item in items %}
+  <li>
+    <a href="/opportunity/{{ item.opportunity_id }}">{{ item.name }}</a>
+    — {{ item.institution or 'Unknown institution' }}
+    · Funding:
+    {% if item.funding == 'stated-yes' %}<span class="stated">Stated</span>
+    {% else %}<span class="unknown">{{ item.funding }}</span>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
