@@ -60,6 +60,8 @@ def build_licensing_router() -> APIRouter:
             out[sku.value] = {
                 "title": ed.title,
                 "list_price_usd": ed.list_price_usd,
+                "licence_included": ed.licence_included,
+                "licence_duration": ed.licence_duration,
                 "includes_full_catalog": ed.includes_full_catalog,
                 "machine_readable_exports": ed.machine_readable_exports,
                 "encrypted_catalog": ed.encrypted_catalog,
@@ -67,6 +69,7 @@ def build_licensing_router() -> APIRouter:
                 "includes_studio_features": ed.includes_studio_features,
                 "max_devices": ed.max_devices,
                 "protection_summary": ed.protection_summary,
+                "sold_separately": ed.sold_separately,
             }
         return {"editions": out}
 

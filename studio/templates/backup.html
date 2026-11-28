@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Backup — Academic Studio{% endblock %}
+{% block content %}
+<p class="hero-kicker">Data management</p>
+<h1>Backup &amp; restore</h1>
+<p class="lede">Export a zip of your SQLite workspace and attachments. Restore replaces the local database (a pre-restore copy is kept).</p>
+
+<div class="grid-2">
+  <div class="sheet">
+    <h2>Create backup</h2>
+    <form method="post" action="/backup/create">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="button">Download backup zip</button>
+    </form>
+  </div>
+  <div class="sheet">
+    <h2>Restore</h2>
+    <form method="post" action="/backup/restore" enctype="multipart/form-data">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="zip">Backup zip</label>
+      <input id="zip" type="file" name="zip" accept=".zip" required>
+      <button type="submit" class="button secondary">Restore</button>
+    </form>
+  </div>
+</div>
+
+{% if backups %}
+<div class="sheet-quiet">
+  <h2>Recent local backups</h2>
+  <ul>
+    {% for b in backups %}
+    <li><a href="/backup/download/{{ b.name }}">{{ b.name }}</a> <span class="muted">· {{ b.size_kb }} KB</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

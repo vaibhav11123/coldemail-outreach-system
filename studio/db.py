@@ -270,6 +270,32 @@ def migrate(conn: sqlite3.Connection) -> None:
     if v2 is None:
         conn.execute("INSERT INTO schema_migrations(version) VALUES (2)")
 
+    # v3: saved searches + application notes already on application
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS saved_search (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            query TEXT NOT NULL DEFAULT '',
+            funding TEXT,
+            status TEXT,
+            university TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS compare_set (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT NOT NULL DEFAULT 'Compare',
+            researcher_ids TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        """
+    )
+    v3 = conn.execute(
+        "SELECT version FROM schema_migrations WHERE version = 3"
+    ).fetchone()
+    if v3 is None:
+        conn.execute("INSERT INTO schema_migrations(version) VALUES (3)")
+
 
 def recover_intents_on_startup(conn: sqlite3.Connection) -> int:
     """Abandoned submitted intents become unknown_delivery. Never pending."""

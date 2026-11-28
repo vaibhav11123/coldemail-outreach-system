@@ -14,7 +14,7 @@ from typing import Any
 from urllib.parse import quote
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -123,7 +123,6 @@ PAGE_TOKEN: str = new_page_token()
 IMPORT_CACHE: dict[str, Any] = {}
 FETCH_CACHE: dict[str, Any] = {}
 
-OFFER_PRICE = "Included with this build (local personal use)."
 OFFER_REFUND = "If the app does not open or the library fails to load, email support within 14 days for a refund."
 SUPPORT_EMAIL = "support@academic-outreach.studio"
 
@@ -221,16 +220,36 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     async def home(request: Request):
-        return RedirectResponse("/offer", status_code=302)
+        return RedirectResponse("/dashboard", status_code=302)
+
+    @app.get("/dashboard", response_class=HTMLResponse)
+    async def dashboard(request: Request):
+        from studio.campaign import build_campaign_snapshot
+
+        conn = get_conn()
+        try:
+            snap = build_campaign_snapshot(conn, profile_ready=profile_ready(conn))
+            return TEMPLATES.TemplateResponse(
+                request,
+                "dashboard.html",
+                ctx(request, nav="dashboard", snap=snap),
+            )
+        finally:
+            conn.close()
 
     # ---- S0 Offer ----
     @app.get("/offer", response_class=HTMLResponse)
     async def offer(request: Request):
-        return TEMPLATES.TemplateResponse(request, "offer.html",
+        from studio.licensing.products import SKU, get_edition
+
+        return TEMPLATES.TemplateResponse(
+            request,
+            "offer.html",
             ctx(
                 request,
                 nav="offer",
-                price=OFFER_PRICE,
+                dataset=get_edition(SKU.STANDARD_DATASET),
+                studio=get_edition(SKU.ACADEMIC_STUDIO),
                 refund=OFFER_REFUND,
                 support=SUPPORT_EMAIL,
             ),
@@ -428,6 +447,12 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                         "retrieval": h.get("retrieval"),
                     }
                 )
+            saved = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT * FROM saved_search ORDER BY created_at DESC LIMIT 20"
+                )
+            ]
             empty = "No match for that search." if q else "Directory is empty — load the Summer library."
             return TEMPLATES.TemplateResponse(
                 request,
@@ -442,6 +467,103 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     university=university,
                     empty_reason=empty,
                     total=len(items),
+                    saved_searches=saved,
+                ),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/directory/save-search")
+    async def directory_save_search(
+        page_token: str = Form(...),
+        name: str = Form(...),
+        q: str = Form(""),
+        funding: str = Form(""),
+        status: str = Form(""),
+        university: str = Form(""),
+    ):
+        require_token(page_token)
+        label = (name or "").strip() or (q.strip()[:40] if q.strip() else "Saved search")
+        conn = get_conn()
+        try:
+            conn.execute(
+                """
+                INSERT INTO saved_search(name, query, funding, status, university)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    label,
+                    q.strip(),
+                    funding.strip() or None,
+                    status.strip() or None,
+                    university.strip() or None,
+                ),
+            )
+        finally:
+            conn.close()
+        return RedirectResponse("/directory?flash=Search%20saved", status_code=303)
+
+    @app.post("/directory/saved/{search_id}/delete")
+    async def directory_delete_saved(search_id: int, page_token: str = Form(...)):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            conn.execute("DELETE FROM saved_search WHERE id=?", (search_id,))
+        finally:
+            conn.close()
+        return RedirectResponse("/directory", status_code=303)
+
+    @app.get("/compare", response_class=HTMLResponse)
+    async def compare_faculty(request: Request):
+        from studio.compare import comparison_rows
+
+        ids_raw = request.query_params.get("ids", "")
+        rid_params = request.query_params.getlist("rid")
+        selected: list[int] = []
+        for part in ids_raw.replace(";", ",").split(","):
+            part = part.strip()
+            if part.isdigit():
+                selected.append(int(part))
+        for r in rid_params:
+            if str(r).isdigit():
+                selected.append(int(r))
+        # unique preserve order
+        seen: set[int] = set()
+        selected_ids: list[int] = []
+        for i in selected:
+            if i not in seen:
+                seen.add(i)
+                selected_ids.append(i)
+
+        conn = get_conn()
+        try:
+            facts = [dict(f) for f in conn.execute("SELECT * FROM profile_fact").fetchall()]
+            rows = comparison_rows(conn, selected_ids, facts) if selected_ids else []
+            shortlist_options = [
+                dict(r)
+                for r in conn.execute(
+                    """
+                    SELECT r.id AS researcher_id, r.display_name AS name,
+                           a.institution AS institution
+                    FROM shortlist_item s
+                    JOIN opportunity o ON o.id = s.opportunity_id
+                    JOIN researcher r ON r.id = o.researcher_id
+                    LEFT JOIN affiliation a ON a.researcher_id = r.id AND a.is_current = 1
+                    ORDER BY s.rank_score DESC
+                    LIMIT 24
+                    """
+                )
+            ]
+            return TEMPLATES.TemplateResponse(
+                request,
+                "compare.html",
+                ctx(
+                    request,
+                    nav="compare",
+                    rows=rows,
+                    ids_raw=",".join(str(i) for i in selected_ids),
+                    selected_ids=selected_ids,
+                    shortlist_options=shortlist_options,
                 ),
             )
         finally:
@@ -1541,6 +1663,40 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     # ---- S6 Tracker ----
     @app.get("/tracker", response_class=HTMLResponse)
     async def tracker(request: Request):
+        from studio.reminders import group_kanban, open_reminders, sync_deadline_reminders
+
+        conn = get_conn()
+        try:
+            sync_deadline_reminders(conn)
+            items = [
+                dict(r)
+                for r in conn.execute(
+                    """
+                    SELECT a.*, r.display_name AS name
+                    FROM application a
+                    JOIN opportunity o ON o.id = a.opportunity_id
+                    JOIN researcher r ON r.id = o.researcher_id
+                    ORDER BY a.updated_at DESC
+                    """
+                )
+            ]
+            return TEMPLATES.TemplateResponse(
+                request,
+                "tracker.html",
+                ctx(
+                    request,
+                    nav="tracker",
+                    items=items,
+                    columns=group_kanban(items),
+                    states=APPLICATION_STATES,
+                    reminders=open_reminders(conn),
+                ),
+            )
+        finally:
+            conn.close()
+
+    @app.get("/tracker/timeline", response_class=HTMLResponse)
+    async def tracker_timeline(request: Request):
         conn = get_conn()
         try:
             items = conn.execute(
@@ -1552,8 +1708,10 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 ORDER BY a.updated_at DESC
                 """
             ).fetchall()
-            return TEMPLATES.TemplateResponse(request, "tracker.html",
-                ctx(request, nav="tracker", items=items, states=APPLICATION_STATES),
+            return TEMPLATES.TemplateResponse(
+                request,
+                "tracker_timeline.html",
+                ctx(request, nav="tracker", items=items),
             )
         finally:
             conn.close()
@@ -1569,6 +1727,32 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 "UPDATE application SET state=?, updated_at=datetime('now') WHERE id=?",
                 (state, app_id),
             )
+            from studio.reminders import sync_deadline_reminders
+
+            sync_deadline_reminders(conn)
+        finally:
+            conn.close()
+        return RedirectResponse("/tracker", status_code=303)
+
+    @app.post("/tracker/{app_id}/notes")
+    async def tracker_notes(app_id: int, page_token: str = Form(...), notes: str = Form("")):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            conn.execute(
+                "UPDATE application SET notes=?, updated_at=datetime('now') WHERE id=?",
+                (notes.strip() or None, app_id),
+            )
+        finally:
+            conn.close()
+        return RedirectResponse("/tracker", status_code=303)
+
+    @app.post("/tracker/reminder/{rem_id}/dismiss")
+    async def tracker_dismiss_reminder(rem_id: int, page_token: str = Form(...)):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            conn.execute("UPDATE reminder SET dismissed=1 WHERE id=?", (rem_id,))
         finally:
             conn.close()
         return RedirectResponse("/tracker", status_code=303)
@@ -2347,6 +2531,66 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             "/planner?queue=academic&flash=No%20armed%20follow-ups%20or%20mailbox",
             status_code=303,
         )
+
+    # ---- Backup / restore ----
+    @app.get("/backup", response_class=HTMLResponse)
+    async def backup_page(request: Request):
+        workspace = app_data_dir()
+        backup_dir = workspace / "backups"
+        backups = []
+        if backup_dir.is_dir():
+            for p in sorted(backup_dir.glob("studio-backup-*.zip"), reverse=True)[:12]:
+                backups.append(
+                    {"name": p.name, "size_kb": max(1, p.stat().st_size // 1024)}
+                )
+        return TEMPLATES.TemplateResponse(
+            request,
+            "backup.html",
+            ctx(request, nav="backup", backups=backups),
+        )
+
+    @app.post("/backup/create")
+    async def backup_create(page_token: str = Form(...)):
+        require_token(page_token)
+        from studio.backup import create_backup
+
+        path = create_backup(app_data_dir())
+        return FileResponse(
+            path,
+            filename=path.name,
+            media_type="application/zip",
+        )
+
+    @app.get("/backup/download/{name}")
+    async def backup_download(name: str):
+        safe = Path(name).name
+        if not safe.startswith("studio-backup-") or not safe.endswith(".zip"):
+            return RedirectResponse("/backup?err=1&flash=Bad%20file", status_code=303)
+        path = app_data_dir() / "backups" / safe
+        if not path.is_file():
+            return RedirectResponse("/backup?err=1&flash=Missing", status_code=303)
+        return FileResponse(path, filename=safe, media_type="application/zip")
+
+    @app.post("/backup/restore")
+    async def backup_restore(
+        page_token: str = Form(...),
+        zip: UploadFile = File(...),
+    ):
+        require_token(page_token)
+        from studio.backup import restore_backup
+
+        workspace = app_data_dir()
+        dest = workspace / "backups" / f"upload-{secrets.token_hex(6)}.zip"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        data = await zip.read()
+        dest.write_bytes(data)
+        try:
+            restore_backup(dest, workspace)
+        except Exception as exc:  # noqa: BLE001 — surface to flash
+            return RedirectResponse(
+                f"/backup?err=1&flash={quote(str(exc)[:80])}", status_code=303
+            )
+        return RedirectResponse("/backup?flash=Restored", status_code=303)
 
     # ---- S8 Return ----
     @app.get("/return", response_class=HTMLResponse)

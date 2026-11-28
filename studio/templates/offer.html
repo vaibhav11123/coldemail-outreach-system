@@ -1,46 +1,75 @@
 {% extends "base.html" %}
-{% block title %}Academic Outreach Studio{% endblock %}
+{% block title %}Academic Studio — Products{% endblock %}
 {% block content %}
 <section class="hero">
-  <p class="hero-kicker">Research internship outreach</p>
-  <h1>Academic Outreach Studio</h1>
-  <p class="lead">Find professors, write evidence-backed letters, and track applications — without inventing claims or sending unapproved mail.</p>
+  <p class="hero-kicker">One purchase · Licence included</p>
+  <h1>Academic Studio</h1>
+  <p class="lead">A complete research application workstation and the Global Research Dataset — perpetual individual licences, offline-capable, with protection built into the purchase price. No separate activation fee.</p>
   <div class="hero-actions">
-    <a class="button" href="/profile">Continue to profile</a>
+    <a class="button" href="/dashboard">Open workspace</a>
+    <a class="button secondary" href="/profile">Import your CV</a>
     <a class="button secondary" href="/connections">Set up connections</a>
   </div>
 </section>
 
 <ul class="step-rail" aria-label="Suggested path">
   <li class="active">1 · Profile</li>
-  <li>2 · Openings</li>
-  <li>3 · Shortlist</li>
-  <li>4 · Draft</li>
+  <li>2 · Discover</li>
+  <li>3 · Prepare</li>
+  <li>4 · Apply</li>
   <li>5 · Track</li>
 </ul>
 
+<div class="grid-2 product-grid">
+  <article class="sheet product-card">
+    <p class="hero-kicker">Data product</p>
+    <h2>{{ dataset.title }}</h2>
+    <p class="price-line">${{ '%.2f'|format(dataset.list_price_usd) }} <span class="muted">one-time · licence included</span></p>
+    <ul class="include-grid">
+      <li>All 1,021 international faculty records</li>
+      <li>Excel, CSV, JSON and SQLite</li>
+      <li>Publications and research intelligence</li>
+      <li>Full offline access and unrestricted manipulation</li>
+      <li>Personalized fingerprinting and signed delivery manifest</li>
+      <li>Individual perpetual usage licence — no activation fee</li>
+    </ul>
+  </article>
+  <article class="sheet product-card featured">
+    <p class="hero-kicker">Complete software</p>
+    <h2>{{ studio.title }}</h2>
+    <p class="price-line">${{ '%.2f'|format(studio.list_price_usd) }} <span class="muted">one-time · licence included</span></p>
+    <ul class="include-grid">
+      <li>Complete faculty dataset inside the app</li>
+      <li>Matching, drafting, email and application management</li>
+      <li>Personalized AI workflows (your providers)</li>
+      <li>Two authorized devices · encrypted catalog</li>
+      <li>Device replacement and recovery</li>
+      <li>Individual perpetual software licence — no activation fee</li>
+    </ul>
+    <p><a class="button" href="/dashboard">Continue in Academic Studio</a></p>
+  </article>
+</div>
+
 <div class="sheet-quiet">
-  <h2>What you get</h2>
+  <h2>What ships with this build</h2>
   <ul class="include-grid">
-    <li>The app workspace on your computer</li>
-    <li>The Summer 2027 research library</li>
-    <li>A labeled demo so you can learn safely</li>
-    <li>Live publication search (your OpenAlex account)</li>
-    <li>Faculty directory collection tools</li>
-    <li>Your own files stay yours</li>
+    <li>The Academic Studio workspace on your computer</li>
+    <li>The Summer 2027 research library (demo-safe rows labeled)</li>
+    <li>Live publication search when you connect OpenAlex</li>
+    <li>Faculty directory, comparison, Kanban tracker and backups</li>
+    <li>Your own files stay on your machine</li>
   </ul>
 </div>
 
 <div class="grid-2">
   <div class="sheet">
-    <h2>Price</h2>
-    <p class="price-line">{{ price }}</p>
-    <p class="muted">Built for students who need a careful outreach workflow, not a mass-mail blast.</p>
-  </div>
-  <div class="sheet">
     <h2>Refund &amp; support</h2>
     <p>{{ refund }}</p>
     <p><a href="mailto:{{ support }}">{{ support }}</a></p>
+  </div>
+  <div class="sheet">
+    <h2>Licensing policy</h2>
+    <p class="muted">Licence duration is perpetual for one individual. Dataset has no device cap; Studio authorizes two devices. Unauthorized redistribution, resale and licence sharing are prohibited. Protection is included — never billed as an add-on.</p>
   </div>
 </div>
 

@@ -58,7 +58,13 @@ def test_editions_api(client):
     assert r.status_code == 200
     body = r.json()
     assert "standard_dataset" in body["editions"]
-    assert body["editions"]["protected_dataset"]["device_bound"] is True
+    assert "academic_studio" in body["editions"]
+    assert "protected_dataset" not in body["editions"]  # internal packaging alias
+    assert body["editions"]["academic_studio"]["device_bound"] is True
+    assert body["editions"]["academic_studio"]["licence_included"] is True
+    assert body["editions"]["standard_dataset"]["list_price_usd"] == 14.99
+    assert body["editions"]["academic_studio"]["list_price_usd"] == 39.99
+    assert len(body["editions"]) == 2
 
 
 def test_payment_webhook_and_activate_local(client, studio_home):

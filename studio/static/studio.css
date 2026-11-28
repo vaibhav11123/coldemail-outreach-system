@@ -691,3 +691,89 @@ details.sheet[open] > summary::before {
   display: grid;
   gap: 0.85rem;
 }
+
+/* Campaign dashboard */
+.hero-compact { padding-bottom: 1rem; }
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.stat-strip div {
+  background: color-mix(in srgb, var(--mist, #e8f4f2) 70%, white);
+  border: 1px solid color-mix(in srgb, var(--sea, #0b4f6c) 14%, transparent);
+  padding: 0.85rem 1rem;
+}
+.stat-strip strong {
+  display: block;
+  font-family: "Fraunces", serif;
+  font-size: 1.6rem;
+  color: var(--sea, #0b4f6c);
+}
+.stat-strip span {
+  font-size: 0.8rem;
+  color: var(--ink-muted, #3d5a66);
+}
+@media (max-width: 720px) {
+  .stat-strip { grid-template-columns: 1fr 1fr; }
+}
+.action-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+.action-list li { margin-bottom: 0.85rem; }
+
+/* Kanban */
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+  margin: 1.25rem 0;
+}
+@media (max-width: 960px) {
+  .kanban { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .kanban { grid-template-columns: 1fr; }
+}
+.kanban-col h2 {
+  font-size: 1rem;
+  margin-top: 0;
+}
+.kanban-card {
+  border: 1px solid color-mix(in srgb, var(--sea, #0b4f6c) 16%, transparent);
+  background: #fff;
+  padding: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+.kanban-card form { margin-top: 0.45rem; }
+.notes-form input { width: 100%; margin-top: 0.35rem; }
+.flash-warn {
+  border-left: 3px solid color-mix(in srgb, #b45309 70%, var(--sea, #0b4f6c));
+}
+.timeline { padding-left: 1.2rem; }
+.timeline li { margin-bottom: 0.65rem; }
+
+/* Compare + products */
+.compare-pick {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+}
+.compare-table th[scope="row"] {
+  white-space: nowrap;
+  font-weight: 600;
+}
+.product-card.featured {
+  border-color: color-mix(in srgb, var(--sea, #0b4f6c) 45%, transparent);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--sea, #0b4f6c) 12%, transparent);
+}
+.saved-search-list { list-style: none; padding: 0; }
+.saved-search-list li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}

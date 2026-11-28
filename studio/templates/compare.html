@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Compare faculty — Academic Studio{% endblock %}
+{% block content %}
+<p class="hero-kicker">Faculty intelligence</p>
+<h1>Professor comparison</h1>
+<p class="lede">Score shortlisted supervisors side by side on fit, funding signals, openings and publication evidence.</p>
+
+<form class="sheet" method="get" action="/compare">
+  <label for="ids">Researcher IDs (comma-separated, up to 8)</label>
+  <input id="ids" name="ids" value="{{ ids_raw }}" placeholder="e.g. 12,45,88">
+  <p class="muted">Tip: open Directory or Shortlist, note IDs, then paste them here. Or pick from your shortlist below.</p>
+  <button type="submit" class="button">Compare</button>
+</form>
+
+{% if shortlist_options %}
+<form class="sheet-quiet" method="get" action="/compare">
+  <h2>From shortlist</h2>
+  <div class="compare-pick">
+    {% for s in shortlist_options %}
+    <label>
+      <input type="checkbox" name="rid" value="{{ s.researcher_id }}"
+        {% if s.researcher_id in selected_ids %}checked{% endif %}>
+      {{ s.name }} <span class="muted">· {{ s.institution or '—' }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  <button type="submit" class="button secondary">Compare selected</button>
+</form>
+{% endif %}
+
+{% if rows %}
+<div class="table-wrap panel">
+  <table class="reader-table compare-table">
+    <thead>
+      <tr>
+        <th>Criterion</th>
+        {% for r in rows %}
+        <th>{{ r.name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Institution</th>
+        {% for r in rows %}<td>{{ r.institution }}</td>{% endfor %}
+      </tr>
+      <tr>
+        <th scope="row">Overall fit</th>
+        {% for r in rows %}
+        <td>{% if r.fit_overall is not none %}{{ r.fit_overall }} · {{ r.fit_label }}{% else %}{{ r.fit_label }}{% endif %}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th scope="row">Topic / skills</th>
+        {% for r in rows %}
+        <td>{{ r.fit_topic or '—' }} / {{ r.fit_skills or '—' }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th scope="row">Funding</th>
+        {% for r in rows %}<td>{{ r.funding }}{% if r.funding_note %}<br><span class="muted">{{ r.funding_note }}</span>{% endif %}</td>{% endfor %}
+      </tr>
+      <tr>
+        <th scope="row">Opening</th>
+        {% for r in rows %}<td>{{ r.status }} · {{ r.eligibility }}</td>{% endfor %}
+      </tr>
+      <tr>
+        <th scope="row">Latest paper</th>
+        {% for r in rows %}
+        <td>{% if r.paper_title %}{{ r.paper_title }}{% if r.paper_year %} ({{ r.paper_year }}){% endif %}{% else %}—{% endif %}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th scope="row">Why this fit</th>
+        {% for r in rows %}
+        <td>
+          {% if r.why %}
+          <ul>{% for w in r.why %}<li>{{ w }}</li>{% endfor %}</ul>
+          {% else %}—{% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th scope="row">Open</th>
+        {% for r in rows %}
+        <td>{% if r.opportunity_id %}<a href="/opportunity/{{ r.opportunity_id }}">Opportunity</a>{% else %}—{% endif %}</td>
+        {% endfor %}
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% elif ids_raw or selected_ids %}
+<p class="muted">No comparable researchers found for that selection.</p>
+{% endif %}
+{% endblock %}

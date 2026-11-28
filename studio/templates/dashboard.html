@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Campaign — Academic Studio{% endblock %}
+{% block content %}
+<section class="hero hero-compact">
+  <p class="hero-kicker">Your campaign</p>
+  <h1>What to do next</h1>
+  <p class="lead">A living checklist from your profile, shortlist, applications and deadlines — not a generic welcome screen.</p>
+</section>
+
+<div class="stat-strip" role="group" aria-label="Campaign counts">
+  <div><strong>{{ snap.shortlisted }}</strong><span>Shortlisted</span></div>
+  <div><strong>{{ snap.preparing }}</strong><span>Preparing</span></div>
+  <div><strong>{{ snap.applied }}</strong><span>Applied</span></div>
+  <div><strong>{{ snap.responses }}</strong><span>Responses</span></div>
+</div>
+
+<div class="sheet">
+  <h2>Next actions</h2>
+  {% if snap.actions %}
+  <ol class="action-list">
+    {% for a in snap.actions %}
+    <li>
+      <a href="{{ a.href }}"><strong>{{ a.title }}</strong></a>
+      {% if a.detail %}<p class="muted">{{ a.detail }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="muted">Your workspace is quiet — open the directory to discover researchers.</p>
+  {% endif %}
+</div>
+
+<div class="grid-2">
+  <div class="sheet-quiet">
+    <h2>Quick links</h2>
+    <p>
+      <a href="/directory">Directory</a> ·
+      <a href="/compare">Compare</a> ·
+      <a href="/tracker">Kanban</a> ·
+      <a href="/backup">Backup</a> ·
+      <a href="/offer">Products</a>
+    </p>
+  </div>
+  <div class="sheet-quiet">
+    <h2>Profile</h2>
+    {% if snap.profile_ready %}
+    <p>Profile looks ready for matching.</p>
+    {% else %}
+    <p><a href="/profile">Finish your CV profile</a> so matching and drafting can use real evidence.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

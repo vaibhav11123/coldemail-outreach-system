@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Timeline — Academic Studio{% endblock %}
+{% block content %}
+<p class="hero-kicker">Application management</p>
+<h1>Application timeline</h1>
+<p><a href="/tracker">← Back to Kanban</a></p>
+{% if not items %}
+<p class="muted">No applications yet.</p>
+{% else %}
+<ol class="timeline">
+  {% for a in items %}
+  <li>
+    <span class="mono">{{ a.updated_at }}</span>
+    <strong>{{ a.name }}</strong> — {{ a.state }}
+    {% if a.deadline %}<span class="muted"> · deadline {{ a.deadline }}</span>{% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% endif %}
+{% endblock %}

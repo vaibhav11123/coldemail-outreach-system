@@ -439,6 +439,11 @@ def test_FR25_offer_lists_inclusions(client):
     assert "Faculty" in r.text or "directory" in r.text.lower()
     assert "support@" in r.text.lower() or "Support" in r.text
     assert "Refund" in r.text or "refund" in r.text
+    assert "Global Research Dataset" in r.text
+    assert "Academic Studio" in r.text
+    assert "$14.99" in r.text
+    assert "$39.99" in r.text
+    assert "licence included" in r.text.lower() or "License included" in r.text
 
 
 def test_NFR1_localhost_host_and_token(client):

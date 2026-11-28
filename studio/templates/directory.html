@@ -36,6 +36,34 @@
   <button type="submit" class="btn primary">Search</button>
 </form>
 
+<form class="sheet-quiet" method="post" action="/directory/save-search">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <input type="hidden" name="q" value="{{ q }}">
+  <input type="hidden" name="funding" value="{{ funding }}">
+  <input type="hidden" name="status" value="{{ status }}">
+  <input type="hidden" name="university" value="{{ university }}">
+  <label for="save-name">Save this search</label>
+  <input id="save-name" name="name" placeholder="Name for this filter set" maxlength="80">
+  <button type="submit" class="secondary">Save search</button>
+</form>
+
+{% if saved_searches %}
+<div class="sheet-quiet">
+  <h2>Saved searches</h2>
+  <ul class="saved-search-list">
+    {% for s in saved_searches %}
+    <li>
+      <a href="/directory?q={{ s.query|urlencode }}&amp;funding={{ (s.funding or '')|urlencode }}&amp;status={{ (s.status or '')|urlencode }}&amp;university={{ (s.university or '')|urlencode }}">{{ s.name }}</a>
+      <form method="post" action="/directory/saved/{{ s.id }}/delete" style="display:inline">
+        <input type="hidden" name="page_token" value="{{ page_token }}">
+        <button type="submit" class="secondary">Delete</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 <div id="directory-results">
   <p class="meta-line">{{ total }} researchers shown{% if q %} · hybrid retrieval{% endif %}</p>
   {% if not items %}

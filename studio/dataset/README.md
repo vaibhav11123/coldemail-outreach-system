@@ -1,12 +1,13 @@
 # Dataset packaging & licensing
 
-Shared protection stack for:
+Two customer products. Licence is included in the purchase price — never a separate activation fee or protected-tier upsell.
 
-| SKU | Price (suggested) | Delivery |
+| SKU | Price (provisional) | Delivery |
 | --- | --- | --- |
-| `standard_dataset` | $14.99 | Fingerprinted Excel/CSV/JSON — full facts, unique export IDs |
-| `protected_dataset` | $24.99 | SQLCipher `ResearchCatalog.asdb` + device-bound `.aslic` |
-| `academic_studio` | $39.99 | Same encrypted catalog + Studio features under the same licence |
+| `standard_dataset` — **Global Research Dataset** | $14.99 | Fingerprinted Excel/CSV/JSON/SQLite — full facts, unique export IDs, signed manifest |
+| `academic_studio` — **Academic Studio** | $39.99 | Complete software + encrypted catalog, two authorized devices, device-bound `.aslic` |
+
+`protected_dataset` remains an **internal packaging alias** for Studio encrypted catalogs (not sold separately).
 
 ## What this does
 
