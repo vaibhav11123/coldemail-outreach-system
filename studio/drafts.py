@@ -68,6 +68,19 @@ def has_uncited_claim(body: str, allowed_snippets: list[str]) -> bool:
         title = m.group(1).strip().lower()
         if title and title not in allowed_lower:
             return True
+    # Block invented funding / eligibility / acceptance claims unless evidence says so.
+    fundingish = re.search(
+        r"\b(?:funded\s+openings?|fully\s+funded|guaranteed\s+(?:funding|admission)|"
+        r"confirmed\s+funded|acceptance\s+(?:is\s+)?(?:guaranteed|certain)|"
+        r"GPA\s*(?:is|=)\s*\d|my\s+GPA\s+is)\b",
+        body,
+        flags=re.I,
+    )
+    if fundingish:
+        low_ev = allowed_lower
+        snippet = fundingish.group(0).lower()
+        if snippet not in low_ev and "funded" not in low_ev and "gpa" not in low_ev:
+            return True
     # Block "I researched X" style claims without overlapping evidence tokens
     claimish = re.findall(
         r"(?:I (?:studied|researched|worked on|published|discovered|invented|proved)|your novel finding on)\s+([^.!\n]{12,})",

@@ -74,7 +74,16 @@ def get_works_for_author(author_id: str) -> dict[str, Any]:
         }
     if resp.status_code >= 400:
         return {"ok": False, "error": "http_error", "message": f"OpenAlex HTTP {resp.status_code}"}
-    data = resp.json()
+    try:
+        data = resp.json()
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "error": "invalid_json",
+            "message": f"OpenAlex returned unreadable JSON ({exc})",
+        }
+    if not isinstance(data, dict):
+        return {"ok": False, "error": "unexpected_schema", "message": "OpenAlex payload was not an object"}
     works = []
     for w in data.get("results", []):
         title = w.get("title") or w.get("display_name") or ""

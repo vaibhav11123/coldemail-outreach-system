@@ -9,24 +9,46 @@ from typing import Any
 
 
 def create_intent(conn, draft_id: int, content_hash: str, provider: str = "smtp") -> int:
-    # Lock by unique content_hash — second click returns existing
-    existing = conn.execute(
-        "SELECT id, state FROM send_intent WHERE content_hash = ?",
-        (content_hash,),
-    ).fetchone()
-    if existing:
-        return int(existing["id"])
-    # Only if approved
+    """Create or reuse a send intent. Never invent a second intent for the same hash.
+
+    - ``sent`` / ``pending`` / ``submitted`` → return existing id (caller must not double-send).
+    - ``unknown_delivery`` → refuse automatic retry (manual reconcile only).
+    - ``failed`` → reset to ``pending`` so the student can explicitly retry once.
+    """
     draft = conn.execute("SELECT * FROM draft WHERE id = ?", (draft_id,)).fetchone()
     if not draft or draft["approved_hash"] != draft["content_hash"]:
         raise ValueError("Draft is not approved")
-    # suppression check
+    if draft["content_hash"] != content_hash:
+        raise ValueError("Draft content changed; re-approve before sending")
     suppressed = conn.execute(
         "SELECT id FROM suppression WHERE email = ?",
         (draft["recipient"],),
     ).fetchone()
     if suppressed:
         raise ValueError("Recipient is suppressed")
+
+    existing = conn.execute(
+        "SELECT id, state FROM send_intent WHERE content_hash = ?",
+        (content_hash,),
+    ).fetchone()
+    if existing:
+        state = existing["state"]
+        if state == "unknown_delivery":
+            raise ValueError(
+                "Delivery status is unknown. Reconcile this send before trying again."
+            )
+        if state == "failed":
+            conn.execute(
+                """
+                UPDATE send_intent
+                SET state = 'pending', error = NULL, provider = ?,
+                    provider_message_id = NULL, updated_at = datetime('now')
+                WHERE id = ? AND state = 'failed'
+                """,
+                (provider, existing["id"]),
+            )
+        return int(existing["id"])
+
     cur = conn.execute(
         """
         INSERT INTO send_intent(draft_id, content_hash, state, provider)
@@ -37,14 +59,16 @@ def create_intent(conn, draft_id: int, content_hash: str, provider: str = "smtp"
     return int(cur.lastrowid)
 
 
-def mark_submitted(conn, intent_id: int) -> None:
-    conn.execute(
+def mark_submitted(conn, intent_id: int) -> bool:
+    """Atomically claim a pending intent. Returns False if another worker already claimed it."""
+    cur = conn.execute(
         """
         UPDATE send_intent SET state = 'submitted', updated_at = datetime('now')
         WHERE id = ? AND state = 'pending'
         """,
         (intent_id,),
     )
+    return cur.rowcount == 1
 
 
 def mark_sent(conn, intent_id: int, provider_message_id: str | None = None) -> None:
@@ -129,7 +153,14 @@ def perform_send(
         raise ValueError("Approval cleared")
 
     provider = (intent["provider"] or "smtp").lower()
-    mark_submitted(conn, intent_id)
+    # Atomic claim — concurrent double-submit must not both hit the provider.
+    if not mark_submitted(conn, intent_id):
+        refreshed = conn.execute(
+            "SELECT state FROM send_intent WHERE id = ?", (intent_id,)
+        ).fetchone()
+        if refreshed and refreshed["state"] == "sent":
+            return "already_sent"
+        raise ValueError("Send already in progress or completed")
     try:
         if provider == "gmail":
             from studio.mail.gmail import send_via_gmail

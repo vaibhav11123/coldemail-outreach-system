@@ -1,0 +1,9 @@
+# Production qualification tooling — not required to run the desktop app.
+# Install: .venv/bin/pip install -r requirements-prod-qual.txt
+hypothesis>=6.100.0
+pip-audit>=2.7.0
+coverage>=7.4.0
+# Optional / environment-dependent (install when available):
+# playwright>=1.40.0
+# schemathesis>=3.25.0
+# mutmut>=2.4.0
