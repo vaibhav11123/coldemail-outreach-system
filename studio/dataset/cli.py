@@ -155,6 +155,15 @@ def cmd_device_info(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_forensic(args: argparse.Namespace) -> int:
+    from studio.dataset.forensic import inspect_path
+    from studio.licensing.service import delivery_ledger
+
+    report = inspect_path(Path(args.path), delivery_ledger())
+    print(json.dumps(report.to_dict(), indent=2))
+    return 0
+
+
 def cmd_monitor(args: argparse.Namespace) -> int:
     from studio.licensing.monitor import append_findings_log, scan_local_corpus
     from studio.licensing.service import delivery_ledger
@@ -214,6 +223,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--path", action="append", required=True, help="File or directory (repeatable)")
     p.add_argument("--log", help="Findings JSON log path")
     p.set_defaults(func=cmd_monitor)
+
+    p = sub.add_parser(
+        "forensic",
+        help="Inspect a suspected leak package/folder (human-review report; never auto-accuse)",
+    )
+    p.add_argument("--path", required=True, help="File, folder, or zip to inspect")
+    p.set_defaults(func=cmd_forensic)
 
     p = sub.add_parser("extract-aspkg", help="Extract AES-GCM .aspkg with package/DEK key")
     p.add_argument("--aspkg", required=True)

@@ -1,4 +1,8 @@
-"""Cryptographic device identity (Ed25519 + X25519), not MAC-address locking."""
+"""Cryptographic device identity (Ed25519 + X25519), not MAC-address locking.
+
+See ``device_backend.py`` for binding-mode honesty: current keys are software- or
+keyring-backed and exportable unless a hardware adapter is implemented.
+"""
 
 from __future__ import annotations
 
@@ -18,7 +22,13 @@ from studio.licensing.crypto import (
     ed25519_private_from_bytes,
     x25519_private_from_bytes,
 )
-from studio.secrets_store import get_secret, set_secret
+from studio.licensing.device_backend import (
+    BindingMode,
+    describe_device_security,
+    identity_envelope,
+    select_device_backend,
+    unwrap_identity_envelope,
+)
 
 DEVICE_SECRET_NAME = "licensing.device_identity.v1"
 
@@ -31,6 +41,8 @@ class DeviceIdentity:
     ed25519_public: bytes
     x25519_private: bytes
     x25519_public: bytes
+    binding: BindingMode = BindingMode.SOFTWARE
+    backend_id: str = "software-file-v1"
 
     def sign_challenge(self, challenge: bytes) -> bytes:
         return sign_ed25519(ed25519_private_from_bytes(self.ed25519_private), challenge)
@@ -44,10 +56,14 @@ class DeviceIdentity:
             "fingerprint": self.fingerprint,
             "ed25519_public": b64e(self.ed25519_public),
             "x25519_public": b64e(self.x25519_public),
+            "binding": self.binding.value,
+            "backend_id": self.backend_id,
+            "exportable_private_keys": self.binding != BindingMode.HARDWARE,
+            "security": describe_device_security(),
         }
 
     def to_storage(self) -> str:
-        return json.dumps(
+        inner = json.dumps(
             {
                 "device_id": self.device_id,
                 "fingerprint": self.fingerprint,
@@ -58,10 +74,14 @@ class DeviceIdentity:
             },
             separators=(",", ":"),
         )
+        return identity_envelope(
+            inner, binding=self.binding, backend_id=self.backend_id
+        )
 
     @classmethod
     def from_storage(cls, raw: str) -> DeviceIdentity:
-        data = json.loads(raw)
+        flat, binding, backend_id = unwrap_identity_envelope(raw)
+        data = json.loads(flat)
         return cls(
             device_id=data["device_id"],
             fingerprint=data["fingerprint"],
@@ -69,6 +89,8 @@ class DeviceIdentity:
             ed25519_public=b64d(data["ed25519_public"]),
             x25519_private=b64d(data["x25519_private"]),
             x25519_public=b64d(data["x25519_public"]),
+            binding=binding,
+            backend_id=backend_id,
         )
 
 
@@ -82,6 +104,8 @@ def _fingerprint_from_keys(ed_pub: bytes, x_pub: bytes, device_id: str) -> str:
 
 
 def create_device_identity() -> DeviceIdentity:
+    backend = select_device_backend()
+    caps = backend.capabilities()
     device_id = str(uuid.uuid4())
     ed_priv, ed_pub = generate_ed25519()
     x_priv, x_pub = generate_x25519()
@@ -92,13 +116,16 @@ def create_device_identity() -> DeviceIdentity:
         ed25519_public=ed_pub,
         x25519_private=private_bytes_x25519(x_priv),
         x25519_public=x_pub,
+        binding=caps.binding,
+        backend_id=caps.backend_id,
     )
 
 
 def load_or_create_device_identity() -> DeviceIdentity:
-    existing = get_secret(DEVICE_SECRET_NAME)
+    backend = select_device_backend()
+    existing = backend.load_blob(DEVICE_SECRET_NAME)
     if existing:
         return DeviceIdentity.from_storage(existing)
     identity = create_device_identity()
-    set_secret(DEVICE_SECRET_NAME, identity.to_storage())
+    backend.store_blob(DEVICE_SECRET_NAME, identity.to_storage())
     return identity

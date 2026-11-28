@@ -19,11 +19,16 @@ from studio.licensing.ledger import DeliveryLedger
 
 PRODUCT_MARKERS = (
     "Global Research Faculty Dataset",
+    "Global Research Dataset",
     "ResearchCatalog.asdb",
     "CustomerLicense.aslic",
     "Academic Outreach Studio",
+    "Academic Studio",
     "Academic Data Reader",
     "faculty_catalog.xlsx",
+    "faculty_catalog.csv",
+    "faculty_catalog.json",
+    "hmac-sha256-v1",
 )
 
 EXPORT_ID_RE = re.compile(r"\bR-[0-9A-F]{8}\b")

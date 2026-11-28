@@ -1,57 +1,137 @@
-# Protection roadmap
+# Protection & production licensing roadmap (authoritative)
 
-Shared licensing + encrypted catalog for **Standard Dataset**, **Protected Dataset (Academic Data Reader)**, and **Academic Studio**.
+**Products:** Global Research Dataset (`$14.99` provisional) · Academic Studio (`$39.99` provisional)  
+**Rule:** Licence included in purchase · no activation surcharge · no standalone Protected `$24.99` SKU  
+**Internal alias:** `protected_dataset` packaging retained (not sold)  
+**Linked trackers:** `COMPLETE_PRODUCT_ROADMAP.md` (product features) · `SECURITY_QUALIFICATION.md` (60-item stress suite) · `KEYGEN_EVALUATION.md`
 
-Status key: `[x]` implemented in-repo · `[~]` scaffold / partial · `[ ]` not started
+Status: `[x]` implemented, tested, verified in-repo · `[~]` partial · `[ ]` not implemented · `BLOCKED` external · `N/A` justified
 
-## P0 — Dataset protection
+**Honesty:** Automated tests establish regression and initial crypto isolation — **not** absolute piracy prevention, hardware binding, or production payment readiness.
 
-- [x] Customer-specific dataset packaging (`studio/dataset/package_standard.py`)
-- [x] Unique relational export identifiers (HMAC surrogate IDs)
-- [x] Encrypted `.asdb` catalog (SQLCipher via `sqlcipher3`)
-- [x] Outer AES-256-GCM `.aspkg` transit container
-- [x] Signed manifests (`manifest.json` + Ed25519)
-- [x] Offline dataset reader API + localhost Reader UI (`/reader`)
-- [x] Customer-specific export watermarking (banner, XLSX props, hidden provenance, export IDs, row order)
-- [ ] Full spreadsheet-like Desktop Reader (Tauri) — deferred; Python/FastAPI Reader ships first
-- [ ] Collusion-resistant fingerprint codes for partial copies
+---
 
-## P0 — Licensing
+## Commercial consolidation (P0)
 
-- [x] Purchase-to-entitlement workflow (`LicenseStore` + `/api/licensing/webhook/payment`)
-- [x] Cryptographic device identity (Ed25519 + X25519)
-- [x] Secure key delivery (X25519 sealed DEK in `.aslic`)
-- [x] Two-device activation + replacement hook
-- [x] Signed offline entitlements with TTL / clock skew check
-- [x] Revocation flag (webhook + next activation)
-- [x] FastAPI licensing API (`/api/licensing/*`)
-- [~] Keygen production adapter (local JSON store is interim)
-- [ ] Passkeys / verified-email purchase gate in product UI
-- [~] Payment webhook → entitlement assignment (shared-secret webhook scaffold)
+- [x] Two sold SKUs only — `studio/licensing/products.py`
+- [x] Licence included flags + API exposure — `/api/licensing/editions`
+- [x] Canonical licence policies (perpetual ≠ updates/support/AI) — `studio/licensing/policy.py`, `studio/legal/UPDATES_AND_SUPPORT.md`
+- [x] Retain encrypted catalog / Reader / licensing stack (no deletion for SKU consolidation)
+- [x] Integrate graphical Reader into Studio nav + Directory/Dashboard links — `/reader`
+- [x] Keygen evaluation recorded — complete in-house control plane first (`KEYGEN_EVALUATION.md`)
 
-## P1 — Application security
+## Protection stack retention
 
-- [x] Packaging scan for secrets / issuer keys (`studio/packaging_scan.py`)
-- [x] OS-backed DEK cache after unlock (`studio/licensing/dek_cache.py`)
-- [x] Unauthorized package transfer tests (forwarded `.asdb` without `.aslic` / wrong device)
-- [ ] Compile commercial engine (Nuitka) / native Tauri + Rust licence component
-- [ ] Sign application installers
-- [ ] Signed software updates
-- [ ] Independent penetration test before paid launch
-- [ ] Hardware-backed keys (Secure Enclave / TPM) where available
+| Component | Status | Location |
+| --- | --- | --- |
+| `studio/licensing/` | [x] retain & extend | package |
+| `studio/dataset/` | [x] retain & extend | package |
+| Ed25519 licence issuer | [x] | `licensing/crypto.py` |
+| X25519 sealed DEK | [x] | activation / package_protected |
+| SQLCipher `.asdb` | [x] | `dataset/asdb.py` |
+| `.aslic` licence format | [x] | activation |
+| Device identity | [~] software/keyring; hardware stub | `device.py`, `device_backend.py` |
+| Device activation | [~] local store; needs production DB | `activation.py`, API |
+| Device replacement | [~] tested locally | activation tests |
+| Licence revocation | [~] flag + next validation | API revoke |
+| HMAC export IDs | [x] | `fingerprint.py` |
+| Customer row ordering | [x] | `permute_rows` |
+| XLSX provenance | [x] | package_standard |
+| Signed manifests | [x] | package_standard / protected |
+| Delivery ledger | [~] strengthen ops durability | `ledger.py` |
+| Reader CLI | [x] | `python -m studio.dataset read` |
+| Graphical Reader | [~] localhost UI integrated; desktop polish remains | `/reader` |
+| Feature entitlements | [x] | products + entitlement |
+| Local `LicenseStore` | [~] **dev/test only** — not production issuer | `activation.py` |
+| Forensic inspector | [x] scaffold | `dataset/forensic.py` + CLI |
+| Piracy monitor | [~] local corpus + ledger; no live crawlers | `monitor.py` |
 
-## P1 — Commercial enforcement
+## Device identity & licence protection (P0)
 
-- [x] Delivery ledger with export-ID lookup (`studio/licensing/ledger.py`)
-- [x] Draft individual / commercial licence terms (`studio/legal/`)
-- [x] Takedown procedure draft (`studio/legal/TAKEDOWN.md`)
-- [~] Piracy monitoring scaffold (local corpus + ledger compare; live crawlers not wired)
-- [ ] Dataset update channel for legitimate customers
-- [ ] Make ongoing updates the commercial moat (process, not only code)
+- [x] Cryptographic device keypair (Ed25519 + X25519) — not MAC locking
+- [x] Versioned backend adapter + documented software fallback guarantees/limitations
+- [x] Honest `/api/licensing/device` security summary (`exportable_private_keys`, hardware stub status)
+- [ ] Hardware-backed non-exportable keys (Secure Enclave / TPM) — adapter stub only
+- [ ] Atomic server-side device allocation under concurrency
+- [ ] Activation replay/nonce protection
+- [ ] Clock rollback detection + trusted server time
+- [ ] Signing-key rotation & emergency revocation
+- [ ] Integrity checks against patched validation binaries
 
-## Explicit non-goals (do not build)
+**Known limitation:** Current `device_identity` private keys are **exportable** (file or OS keyring). X25519 alone does not equal hardware binding.
 
-- Ordinary ZIP passwords as the sole control
+## Dataset protection (P0/P1)
+
+- [x] Fingerprinting without altering factual fields
+- [x] Multi-format packaging Excel/CSV/JSON (+ SQLite path)
+- [x] Signed manifests + SHA-256 via packaging
+- [x] Forensic inspection report (confidence, conflicts, limitations; no auto-accusation)
+- [ ] Collusion-resistant codes for partial copies
+- [ ] Expiring authenticated download URLs
+- [ ] Full transformation survival battery (see `SECURITY_QUALIFICATION.md` §Dataset)
+
+## Production licensing control plane (P0)
+
+- [~] Payment webhook scaffold (shared secret) — needs real provider + idempotency
+- [ ] Vaulted production issuer keys
+- [ ] Customer portal (purchase, devices, recovery)
+- [ ] Refund/chargeback entitlement automation beyond revoke flag
+- [ ] Durable audit trail / monitoring / DR drills
+- [ ] Single entitlement façade (Keygen adapter optional later)
+
+## Application delivery security (P0)
+
+- [ ] Signed Windows installers (Authenticode)
+- [ ] Signed + notarized macOS installers
+- [ ] Signed software update manifests/payloads
+- [x] Packaging scan excludes issuer secrets
+- [~] OS-backed customer credential storage (keyring)
+- [~] Localhost API host + page-token CSRF
+- [x] Workspace backup/restore (`/backup`)
+
+## Piracy monitoring (P1)
+
+- [~] Marker + export-ID scan of local corpora
+- [ ] Scheduled public source checks (storefronts, GitHub, forums) without bypassing access controls
+- [ ] Incident dedupe + manual review workflow UI
+- [x] Takedown procedure draft — `legal/TAKEDOWN.md`
+
+## Release gates (must all be green before “production-ready”)
+
+See also `RELEASE_READINESS.md`. Do **not** declare ready from test counts alone.
+
+| Gate | Status |
+| --- | --- |
+| 1,021 faculty completeness | [~] schema/loaders; full zip audit env-dependent |
+| Export format reconciliation | [~] |
+| No fingerprint-induced factual changes | [x] tested on mini corpus |
+| Source provenance | [~] |
+| Licence issuance per purchase | [~] local store |
+| Unauthorized activation rejected | [x] local tests |
+| Licence recovery | [~] |
+| Payment lifecycle | [ ] |
+| Installer integrity | [ ] |
+| Software updates | [ ] |
+| No issuer secrets in packages | [x] |
+| Zero unresolved critical vulns | [~] |
+| Customer work survives failures | [~] backup |
+| Advertised offline features | [~] |
+| Nontechnical core workflows | [~] |
+| Security review | [ ] |
+| Documentation complete | [ ] |
+| Pricing includes licence costs | [x] policy |
+| End-to-end commercial delivery | [ ] |
+
+## Explicit non-claims
+
+- Absolute copy-proofing of delivered Excel/CSV/JSON/SQLite
+- Unbreakable encryption against a determined authorized-device attacker
+- Hardware binding before a real SE/TPM backend ships and is stress-tested
+- That fingerprint matches prove the buyer pirated the product
+
+## Explicit non-goals
+
+- Ordinary ZIP passwords as sole control
 - Excel worksheet “protection” as security
 - VBA-only licence checks
 - MAC-address locking alone
@@ -59,3 +139,4 @@ Status key: `[x]` implemented in-repo · `[~]` scaffold / partial · `[ ]` not s
 - Hardcoded catalog keys in the app binary
 - Fake faculty records as watermarks
 - Blockchain certificates as copy prevention
+- Demand validation / preorders as a gate for finishing P0/P1 engineering

@@ -55,6 +55,8 @@ def build_licensing_router() -> APIRouter:
 
     @router.get("/editions")
     def list_editions() -> dict[str, Any]:
+        from studio.licensing.policy import policies
+
         out = {}
         for sku, ed in editions().items():
             out[sku.value] = {
@@ -71,7 +73,7 @@ def build_licensing_router() -> APIRouter:
                 "protection_summary": ed.protection_summary,
                 "sold_separately": ed.sold_separately,
             }
-        return {"editions": out}
+        return {"editions": out, "licence_policies": policies()}
 
     @router.get("/issuer-public")
     def issuer_public() -> dict[str, str]:
@@ -79,7 +81,11 @@ def build_licensing_router() -> APIRouter:
 
     @router.get("/device")
     def device_public() -> dict[str, Any]:
-        return load_or_create_device_identity().public_record()
+        from studio.licensing.device_backend import describe_device_security
+
+        record = load_or_create_device_identity().public_record()
+        record["security_summary"] = describe_device_security()
+        return record
 
     @router.post("/webhook/payment")
     def payment_webhook(

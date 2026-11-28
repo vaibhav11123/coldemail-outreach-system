@@ -61,7 +61,7 @@ def visible_licence_banner(ctx: FingerprintContext) -> str:
 
 def provenance_payload(ctx: FingerprintContext, delivery_id: str | None = None) -> dict:
     return {
-        "product": "Global Research Faculty Dataset",
+        "product": "Global Research Dataset",
         "customer_id": ctx.customer_id,
         "license_id": ctx.license_id,
         "delivery_id": delivery_id,

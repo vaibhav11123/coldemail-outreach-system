@@ -38,10 +38,12 @@ evidence before enforcement.
 
 ## Updates and support
 
-Legitimate customers may receive dataset corrections and software updates while
-their entitlement remains valid. Duration of included updates/support is a
-commercial decision separate from the perpetual licence grant. Pirated or revoked
-copies are not supported.
+Perpetual usage does **not** mean unlimited future updates, indefinite support,
+or third-party AI credits. See `studio/legal/UPDATES_AND_SUPPORT.md`.
+
+Legitimate customers may receive dataset corrections and software updates for
+the purchased version under the launch-documented window while their entitlement
+remains valid. Pirated or revoked copies are not supported.
 
 ## Refunds and revocation
 

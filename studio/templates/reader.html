@@ -2,12 +2,14 @@
 {% block title %}Academic Data Reader · Academic Outreach Studio{% endblock %}
 {% block content %}
 <section class="panel reader-hero">
-  <p class="eyebrow">Academic Data Reader</p>
-  <h1>Your complete faculty catalog</h1>
+  <p class="eyebrow">Integrated Catalog Reader · Academic Studio</p>
+  <h1>Encrypted research catalog</h1>
   <p class="lede">
-    All purchased records stay on this device after activation. Lookups work offline until
-    the signed licence needs revalidation.
+    Browse your device-bound SQLCipher catalog inside Academic Studio. All purchased records
+    stay on this device after activation. Lookups work offline until the signed licence needs
+    revalidation. The local Directory remains available for the workspace library.
   </p>
+  <p class="meta-line"><a href="/directory">Open workspace Directory</a></p>
   {% if entitlement %}
   <p class="meta-line">
     Licence <code>{{ entitlement.license_id }}</code>
