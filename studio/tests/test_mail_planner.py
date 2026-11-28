@@ -229,7 +229,8 @@ def test_preview_hiring_team_when_name_empty():
     assert p["salutation"] == "Hiring Team"
 
 
-def test_hr_csv_sent_status_unchanged_after_planner_refresh(client):
+def test_hr_csv_sent_status_unchanged_after_planner_refresh(client, monkeypatch):
+    monkeypatch.setenv("STUDIO_ENABLE_HR_PLANNER", "1")
     csv_path = Path("data/processed/cold_email_outreach_all_cleaned_ranked.csv")
     if not csv_path.exists():
         pytest.skip("HR CSV not present")
