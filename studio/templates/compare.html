@@ -1,35 +1,36 @@
 {% extends "base.html" %}
 {% block title %}Compare faculty — Academic Studio{% endblock %}
+{% block main_class %}layout-workspace{% endblock %}
 {% block content %}
-<p class="hero-kicker">Faculty intelligence</p>
+<p class="eyebrow">Faculty intelligence</p>
 <h1>Professor comparison</h1>
-<p class="lede">Score shortlisted supervisors side by side on fit, funding signals, openings and publication evidence.</p>
+<p class="lede">Compare supervisors side by side on fit, funding signals, openings and publication evidence. Pick researchers from the <a href="/directory">faculty library</a> (tick the boxes, then Compare selected) or from your shortlist below.</p>
 
-<form class="sheet" method="get" action="/compare">
-  <label for="ids">Researcher IDs (comma-separated, up to 8)</label>
-  <input id="ids" name="ids" value="{{ ids_raw }}" placeholder="e.g. 12,45,88">
-  <p class="muted">Tip: open Directory or Shortlist, note IDs, then paste them here. Or pick from your shortlist below.</p>
-  <button type="submit" class="button">Compare</button>
-</form>
-
-{% if shortlist_options %}
-<form class="sheet-quiet" method="get" action="/compare">
-  <h2>From shortlist</h2>
+<form class="panel" method="get" action="/compare">
+  {% set option_ids = shortlist_options|map(attribute='researcher_id')|list %}
+  <input type="hidden" name="ids" value="{{ selected_ids|reject('in', option_ids)|join(',') }}">
+  <h2>Choose researchers</h2>
+  {% if shortlist_options %}
+  <p class="muted">From your shortlist — up to 8.</p>
   <div class="compare-pick">
     {% for s in shortlist_options %}
     <label>
       <input type="checkbox" name="rid" value="{{ s.researcher_id }}"
         {% if s.researcher_id in selected_ids %}checked{% endif %}>
-      {{ s.name }} <span class="muted">· {{ s.institution or '—' }}</span>
+      <span>{{ s.name }} <span class="muted">· {{ s.institution or '—' }}</span></span>
     </label>
     {% endfor %}
   </div>
-  <button type="submit" class="button secondary">Compare selected</button>
+  <button type="submit">Compare selected</button>
+  {% else %}
+  <p class="muted">Your shortlist is empty. Select researchers in the faculty library to compare them.</p>
+  {% endif %}
+  <a class="button secondary" href="/directory">Select from faculty library</a>
+  {% if selected_ids %}<a class="button ghost" href="/compare">Clear selection</a>{% endif %}
 </form>
-{% endif %}
 
 {% if rows %}
-<div class="table-wrap panel">
+<div class="table-wrap panel" style="padding:0">
   <table class="reader-table compare-table">
     <thead>
       <tr>
@@ -58,11 +59,11 @@
       </tr>
       <tr>
         <th scope="row">Funding</th>
-        {% for r in rows %}<td>{{ r.funding }}{% if r.funding_note %}<br><span class="muted">{{ r.funding_note }}</span>{% endif %}</td>{% endfor %}
+        {% for r in rows %}<td>{{ r.funding|tri_state(kind='funding') }}{% if r.funding_note %}<br><span class="muted">{{ r.funding_note }}</span>{% endif %}</td>{% endfor %}
       </tr>
       <tr>
         <th scope="row">Opening</th>
-        {% for r in rows %}<td>{{ r.status }} · {{ r.eligibility }}</td>{% endfor %}
+        {% for r in rows %}<td>{{ r.status|tri_state(kind='recruitment') }}<br><span class="muted">{{ r.eligibility|tri_state(kind='international') }}</span></td>{% endfor %}
       </tr>
       <tr>
         <th scope="row">Latest paper</th>
@@ -90,6 +91,10 @@
   </table>
 </div>
 {% elif ids_raw or selected_ids %}
-<p class="muted">No comparable researchers found for that selection.</p>
+<div class="empty-state">
+  <h2>No comparable researchers</h2>
+  <p class="muted">Nothing matched that selection. Choose researchers from the faculty library instead.</p>
+  <a class="button secondary" href="/directory">Open faculty library</a>
+</div>
 {% endif %}
 {% endblock %}

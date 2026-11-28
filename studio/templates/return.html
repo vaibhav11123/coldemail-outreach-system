@@ -1,58 +1,60 @@
 {% extends "base.html" %}
-{% block title %}Return — Academic Outreach Studio{% endblock %}
+{% block title %}Deadlines &amp; reminders — Academic Studio{% endblock %}
 {% block content %}
-<h1>When you come back</h1>
-<p class="muted">Deadlines inside 14 days and cards whose check date is older than 30 days.</p>
+<p class="eyebrow">Deadlines &amp; reminders</p>
+<h1>What needs attention</h1>
+<p class="lede">Deadlines inside 14 days and openings last verified more than 30 days ago.</p>
 
 <div class="sheet">
   <h2>Deadlines in 14 days</h2>
   {% if not deadlines %}
-  <p class="muted">None.</p>
+  <p class="muted">Nothing due soon.</p>
   {% else %}
   <ul class="list">
     {% for d in deadlines %}
-    <li><a href="/opportunity/{{ d.id }}">{{ d.name }}</a> — <span class="mono">{{ d.deadline }}</span></li>
+    <li><a href="/opportunity/{{ d.id }}">{{ d.name }}</a> — {{ d.deadline|deadline_label }}</li>
     {% endfor %}
   </ul>
   {% endif %}
 </div>
 
 <div class="sheet">
-  <h2>Stale checks (older than 30 days)</h2>
+  <h2>Worth re-checking</h2>
+  <p class="muted">Openings last verified more than 30 days ago may have changed.</p>
   {% if not stale %}
-  <p class="muted">None.</p>
+  <p class="muted">Everything has been verified recently.</p>
   {% else %}
   <ul class="list">
     {% for s in stale %}
-    <li><a href="/opportunity/{{ s.id }}">{{ s.name }}</a> — checked <span class="mono">{{ s.checked_at }}</span></li>
+    <li><a href="/opportunity/{{ s.id }}">{{ s.name }}</a> — {{ s.checked_at|verified_label }}</li>
     {% endfor %}
   </ul>
   {% endif %}
 </div>
 
 <div class="sheet">
-  <h2>Alerts</h2>
-  <p>These lists are the retention hook. Turn on notifications when you want reminders.</p>
+  <h2>Reminders</h2>
+  <p>Turn on reminders if you would like deadline and re-check alerts. They are off by default and stay on this computer.</p>
   <form method="post" action="/return/alerts">
     <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label><input type="checkbox" name="alerts" value="1" {% if alerts_on %}checked{% endif %}> Enable deadline and stale alerts</label>
-    <button type="submit" class="secondary">Save</button>
+    <label><input type="checkbox" name="alerts" value="1" {% if alerts_on %}checked{% endif %}> Enable deadline and re-check reminders</label>
+    <p class="toolbar"><button type="submit" class="secondary">Save</button></p>
   </form>
 </div>
 
 <div class="sheet">
   <h2>Profiles</h2>
-  <p>More than one student profile. Mailboxes are not shared across profiles.</p>
+  <p>Keep a separate profile for each person you help — for example a sibling or a student you mentor. Mailboxes are not shared across profiles.</p>
   <ul class="list">
     {% for p in profiles %}
-    <li>{{ p.label }} {% if p.is_active %}<span class="stated">Active</span>{% endif %}</li>
+    <li>{{ p.label }} {% if p.is_active %}<span class="status-badge ok">Active</span>{% endif %}</li>
     {% endfor %}
   </ul>
   <form method="post" action="/return/add-profile">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <label for="label">New profile label</label>
     <input id="label" name="label">
-    <button type="submit" class="secondary">Add profile</button>
+    <p class="toolbar"><button type="submit" class="secondary">Add profile</button></p>
   </form>
 </div>
 {% endblock %}

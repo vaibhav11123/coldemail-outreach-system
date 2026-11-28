@@ -1,110 +1,157 @@
 {% extends "base.html" %}
-{% block title %}Faculty Directory — Academic Outreach Studio{% endblock %}
+{% block title %}Faculty library — Academic Studio{% endblock %}
+{% block main_class %}layout-workspace{% endblock %}
 {% block content %}
-<p class="hero-kicker">Dataset</p>
-<h1>Faculty directory</h1>
-<p class="lede">Browse the complete local catalog with keyword and semantic hybrid search. No AI connection required. Encrypted licensed catalogs open in the integrated <a href="/reader">Academic Data Reader</a>.</p>
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Faculty library</p>
+    <h1>Faculty directory</h1>
+    <p class="lede">Search the full local catalog with keyword and semantic matching. No AI connection required. Encrypted purchased catalogs open in the <a href="/reader">purchased catalog reader</a>.</p>
+  </div>
+</div>
 
-<form class="panel reader-filters" method="get" action="/directory" id="directory-search">
-  <label>
-    Search
-    <input type="search" name="q" value="{{ q }}" placeholder="GPU systems, distributed training, compilers…"
+<form class="table-toolbar" method="get" action="/directory" id="directory-search">
+  <div class="tt-search">
+    <label for="dir-q">Search</label>
+    <input id="dir-q" type="search" name="q" value="{{ q }}" placeholder="GPU systems, distributed training, compilers…"
            hx-get="/directory" hx-trigger="keyup changed delay:300ms" hx-target="#directory-results" hx-select="#directory-results" hx-swap="outerHTML" hx-include="[name='funding'],[name='status'],[name='university']">
-  </label>
-  <label>
-    University
-    <input type="text" name="university" value="{{ university }}" placeholder="Filter institution">
-  </label>
-  <label>
-    Funding
-    <select name="funding">
+  </div>
+  <div class="tt-field">
+    <label for="dir-university">University</label>
+    <input id="dir-university" type="text" name="university" value="{{ university }}" placeholder="Filter institution">
+  </div>
+  <div class="tt-field">
+    <label for="dir-funding">Funding</label>
+    <select id="dir-funding" name="funding">
       <option value="">Any</option>
-      <option value="stated-yes" {% if funding=='stated-yes' %}selected{% endif %}>Stated yes</option>
-      <option value="stated-no" {% if funding=='stated-no' %}selected{% endif %}>Stated no</option>
-      <option value="unknown" {% if funding=='unknown' %}selected{% endif %}>Unknown</option>
+      <option value="stated-yes" {% if funding=='stated-yes' %}selected{% endif %}>Funding mentioned</option>
+      <option value="stated-no" {% if funding=='stated-no' %}selected{% endif %}>No funding indicated</option>
+      <option value="unknown" {% if funding=='unknown' %}selected{% endif %}>Funding unknown</option>
     </select>
-  </label>
-  <label>
-    Status
-    <select name="status">
+  </div>
+  <div class="tt-field">
+    <label for="dir-status">Recruiting</label>
+    <select id="dir-status" name="status">
       <option value="">Any</option>
-      <option value="stated-yes" {% if status=='stated-yes' %}selected{% endif %}>Opening stated</option>
+      <option value="stated-yes" {% if status=='stated-yes' %}selected{% endif %}>Opening listed</option>
       <option value="unknown" {% if status=='unknown' %}selected{% endif %}>Unconfirmed</option>
       <option value="stated-no" {% if status=='stated-no' %}selected{% endif %}>Not recruiting</option>
     </select>
-  </label>
-  <button type="submit" class="btn primary">Search</button>
+  </div>
+  <div class="tt-actions">
+    <button type="submit">Search</button>
+    {% if q or funding or status or university %}<a class="button secondary" href="/directory">Clear</a>{% endif %}
+  </div>
 </form>
 
-<form class="sheet-quiet" method="post" action="/directory/save-search">
-  <input type="hidden" name="page_token" value="{{ page_token }}">
-  <input type="hidden" name="q" value="{{ q }}">
-  <input type="hidden" name="funding" value="{{ funding }}">
-  <input type="hidden" name="status" value="{{ status }}">
-  <input type="hidden" name="university" value="{{ university }}">
-  <label for="save-name">Save this search</label>
-  <input id="save-name" name="name" placeholder="Name for this filter set" maxlength="80">
-  <button type="submit" class="secondary">Save search</button>
-</form>
-
-{% if saved_searches %}
-<div class="sheet-quiet">
-  <h2>Saved searches</h2>
-  <ul class="saved-search-list">
-    {% for s in saved_searches %}
-    <li>
-      <a href="/directory?q={{ s.query|urlencode }}&amp;funding={{ (s.funding or '')|urlencode }}&amp;status={{ (s.status or '')|urlencode }}&amp;university={{ (s.university or '')|urlencode }}">{{ s.name }}</a>
-      <form method="post" action="/directory/saved/{{ s.id }}/delete" style="display:inline">
-        <input type="hidden" name="page_token" value="{{ page_token }}">
-        <button type="submit" class="secondary">Delete</button>
-      </form>
-    </li>
-    {% endfor %}
-  </ul>
+<div class="compact-save-row">
+  <details class="plain">
+    <summary>Save this search{% if saved_searches %} · {{ saved_searches|length }} saved{% endif %}</summary>
+    <form class="compact-save" method="post" action="/directory/save-search">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <input type="hidden" name="q" value="{{ q }}">
+      <input type="hidden" name="funding" value="{{ funding }}">
+      <input type="hidden" name="status" value="{{ status }}">
+      <input type="hidden" name="university" value="{{ university }}">
+      <label for="save-name" class="sr-only">Name for this search</label>
+      <input id="save-name" name="name" placeholder="Name for this filter set" maxlength="80">
+      <button type="submit" class="secondary small">Save search</button>
+    </form>
+    {% if saved_searches %}
+    <ul class="saved-search-list">
+      {% for s in saved_searches %}
+      <li>
+        <a href="/directory?q={{ s.query|urlencode }}&amp;funding={{ (s.funding or '')|urlencode }}&amp;status={{ (s.status or '')|urlencode }}&amp;university={{ (s.university or '')|urlencode }}">{{ s.name }}</a>
+        <form method="post" action="/directory/saved/{{ s.id }}/delete" class="inline-form">
+          <input type="hidden" name="page_token" value="{{ page_token }}">
+          <button type="submit" class="secondary small" aria-label="Delete saved search {{ s.name }}">Delete</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </details>
 </div>
-{% endif %}
 
 <div id="directory-results">
-  <p class="meta-line">{{ total }} researchers shown{% if q %} · hybrid retrieval{% endif %}</p>
+  <p class="meta-line">
+    {% if total_available and total_available > total %}Showing {{ total }} of {{ total_available }} researchers{% else %}{{ total }} researchers shown{% endif %}{% if q %} · keyword + semantic match{% endif %}
+  </p>
   {% if not items %}
-  <p class="muted">{{ empty_reason }}</p>
-  {% else %}
-  <div class="table-wrap panel">
-    <table class="reader-table" id="faculty-table">
-      <thead>
-        <tr>
-          <th>Researcher</th>
-          <th>Institution</th>
-          <th>Research signal</th>
-          <th>Funding</th>
-          <th>Status</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in items %}
-        <tr>
-          <td>{{ item.name }}</td>
-          <td>{{ item.institution or "—" }}</td>
-          <td>
-            {% if item.paper_title %}{{ item.paper_title }}{% elif item.snippet %}{{ item.snippet|safe }}{% else %}—{% endif %}
-          </td>
-          <td>
-            {% if item.funding=='stated-yes' %}<span class="stated">Stated</span>
-            {% elif item.funding=='stated-no' %}Stated no
-            {% else %}<span class="unknown">Unknown</span>{% endif %}
-          </td>
-          <td>{{ item.status or "—" }}</td>
-          <td>
-            {% if item.opportunity_id %}
-            <a href="/opportunity/{{ item.opportunity_id }}">Open</a>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="empty-state">
+    <h2>No researchers to show</h2>
+    <p class="muted">{{ empty_reason }}</p>
+    {% if q or funding or status or university %}<a class="button secondary" href="/directory">Clear filters</a>{% endif %}
   </div>
+  {% else %}
+  <form method="get" action="/compare" id="compare-form">
+    <div class="table-wrap">
+      <table class="reader-table" id="faculty-table">
+        <thead>
+          <tr>
+            <th class="check"><span class="sr-only">Select for comparison</span></th>
+            <th>Researcher</th>
+            <th>Institution</th>
+            <th>Research signal</th>
+            <th>Funding</th>
+            <th>Recruiting</th>
+            <th><span class="sr-only">Open</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td class="check">
+              {% if item.researcher_id %}
+              <input type="checkbox" name="compare_ids" value="{{ item.researcher_id }}" aria-label="Compare {{ item.name }}">
+              {% endif %}
+            </td>
+            <td class="row-title">{{ item.name }}</td>
+            <td>{{ item.institution or "—" }}</td>
+            <td>
+              {% if item.paper_title %}{{ item.paper_title }}{% elif item.snippet %}{{ item.snippet|safe }}{% else %}—{% endif %}
+            </td>
+            <td>
+              <span class="status-badge {% if item.funding=='stated-yes' %}ok{% else %}neutral{% endif %}">{{ item.funding|tri_state(kind='funding') }}</span>
+            </td>
+            <td>{{ item.status|tri_state(kind='recruitment') }}</td>
+            <td>
+              {% if item.opportunity_id %}
+              <a href="/opportunity/{{ item.opportunity_id }}">Open</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="selection-tray" id="selection-tray">
+      <span><strong id="selection-count">0</strong> selected <span class="muted">· compare up to 8 researchers</span></span>
+      <button type="submit" id="compare-submit" disabled>Compare selected</button>
+    </div>
+  </form>
   {% endif %}
 </div>
+
+<script>
+(function () {
+  function bind() {
+    var form = document.getElementById('compare-form');
+    if (!form) return;
+    var boxes = form.querySelectorAll('input[name="compare_ids"]');
+    var count = document.getElementById('selection-count');
+    var submit = document.getElementById('compare-submit');
+    function update() {
+      var n = form.querySelectorAll('input[name="compare_ids"]:checked').length;
+      count.textContent = n;
+      submit.disabled = n < 2 || n > 8;
+      boxes.forEach(function (b) { if (!b.checked) b.disabled = n >= 8; });
+    }
+    boxes.forEach(function (b) { b.addEventListener('change', update); });
+    update();
+  }
+  bind();
+  document.body.addEventListener('htmx:afterSwap', bind);
+})();
+</script>
 {% endblock %}

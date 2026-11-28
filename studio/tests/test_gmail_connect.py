@@ -30,8 +30,10 @@ def test_connect_email_screen_copy(client):
     r = client.get("/mail")
     assert r.status_code == 200
     assert "Connect your email" in r.text
-    assert "Continue with Google" in r.text
-    assert "Continue with Microsoft" in r.text
+    # Without packaged OAuth clients, Connect is not offered as available.
+    assert "Not available in this release" in r.text
+    assert "Continue with Google" not in r.text
+    assert "Continue with Microsoft" not in r.text
     assert "Set up later" in r.text
     assert "university email" in r.text.lower() or "Email address" in r.text
     # passwords / SMTP not above Advanced on the landing path
@@ -39,6 +41,17 @@ def test_connect_email_screen_copy(client):
     assert "app password" not in before_adv.lower()
     assert 'name="password"' not in before_adv
     assert "Manual SMTP" not in before_adv
+
+
+def test_connect_email_shows_google_when_oauth_packaged(client):
+    from studio.mail.gmail import CLIENT_ID_SECRET
+
+    set_secret(CLIENT_ID_SECRET, "test-google-client-id.apps.googleusercontent.com")
+    r = client.get("/mail")
+    assert r.status_code == 200
+    assert "Continue with Google" in r.text
+    assert "Not available in this release" in r.text  # Outlook still gated
+
 
 
 def test_gmail_scopes_are_send_only():

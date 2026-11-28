@@ -1,11 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Connect your AI — Academic Outreach Studio{% endblock %}
+{% block title %}Connect your AI — Academic Studio{% endblock %}
 {% block content %}
+<p class="eyebrow">Settings · Optional</p>
 <h1>Connect your AI</h1>
-<p>Use your existing AI account to improve research outreach. Connecting AI is optional — the built-in draft always works.</p>
+<p class="lede">Use an AI account you already have to polish your letters. This is optional — the built-in draft always works, and the AI can only rephrase sentences backed by your own evidence.</p>
 
 {% if step_heading %}
-<p class="stated">{{ step_heading }}</p>
+<p class="status-badge ok">{{ step_heading }}</p>
 {% endif %}
 
 {% set groq_cards = cards|selectattr('id', 'equalto', 'groq')|list %}
@@ -13,7 +14,7 @@
 {% set groq = groq_cards[0] %}
 <div class="sheet ai-hero">
   <h2>Connect your free AI</h2>
-  <p class="muted"><strong>groq</strong> · Powered by your own GroqCloud account</p>
+  <p class="muted">Powered by your own GroqCloud account</p>
   <ul class="muted">
     <li>No credit card required for the free tier</li>
     <li>No technical configuration</li>
@@ -21,42 +22,42 @@
     <li>Credentials stored on your device</li>
   </ul>
   {% if groq.status.connected %}
-  <p><span class="stated">Connected</span> {{ groq.status.account_hint }}</p>
+  <p><span class="status-badge ok">Connected</span> {{ groq.status.account_hint }}</p>
   <p class="muted">{{ groq.status.detail }}</p>
-  <form method="post" action="/ai/groq/disconnect" style="display:inline">
+  <form method="post" action="/ai/groq/disconnect" class="inline-form">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit" class="secondary">Disconnect</button>
   </form>
-  <form method="post" action="/ai/activate/groq" style="display:inline">
+  <form method="post" action="/ai/activate/groq" class="inline-form">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit" class="secondary"{% if groq.is_active %} disabled{% endif %}>Use for rewrite</button>
   </form>
   {% else %}
   <p>{{ groq.status.detail }}</p>
   <p><a class="button" href="/ai/groq">Connect GroqCloud</a></p>
-  <p class="muted" style="margin-top:0.75rem">Connect Assistant opens the official dashboard. Explicit key transfer only — no scraping, no invented OAuth.</p>
+  <p class="muted">We open Groq’s own dashboard and you copy your key across yourself. We never read your browser or sign in on your behalf.</p>
   {% endif %}
 </div>
 {% endif %}
 
 <div class="sheet" id="instant-ai">
   <h2>Connect instant AI</h2>
-  <p class="muted">OpenRouter OAuth with PKCE — one authorization, no manual key. Uses your OpenRouter allowance (may route to Groq-hosted models when available).</p>
+  <p class="muted">Sign in once with OpenRouter — there is no key to copy. Uses your own OpenRouter allowance.</p>
   {% set free = cards|selectattr('id', 'equalto', 'openrouter')|list %}
   {% if free %}
   {% set card = free[0] %}
-  <p>{% if card.status.connected %}<span class="stated">Connected</span> {{ card.status.account_hint }}{% else %}{{ card.subtitle }}{% endif %}</p>
+  <p>{% if card.status.connected %}<span class="status-badge ok">Connected</span> {{ card.status.account_hint }}{% else %}{{ card.subtitle }}{% endif %}</p>
   {% if not card.status.connected %}
   <form method="post" action="/ai/connect/openrouter">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit" class="secondary">Connect instant AI</button>
   </form>
   {% else %}
-  <form method="post" action="/ai/disconnect/openrouter" style="display:inline">
+  <form method="post" action="/ai/disconnect/openrouter" class="inline-form">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit" class="secondary">Disconnect</button>
   </form>
-  <form method="post" action="/ai/activate/openrouter" style="display:inline">
+  <form method="post" action="/ai/activate/openrouter" class="inline-form">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit" class="secondary"{% if card.is_active %} disabled{% endif %}>Use for rewrite</button>
   </form>
@@ -64,27 +65,28 @@
   {% endif %}
 </div>
 
-<h2>Already have an AI subscription?</h2>
+<h2 class="section-label">Already have an AI subscription?</h2>
 <div class="ai-grid">
   {% for card in cards if card.id not in ['openrouter', 'groq'] and not card.advanced %}
   <div class="sheet ai-card">
     <h3>{{ card.title }}</h3>
     <p class="muted">{{ card.subtitle }}</p>
     {% if card.status.connected %}
-    <p><span class="stated">Connected</span> {{ card.status.account_hint }}</p>
-    <form method="post" action="/ai/disconnect/{{ card.id }}" style="display:inline">
+    <p><span class="status-badge ok">Connected</span> {{ card.status.account_hint }}</p>
+    <form method="post" action="/ai/disconnect/{{ card.id }}" class="inline-form">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <button type="submit" class="secondary">Disconnect</button>
     </form>
-    <form method="post" action="/ai/activate/{{ card.id }}" style="display:inline">
+    <form method="post" action="/ai/activate/{{ card.id }}" class="inline-form">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <button type="submit" class="secondary"{% if card.is_active %} disabled{% endif %}>Use for rewrite</button>
     </form>
     {% else %}
+    {% if card.auth_kind == 'unavailable' %}<p><span class="status-badge neutral">Not available yet</span></p>{% endif %}
     <p class="muted">{{ card.status.detail }}</p>
     <form method="post" action="/ai/connect/{{ card.id }}">
       <input type="hidden" name="page_token" value="{{ page_token }}">
-      <button type="submit" class="secondary" {% if card.auth_kind == 'unavailable' %}disabled{% endif %}>{{ card.button_label }}</button>
+      <button type="submit" class="secondary" {% if card.auth_kind == 'unavailable' %}disabled aria-disabled="true"{% endif %}>{{ card.button_label }}</button>
     </form>
     {% endif %}
     {% if card.status.commercial_note %}
@@ -94,17 +96,17 @@
   {% endfor %}
 </div>
 
-<form method="post" action="/ai/continue-without" style="margin:1.5rem 0">
+<form method="post" action="/ai/continue-without" class="toolbar">
   <input type="hidden" name="page_token" value="{{ page_token }}">
   <button type="submit" class="secondary">Continue without AI</button>
 </form>
-<p class="muted">Your credentials stay on your device. You can disconnect at any time. Default architecture is user-funded AI — we do not pay for student inference.</p>
+<p class="muted">Your credentials stay on your device and you can disconnect at any time. AI use is billed to your own account — Academic Studio does not pay for or see your usage.</p>
 
 <details class="sheet">
   <summary>Advanced settings</summary>
-  <p class="muted">Only if you already manage API keys or a local server.</p>
+  <p class="muted">Only needed if you already manage API keys or run a model on your own computer.</p>
   {% for card in cards if card.advanced %}
-  <div style="margin:1rem 0; padding-bottom:1rem; border-bottom:1px solid var(--color-border)">
+  <div class="stack" style="padding:1rem 0; border-bottom:1px solid var(--line)">
     <h3>{{ card.title }}</h3>
     <p class="muted">{{ card.status.detail }}</p>
     {% if card.id == 'custom' %}
@@ -140,26 +142,26 @@
   </div>
   {% endfor %}
 
-  <div style="margin-top:1rem">
-    <h3>OpenRouter code paste</h3>
-    <p class="muted">If the browser cannot redirect back (SSH/remote), paste the authorization code here.</p>
+  <div class="stack" style="padding-top:1rem">
+    <h3>OpenRouter: sign-in did not return here?</h3>
+    <p class="muted">If your browser could not redirect back (for example on a remote machine), paste the authorization code here.</p>
     <form method="post" action="/ai/finish/openrouter">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <label for="or_code">Authorization code</label>
       <input id="or_code" name="code">
       <button type="submit" class="secondary">Exchange code</button>
     </form>
-    <form method="post" action="/ai/connect/openrouter-headless" style="margin-top:0.5rem">
+    <form method="post" action="/ai/connect/openrouter-headless">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <button type="submit" class="secondary">Start headless OpenRouter auth</button>
     </form>
   </div>
 </details>
 
-<div class="sheet">
-  <h2>MCP (optional distribution)</h2>
-  <p class="muted">Rather than connecting AI into this app, eligible AI clients can call our tools. Experimental.</p>
+<details class="sheet">
+  <summary>For developers: let an AI client call Academic Studio (experimental)</summary>
+  <p class="muted">Instead of connecting an AI into this app, compatible AI clients can call these tools directly.</p>
   <p class="mono">search_professors · get_professor_profile · find_research_openings · get_research_papers · get_student_profile · generate_evidence_bound_draft · validate_draft · save_draft</p>
   <p><a href="/ai/mcp">MCP server notes</a></p>
-</div>
+</details>
 {% endblock %}

@@ -116,6 +116,32 @@ from studio.ai.types import EvidenceBoundRequest
 
 TEMPLATES = Jinja2Templates(directory=str(PACKAGE_ROOT / "templates"))
 
+from studio.status_labels import (
+    effective_opportunity_status,
+    register_template_filters,
+)
+
+register_template_filters(TEMPLATES.env)
+
+
+def hr_planner_enabled() -> bool:
+    return (os.environ.get("STUDIO_ENABLE_HR_PLANNER") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def show_hosted_ui() -> bool:
+    return (os.environ.get("STUDIO_SHOW_HOSTED") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def render(request: Request, name: str, **context):
     return TEMPLATES.TemplateResponse(request, name, context)
 
@@ -148,7 +174,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     os.environ.setdefault("STUDIO_FORCE_LOCAL_SECRETS", "1")
     PAGE_TOKEN = new_page_token()
 
-    app = FastAPI(title="Academic Outreach Studio")
+    app = FastAPI(title="Academic Studio")
     app.mount("/static", StaticFiles(directory=str(PACKAGE_ROOT / "static")), name="static")
 
     conn = dbmod.connect()
@@ -187,6 +213,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             "page_token": PAGE_TOKEN,
             "flash": request.query_params.get("flash"),
             "flash_error": request.query_params.get("err") == "1",
+            "hr_planner_enabled": hr_planner_enabled(),
+            "show_hosted": show_hosted_ui(),
         }
         data.update(extra)
         return data
@@ -476,6 +504,9 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 )
             ]
             empty = "No match for that search." if q else "Directory is empty — load the Summer library."
+            total_available = conn.execute(
+                "SELECT COUNT(*) AS c FROM researcher"
+            ).fetchone()["c"]
             return TEMPLATES.TemplateResponse(
                 request,
                 "directory.html",
@@ -489,6 +520,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     university=university,
                     empty_reason=empty,
                     total=len(items),
+                    total_available=total_available,
                     saved_searches=saved,
                 ),
             )
@@ -546,7 +578,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             part = part.strip()
             if part.isdigit():
                 selected.append(int(part))
-        for r in rid_params:
+        for r in rid_params + request.query_params.getlist("compare_ids"):
             if str(r).isdigit():
                 selected.append(int(r))
         # unique preserve order
@@ -1134,23 +1166,22 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             reasons, intel = parse_rank_explanation(
                 short["rank_explanation"] if short else None
             )
-            expired = False
-            if opp["deadline"]:
-                try:
-                    expired = date.fromisoformat(str(opp["deadline"])[:10]) < date.today()
-                except ValueError:
-                    expired = False
+            effective = effective_opportunity_status(
+                status=opp["status"],
+                deadline=str(opp["deadline"]) if opp["deadline"] else None,
+            )
             return TEMPLATES.TemplateResponse(request, "opportunity.html",
                 ctx(
                     request,
-                    nav="start",
+                    nav="directory",
                     opp=opp,
                     researcher=researcher,
                     institution=(aff["institution"] if aff else "Unknown"),
                     publications=pubs,
                     reasons=reasons,
                     match_intel=intel,
-                    expired=expired,
+                    expired=bool(effective["expired"]),
+                    effective=effective,
                 ),
             )
         finally:
@@ -1162,24 +1193,39 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         request: Request,
         hide_unknowns: str = "",
         country: str = "",
+        view: str = "",
+        funding: str = "",
+        recruiting: str = "",
     ):
+        from studio.rank_payload import parse_rank_explanation
+
+        recommended_view = view == "recommended"
+        nav_key = "matches" if recommended_view else "shortlist"
         conn = get_conn()
         try:
+            base_ctx = dict(
+                nav=nav_key,
+                view="recommended" if recommended_view else "all",
+                hide_unknowns=bool(hide_unknowns),
+                country=country,
+                funding=funding,
+                recruiting=recruiting,
+            )
             if not profile_ready(conn):
                 return TEMPLATES.TemplateResponse(request, "shortlist.html",
                     ctx(
                         request,
-                        nav="shortlist",
                         items=[],
-                        hide_unknowns=bool(hide_unknowns),
-                        country=country,
                         empty_reason="Confirm at least one interest and one project first.",
+                        profile_blocked=True,
+                        **base_ctx,
                     ),
                 )
             rows = conn.execute(
                 """
-                SELECT s.opportunity_id, s.rank_score, o.funding, o.eligibility,
-                       o.deadline, o.email_invited, o.status,
+                SELECT s.opportunity_id, s.rank_score, s.rank_explanation,
+                       o.funding, o.eligibility, o.kind,
+                       o.deadline, o.email_invited, o.status, o.checked_at,
                        r.display_name AS name, a.institution
                 FROM shortlist_item s
                 JOIN opportunity o ON o.id = s.opportunity_id
@@ -1190,11 +1236,17 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             ).fetchall()
             items = []
             for r in rows:
+                if recommended_view and not (r["rank_score"] or 0) > 0:
+                    continue
                 if hide_unknowns and (
                     r["funding"] == "unknown"
                     or r["eligibility"] == "unknown"
                     or r["status"] == "unknown"
                 ):
+                    continue
+                if funding == "stated-yes" and r["funding"] != "stated-yes":
+                    continue
+                if recruiting == "stated-yes" and r["status"] != "stated-yes":
                     continue
                 if country and country.lower() not in (r["institution"] or "").lower():
                     continue
@@ -1204,16 +1256,24 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                             continue
                     except ValueError:
                         pass
-                items.append(r)
-            empty = "Filters removed everyone." if rows else "Rebuild ranking after confirming your profile."
+                item = dict(r)
+                reasons, intel = parse_rank_explanation(r["rank_explanation"])
+                item["intel"] = intel
+                item["reasons"] = reasons
+                items.append(item)
+            if not rows:
+                empty = "Rebuild ranking after confirming your profile."
+            elif recommended_view and not any((r["rank_score"] or 0) > 0 for r in rows):
+                empty = "No ranked matches yet — rebuild the ranking from your confirmed profile."
+            else:
+                empty = "Filters removed everyone."
             return TEMPLATES.TemplateResponse(request, "shortlist.html",
                 ctx(
                     request,
-                    nav="shortlist",
                     items=items,
-                    hide_unknowns=bool(hide_unknowns),
-                    country=country,
                     empty_reason=empty,
+                    profile_blocked=False,
+                    **base_ctx,
                 ),
             )
         finally:
@@ -1244,7 +1304,15 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             ).fetchone()
             if not exists:
                 conn.execute(
-                    "INSERT INTO shortlist_item(opportunity_id, rank_score, rank_explanation) VALUES (?, 0, '[]')",
+                    """
+                    INSERT INTO shortlist_item(opportunity_id, rank_score, rank_explanation, pinned)
+                    VALUES (?, 0, '[]', 1)
+                    """,
+                    (opp_id,),
+                )
+            else:
+                conn.execute(
+                    "UPDATE shortlist_item SET pinned = 1 WHERE opportunity_id = ?",
                     (opp_id,),
                 )
         finally:
@@ -1256,7 +1324,17 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     async def drafts_list(request: Request):
         conn = get_conn()
         try:
-            items = conn.execute("SELECT * FROM draft ORDER BY updated_at DESC").fetchall()
+            items = conn.execute(
+                """
+                SELECT d.*, r.display_name AS researcher_name, a.institution AS institution,
+                       o.status AS opp_status
+                FROM draft d
+                LEFT JOIN opportunity o ON o.id = d.opportunity_id
+                LEFT JOIN researcher r ON r.id = o.researcher_id
+                LEFT JOIN affiliation a ON a.researcher_id = r.id AND a.is_current = 1
+                ORDER BY d.updated_at DESC
+                """
+            ).fetchall()
             return TEMPLATES.TemplateResponse(request, "drafts.html",
                 ctx(request, nav="drafts", items=items),
             )
@@ -1395,6 +1473,17 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     rewrite_error=request.query_params.get("rwerr") == "1",
                     handoff_targets=HANDOFF_TARGETS,
                     handoff_prompt=handoff_prompt,
+                    researcher_name=(researcher["display_name"] if researcher else "") or "",
+                    institution=(aff["institution"] if aff else None),
+                    evidence=[
+                        {
+                            "kind": e.kind,
+                            "statement": e.statement,
+                            "source": e.source,
+                            "url": e.url,
+                        }
+                        for e in ev_graph
+                    ],
                 ),
             )
         finally:
@@ -1825,7 +1914,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         require_token(page_token)
         if confirm.strip() != "DELETE":
             return RedirectResponse(
-                "/tracker?err=1&flash=Type%20DELETE%20to%20confirm", status_code=303
+                "/connections?err=1&flash=Type%20DELETE%20to%20confirm#privacy", status_code=303
             )
         conn = get_conn()
         try:
@@ -1922,6 +2011,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     daily_limit=mail_daily_limit(),
                     google_client_id=get_secret(GOOGLE_CLIENT_ID_SECRET) or "",
                     microsoft_client_id=get_secret(MICROSOFT_CLIENT_ID_SECRET) or "",
+                    gmail_oauth_ready=bool(get_secret(GOOGLE_CLIENT_ID_SECRET)),
+                    outlook_oauth_ready=bool(get_secret(MICROSOFT_CLIENT_ID_SECRET)),
                 ),
             )
         finally:
@@ -2457,15 +2548,29 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             conn.close()
         return RedirectResponse("/mail?flash=Sent", status_code=303)
 
-    # ---- S9 Planner ----
+    # ---- S9 Planner (HR queue gated; academic default) ----
+    def _planner_forbidden():
+        from fastapi.responses import HTMLResponse as _HTML
+
+        return _HTML(
+            "<h1>Not available</h1><p>The campaign planner is not included in this Academic Studio build.</p>",
+            status_code=404,
+        )
+
     @app.get("/planner", response_class=HTMLResponse)
     async def planner_get(
-        request: Request, queue: str = "hr", stage: str = "FOLLOW_UP_1"
+        request: Request, queue: str = "academic", stage: str = "FOLLOW_UP_1"
     ):
+        if not hr_planner_enabled() and queue == "hr":
+            return _planner_forbidden()
+        if not hr_planner_enabled():
+            queue = "academic"
         conn = get_conn()
         try:
-            cap = PERSONAL_GMAIL_CAP
-            if queue == "hr":
+            from studio.mail.quotas import DEFAULT_DAILY_LIMIT
+
+            if queue == "hr" and hr_planner_enabled():
+                cap = PERSONAL_GMAIL_CAP
                 df = load_hr_dataframe()
                 buckets = classify_hr(df, stage)
                 used = sent_in_rolling_24h(df, stage)
@@ -2495,6 +2600,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 if not buckets["due"].empty:
                     preview = preview_row(buckets["due"].iloc[0].to_dict())
             else:
+                cap = DEFAULT_DAILY_LIMIT
                 buckets = academic_queue(conn)
                 due = [
                     {
@@ -2531,6 +2637,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     remaining=remaining,
                     cap=cap,
                     preview=preview,
+                    mail_mode=(os.environ.get("STUDIO_MAIL_MODE") or "production"),
                 ),
             )
         finally:
@@ -2539,6 +2646,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     @app.post("/planner/schedule-again")
     async def planner_schedule_again(page_token: str = Form(...), index: int = Form(...)):
         require_token(page_token)
+        if not hr_planner_enabled():
+            return _planner_forbidden()
         csv_path = REPO_ROOT / "data" / "processed" / "cold_email_outreach_all_cleaned_ranked.csv"
         if csv_path.exists():
             schedule_again(csv_path, index)
@@ -2547,6 +2656,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     @app.post("/planner/run-hr")
     async def planner_run_hr(page_token: str = Form(...), stage: str = Form(...)):
         require_token(page_token)
+        if not hr_planner_enabled():
+            return _planner_forbidden()
         # Never auto-send HR from this environment
         return RedirectResponse(
             "/planner?err=1&flash=HR%20send%20disabled%20here", status_code=303
@@ -2568,13 +2679,40 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         backups = []
         if backup_dir.is_dir():
             for p in sorted(backup_dir.glob("studio-backup-*.zip"), reverse=True)[:12]:
+                stat = p.stat()
                 backups.append(
-                    {"name": p.name, "size_kb": max(1, p.stat().st_size // 1024)}
+                    {
+                        "name": p.name,
+                        "size_kb": max(1, stat.st_size // 1024),
+                        "created": datetime.fromtimestamp(stat.st_mtime).strftime(
+                            "%Y-%m-%d"
+                        ),
+                    }
                 )
+        summary: dict[str, int] = {}
+        conn = get_conn()
+        try:
+            for key, table in (
+                ("facts", "profile_fact"),
+                ("shortlist", "shortlist_item"),
+                ("drafts", "draft"),
+                ("applications", "application"),
+            ):
+                summary[key] = conn.execute(
+                    f"SELECT COUNT(*) AS c FROM {table}"
+                ).fetchone()["c"]
+        finally:
+            conn.close()
         return TEMPLATES.TemplateResponse(
             request,
             "backup.html",
-            ctx(request, nav="backup", backups=backups),
+            ctx(
+                request,
+                nav="backup",
+                backups=backups,
+                last_backup=backups[0] if backups else None,
+                summary=summary,
+            ),
         )
 
     @app.post("/backup/create")
@@ -2699,9 +2837,14 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             conn.close()
         return RedirectResponse("/return?flash=Profile%20added", status_code=303)
 
-    # ---- Hosted edition ----
+    # ---- Hosted edition (dev/operator only) ----
     @app.get("/hosted", response_class=HTMLResponse)
     async def hosted_get(request: Request):
+        if not show_hosted_ui():
+            return HTMLResponse(
+                "<h1>Not available</h1><p>Hosted edition setup is not part of the local Academic Studio product.</p>",
+                status_code=404,
+            )
         conn = get_conn()
         try:
             accounts = conn.execute("SELECT * FROM hosted_account ORDER BY id").fetchall()
@@ -2718,6 +2861,11 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         display_name: str = Form(""),
     ):
         require_token(page_token)
+        if not show_hosted_ui():
+            return HTMLResponse(
+                "<h1>Not available</h1><p>Hosted edition setup is not part of the local Academic Studio product.</p>",
+                status_code=404,
+            )
         conn = get_conn()
         try:
             conn.execute(

@@ -295,6 +295,20 @@ def cmd_package_standard(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sample_pack(args: argparse.Namespace) -> int:
+    from studio.dataset.sample_pack import write_sample_pack
+
+    records = _load_records(Path(args.sqlite) if args.sqlite else None)
+    result = write_sample_pack(
+        records,
+        Path(args.out),
+        n=args.n,
+        redact_emails=args.redact_emails,
+    )
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def cmd_package_protected(args: argparse.Namespace) -> int:
     issuer = _issuer_from_env()
     records = _load_records(Path(args.sqlite) if args.sqlite else None)
@@ -500,6 +514,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--email", required=True)
     p.add_argument("--sqlite", help="Optional source SQLite; default mini/bundled studio DB")
     p.set_defaults(func=cmd_package_standard)
+
+    p = sub.add_parser(
+        "sample-pack",
+        help="Write a redistributable 20-25 record sample (xlsx + csv) for marketplace preview",
+    )
+    p.add_argument("--out", required=True)
+    p.add_argument("--sqlite", help="Optional source SQLite; default mini/bundled studio DB")
+    p.add_argument("-n", type=int, default=25, help="Sample size (default 25)")
+    p.add_argument("--redact-emails", action="store_true", help="Partially mask email addresses")
+    p.set_defaults(func=cmd_sample_pack)
 
     p = sub.add_parser("package-protected", help="Build encrypted Protected Dataset / Studio package")
     p.add_argument("--out", required=True)

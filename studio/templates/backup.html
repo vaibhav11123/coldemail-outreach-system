@@ -1,37 +1,67 @@
 {% extends "base.html" %}
 {% block title %}Backup — Academic Studio{% endblock %}
+{% block main_class %}layout-default{% endblock %}
 {% block content %}
-<p class="hero-kicker">Data management</p>
+<p class="eyebrow">Your data</p>
 <h1>Backup &amp; restore</h1>
-<p class="lede">Export a zip of your SQLite workspace and attachments. Restore replaces the local database (a pre-restore copy is kept).</p>
+<p class="lede">Keep a copy of your workspace somewhere safe. Everything stays on your computer — a backup is a single zip file you control.</p>
+
+<div class="sheet">
+  <h2>What a backup contains</h2>
+  <div class="summary-grid" role="group" aria-label="Workspace contents">
+    <div><strong>{{ summary.facts }}</strong><span>profile items</span></div>
+    <div><strong>{{ summary.shortlist }}</strong><span>shortlisted researchers</span></div>
+    <div><strong>{{ summary.drafts }}</strong><span>letter drafts</span></div>
+    <div><strong>{{ summary.applications }}</strong><span>applications</span></div>
+  </div>
+  <p class="fineprint">Also included: your attachments and workspace settings. Passwords and API keys are not included — you reconnect those after a restore.</p>
+  <p class="muted">
+    {% if last_backup %}Last backup: <strong>{{ last_backup.created|date_label }}</strong> ({{ last_backup.name }}, {{ last_backup.size_kb }} KB).
+    {% else %}You have not made a backup on this computer yet.{% endif %}
+  </p>
+</div>
 
 <div class="grid-2">
   <div class="sheet">
-    <h2>Create backup</h2>
+    <h2>Create a backup</h2>
+    <p class="muted">Downloads a zip of your workspace. Store it on an external drive or cloud folder.</p>
     <form method="post" action="/backup/create">
       <input type="hidden" name="page_token" value="{{ page_token }}">
-      <button type="submit" class="button">Download backup zip</button>
+      <button type="submit">Download backup zip</button>
     </form>
   </div>
   <div class="sheet">
-    <h2>Restore</h2>
-    <form method="post" action="/backup/restore" enctype="multipart/form-data">
+    <h2>Restore from a backup</h2>
+    <p class="muted">Restoring <strong>replaces</strong> your current workspace with the contents of the zip. A copy of your current workspace is kept first, so you can go back.</p>
+    <form method="post" action="/backup/restore" enctype="multipart/form-data" id="restore-form">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <label for="zip">Backup zip</label>
       <input id="zip" type="file" name="zip" accept=".zip" required>
-      <button type="submit" class="button secondary">Restore</button>
+      <label for="restore-confirm">
+        <input id="restore-confirm" type="checkbox" name="confirm" value="yes" required>
+        I understand this replaces my current workspace
+      </label>
+      <p class="toolbar"><button type="submit" class="secondary">Restore this backup</button></p>
     </form>
   </div>
 </div>
 
 {% if backups %}
 <div class="sheet-quiet">
-  <h2>Recent local backups</h2>
-  <ul>
+  <h2>Recent backups on this computer</h2>
+  <ul class="list">
     {% for b in backups %}
-    <li><a href="/backup/download/{{ b.name }}">{{ b.name }}</a> <span class="muted">· {{ b.size_kb }} KB</span></li>
+    <li><a href="/backup/download/{{ b.name }}">{{ b.name }}</a> <span class="muted">· {{ b.created|date_label }} · {{ b.size_kb }} KB</span></li>
     {% endfor %}
   </ul>
 </div>
 {% endif %}
+
+<script>
+document.getElementById('restore-form')?.addEventListener('submit', function (e) {
+  if (!confirm('Replace your current workspace with this backup? A copy of the current one is kept first.')) {
+    e.preventDefault();
+  }
+});
+</script>
 {% endblock %}

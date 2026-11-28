@@ -1,13 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Connect your email — Academic Outreach Studio{% endblock %}
+{% block title %}Connect your email — Academic Studio{% endblock %}
 {% block content %}
+<p class="eyebrow">Settings · Optional</p>
 <h1>Connect your email</h1>
-<p>Use your personal or university email address. We detect the right connection path — no Cloud project, no manual server hostnames when we already know your institution.</p>
+<p class="lede">Use your personal or university email address. We work out the right way to connect — no cloud project or server names needed when we recognise your institution. You can always skip this and send from your own mail app.</p>
 
 {% if mailbox_kind == 'gmail' %}
 <div class="sheet ai-hero">
   <h2>Gmail account</h2>
-  <p><span class="stated">Connected</span> {{ gmail.email or 'Gmail' }}</p>
+  <p><span class="status-badge ok">Connected</span> {{ gmail.email or 'Gmail' }}</p>
   <p class="muted">Account permissions: <strong>{{ gmail.permissions }}</strong></p>
   <ul class="list">
     {% for f in gmail.features %}
@@ -15,7 +16,7 @@
     {% endfor %}
   </ul>
   <p class="muted">Automatic reply detection — {{ gmail.reply_detail }}</p>
-  <form method="post" action="/mail/reply-consent" style="margin:0.75rem 0">
+  <form method="post" action="/mail/reply-consent" >
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <label><input type="checkbox" name="consent" value="1" {% if gmail.reply_detection %}checked{% endif %}> Request reply detection later (separate inbox permission)</label>
     <button type="submit" class="secondary">Save</button>
@@ -24,13 +25,13 @@
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit" class="secondary">Disconnect account</button>
   </form>
-  <p class="muted" style="margin-top:0.75rem">{{ quota_label }}</p>
+  <p class="muted">{{ quota_label }}</p>
 </div>
 
 {% elif mailbox_kind == 'outlook' %}
 <div class="sheet ai-hero">
   <h2>Microsoft Outlook</h2>
-  <p><span class="stated">Connected</span> {{ outlook.email or 'Outlook' }}</p>
+  <p><span class="status-badge ok">Connected</span> {{ outlook.email or 'Outlook' }}</p>
   <p class="muted">{{ outlook.detail }}</p>
   <form method="post" action="/mail/disconnect/outlook">
     <input type="hidden" name="page_token" value="{{ page_token }}">
@@ -41,7 +42,7 @@
 {% elif mailbox_kind == 'institute' %}
 <div class="sheet ai-hero">
   <h2>{{ institute.institution or 'Institutional email' }}</h2>
-  <p><span class="stated">Connected</span> {{ institute.email }}</p>
+  <p><span class="status-badge ok">Connected</span> {{ institute.email }}</p>
   <p class="muted">{{ institute.permissions }} · servers filled in automatically</p>
   {% if institute.imap_ready %}
   <p class="muted">IMAP settings stored for future reply detection (not enabled yet).</p>
@@ -50,7 +51,7 @@
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit" class="secondary">Disconnect account</button>
   </form>
-  <p class="muted" style="margin-top:0.75rem">{{ quota_label }}</p>
+  <p class="muted">{{ quota_label }}</p>
 </div>
 
 {% else %}
@@ -62,13 +63,13 @@
     <input id="email_address" name="email" type="email" value="{{ discover_email or '' }}" placeholder="you@university.edu" required autocomplete="username">
     <button type="submit">Continue</button>
   </form>
-  <p class="muted" style="margin-top:0.75rem">Change the address to preview different connection paths. Credentials stay on your device.</p>
+  <p class="muted">You can change the address to see other ways to connect. Credentials stay on your device.</p>
 </div>
 
 {% if discovery %}
-<div class="sheet" style="margin-top:1rem">
+<div class="sheet">
   {% if discovery.auth_method == 'password' and discovery.smtp %}
-  <p class="stated">{{ discovery.detail or 'Institutional mail configuration detected' }}</p>
+  <p class="status-badge ok">{{ discovery.detail or 'Institutional mail configuration detected' }}</p>
   <p class="muted">{{ discovery.institution }} · SMTP {{ discovery.smtp.host }}:{{ discovery.smtp.port }} ({{ discovery.smtp.security|upper }}){% if discovery.imap %} · IMAP {{ discovery.imap.host }}:{{ discovery.imap.port }}{% endif %}</p>
   {% if not discovery.verified_endpoints %}
   <p class="disabled-reason">We could not verify the mail server from this network yet (VPN may be required). You can still try connecting.</p>
@@ -82,24 +83,34 @@
     <input id="institute_password" name="password" type="password" autocomplete="current-password" required>
     <button type="submit">Connect institute email</button>
   </form>
-  <p class="muted" style="margin-top:0.75rem">Credentials are stored securely on your device, not on our servers.{% if discovery.source_url %} <a href="{{ discovery.source_url }}" rel="noopener" target="_blank">Official client settings</a>{% endif %}</p>
+  <p class="muted">Credentials are stored securely on your device, not on our servers.{% if discovery.source_url %} <a href="{{ discovery.source_url }}" rel="noopener" target="_blank">Official client settings</a>{% endif %}</p>
   <p class="muted">Using Google Workspace or Microsoft 365 on this address instead? Choose a provider below.</p>
 
   {% elif discovery.auth_method == 'oauth_google' %}
-  <p class="stated">{{ discovery.detail }}</p>
+  <p class="status-badge ok">{{ discovery.detail }}</p>
+  {% if gmail_oauth_ready %}
   <form method="post" action="/mail/connect/gmail">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit">Continue with Google</button>
   </form>
-  <p class="muted" style="margin-top:0.75rem">We never ask for your email password. You can revoke access at any time.</p>
+  <p class="muted">We never ask for your email password. You can revoke access at any time.</p>
+  {% else %}
+  <p><span class="status-badge warn">Not available in this release</span></p>
+  <p class="muted">Production Google sign-in is not packaged for this build. Download a <code>.eml</code> from a draft instead.</p>
+  {% endif %}
 
   {% elif discovery.auth_method == 'oauth_microsoft' %}
-  <p class="stated">{{ discovery.detail }}</p>
+  <p class="status-badge ok">{{ discovery.detail }}</p>
+  {% if outlook_oauth_ready %}
   <form method="post" action="/mail/connect/outlook">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit">Continue with Microsoft</button>
   </form>
-  <p class="muted" style="margin-top:0.75rem">We never ask for your email password. You can revoke access at any time.</p>
+  <p class="muted">We never ask for your email password. You can revoke access at any time.</p>
+  {% else %}
+  <p><span class="status-badge warn">Not available in this release</span></p>
+  <p class="muted">Production Microsoft sign-in is not packaged for this build. Download a <code>.eml</code> from a draft instead.</p>
+  {% endif %}
 
   {% else %}
   <p class="muted">{{ discovery.detail }}</p>
@@ -108,45 +119,55 @@
 {% endif %}
 
 {% if not discovery or discovery.auth_method == 'password' or discovery.auth_method == 'manual' %}
-<p class="muted" style="margin:1rem 0">{% if discovery %}Other ways to connect:{% else %}Or jump straight to a known provider:{% endif %}</p>
+<p class="muted">{% if discovery %}Other ways to connect:{% else %}Or jump straight to a known provider:{% endif %}</p>
 <div class="ai-grid">
   <div class="sheet ai-card">
     <h2>Gmail</h2>
     <p class="muted">Personal and university Google accounts</p>
+    {% if gmail_oauth_ready %}
     <form method="post" action="/mail/connect/gmail">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <button type="submit"{% if discovery %} class="secondary"{% endif %}>Continue with Google</button>
     </form>
+    {% else %}
+    <p><span class="status-badge warn">Not available in this release</span></p>
+    <p class="muted">Production Google sign-in is not packaged for this build. Use institute email, advanced SMTP, or download a <code>.eml</code> from a draft.</p>
+    {% endif %}
   </div>
   <div class="sheet ai-card">
     <h2>Microsoft Outlook</h2>
     <p class="muted">University and personal Microsoft accounts</p>
+    {% if outlook_oauth_ready %}
     <form method="post" action="/mail/connect/outlook">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <button type="submit" class="secondary">Continue with Microsoft</button>
     </form>
+    {% else %}
+    <p><span class="status-badge warn">Not available in this release</span></p>
+    <p class="muted">Production Microsoft sign-in is not packaged for this build. Use institute email, advanced SMTP, or download a <code>.eml</code> from a draft.</p>
+    {% endif %}
   </div>
 </div>
 {% endif %}
 
-<form method="post" action="/mail/setup-later" style="margin-top:1rem">
+<form method="post" action="/mail/setup-later" class="toolbar">
   <input type="hidden" name="page_token" value="{{ page_token }}">
   <button type="submit" class="secondary">Set up later</button>
 </form>
 {% endif %}
 
-<div class="sheet" style="margin-top:1.5rem">
-  <h2>Send an approved draft</h2>
-  <p class="muted">Drafts stay in this app until you approve them. Automatic sending is off.</p>
+<div class="sheet">
+  <h2>Send an approved letter</h2>
+  <p class="muted">Letters stay in Academic Studio until you approve them. Nothing is ever sent automatically.</p>
   {% if not drafts %}
-  <p class="muted">No approved drafts yet.</p>
+  <p class="muted">No approved letters yet. Approve a letter on its <a href="/drafts">draft page</a> and it will appear here.</p>
   {% else %}
   <ul class="list">
     {% for d in drafts %}
     <li>
       {{ d.recipient }} — {{ d.subject }}
       {% set approved = d.approved_hash and d.approved_hash == d.content_hash %}
-      <form method="post" action="/mail/send/{{ d.id }}" style="display:inline">
+      <form method="post" action="/mail/send/{{ d.id }}" class="inline-form">
         <input type="hidden" name="page_token" value="{{ page_token }}">
         <button type="submit" {% if not mailbox_ready or not approved %}disabled{% endif %}>Send</button>
       </form>
@@ -159,17 +180,28 @@
   {% endif %}
 </div>
 
-<p style="margin:1.5rem 0"><a class="button secondary" href="/ai">Connect your AI</a>
-<span class="muted"> — optional, same one-click style</span></p>
+<p class="toolbar"><a class="button secondary" href="/ai">Connect your AI</a>
+<span class="muted">Optional — polish letters with an AI account you already have.</span></p>
+
+<div class="sheet">
+  <h2>Sending limit</h2>
+  <p class="muted">A gentle cap keeps your outreach respectful and protects your account.</p>
+  <form method="post" action="/mail/daily-limit">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label for="daily_limit">Emails per rolling 24 hours (default 20)</label>
+    <input id="daily_limit" name="limit" value="{{ daily_limit }}" inputmode="numeric">
+    <p class="toolbar"><button type="submit" class="secondary">Save limit</button></p>
+  </form>
+</div>
 
 <details class="sheet">
   <summary>Advanced email settings</summary>
-  <p class="muted">Operator OAuth clients and manual SMTP when discovery cannot fill servers automatically.</p>
+  <p class="muted">Only needed if automatic setup did not work or your institution gave you its own sign-in app. Most people never need this.</p>
 
-  <h3>Google Desktop OAuth client</h3>
+  <h3>Google sign-in app (administrators)</h3>
   <form method="post" action="/mail/google-client">
     <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label for="google_client_id">OAuth client id</label>
+    <label for="google_client_id">Client ID</label>
     <input id="google_client_id" name="client_id" value="{{ google_client_id }}" autocomplete="off">
     <label for="google_client_secret">Client secret (optional for public desktop + PKCE)</label>
     <input id="google_client_secret" name="client_secret" type="password" autocomplete="new-password">
@@ -177,24 +209,16 @@
   </form>
   <p class="muted">{{ gmail.verification_note }}</p>
 
-  <h3>Microsoft public client</h3>
+  <h3>Microsoft sign-in app (administrators)</h3>
   <form method="post" action="/mail/microsoft-client">
     <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label for="ms_client_id">Azure app (public) client id</label>
+    <label for="ms_client_id">Application (client) ID</label>
     <input id="ms_client_id" name="client_id" value="{{ microsoft_client_id }}" autocomplete="off">
     <button type="submit" class="secondary">Save Microsoft client</button>
   </form>
 
-  <h3>Daily outreach limit</h3>
-  <form method="post" action="/mail/daily-limit">
-    <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label for="daily_limit">Emails per rolling 24 hours (default 20)</label>
-    <input id="daily_limit" name="limit" value="{{ daily_limit }}" inputmode="numeric">
-    <button type="submit" class="secondary">Save limit</button>
-  </form>
-
   <h3>Manual SMTP</h3>
-  <p class="muted">Last resort when we could not auto-detect your university mail servers.</p>
+  <p class="muted">A last resort when we could not detect your university mail servers.</p>
   <form method="post" action="/mail/connect">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <label for="host">Host</label>
@@ -211,13 +235,13 @@
     <label><input type="checkbox" name="use_tls" value="1" {% if smtp.use_tls %}checked{% endif %}> STARTTLS</label>
     <button type="submit" class="secondary">Save SMTP mailbox</button>
   </form>
-  {% if smtp_connected %}<p class="stated">SMTP mailbox saved</p>
+  {% if smtp_connected %}<p class="status-badge ok">Mailbox saved</p>
   {% else %}<p class="disabled-reason">No SMTP mailbox connected.</p>{% endif %}
 
-  <h3>Paste Gmail authorization code</h3>
+  <h3>Gmail sign-in did not return here?</h3>
   <form method="post" action="/mail/finish/gmail">
     <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label for="gmail_code">Authorization code</label>
+    <label for="gmail_code">Authorization code from Google</label>
     <input id="gmail_code" name="code">
     <label for="gmail_state">State (optional)</label>
     <input id="gmail_state" name="state">

@@ -1,46 +1,100 @@
 {% extends "base.html" %}
-{% block title %}Shortlist — Academic Outreach Studio{% endblock %}
+{% block title %}{% if view == 'recommended' %}Research matches{% else %}My shortlist{% endif %} — Academic Studio{% endblock %}
+{% block main_class %}layout-split{% endblock %}
 {% block content %}
-<p class="hero-kicker">Match</p>
-<h1>Shortlist</h1>
-<p class="muted">Ranked openings from your confirmed profile. Unknown funding stays unknown — we never invent “funded”.</p>
-
-<ul class="step-rail" aria-label="Where you are">
-  <li>1 · Profile</li>
-  <li>2 · Openings</li>
-  <li class="active">3 · Shortlist</li>
-  <li>4 · Draft</li>
-  <li>5 · Track</li>
-</ul>
-
-<form method="get" action="/shortlist" class="sheet">
-  <label><input type="checkbox" name="hide_unknowns" value="1" {% if hide_unknowns %}checked{% endif %}> Hide unknowns</label>
-  <label for="country">Country contains</label>
-  <input id="country" name="country" value="{{ country }}">
-  <div class="toolbar">
-    <button type="submit" class="secondary">Apply filters</button>
+<div class="page-head">
+  <div>
+    <p class="eyebrow">{% if view == 'recommended' %}Research matches{% else %}My shortlist{% endif %}</p>
+    <h1>{% if view == 'recommended' %}Recommended for you{% else %}My shortlist{% endif %}</h1>
+    {% if view == 'recommended' %}
+    <p class="lede">Researchers ranked against your confirmed profile. The score is a research compatibility index — it is never a chance of acceptance, and unknown funding stays unknown.</p>
+    {% else %}
+    <p class="lede">Everyone you saved or that was ranked for you. Add people from the <a href="/directory">faculty library</a>; use <a href="/shortlist?view=recommended">Research matches</a> to see only the ranked recommendations.</p>
+    {% endif %}
   </div>
+  <div class="chip-row" role="tablist" aria-label="Shortlist view">
+    <a class="chip {% if view == 'recommended' %}active{% endif %}" href="/shortlist?view=recommended">Recommended</a>
+    <a class="chip {% if view != 'recommended' %}active{% endif %}" href="/shortlist">All saved</a>
+  </div>
+</div>
+
+<form method="get" action="/shortlist" class="table-toolbar">
+  {% if view == 'recommended' %}<input type="hidden" name="view" value="recommended">{% endif %}
+  <div class="tt-field">
+    <label for="country">Institution or country contains</label>
+    <input id="country" name="country" value="{{ country }}" placeholder="e.g. Switzerland">
+  </div>
+  <div class="tt-field">
+    <label for="funding">Funding</label>
+    <select id="funding" name="funding">
+      <option value="">Any funding signal</option>
+      <option value="stated-yes" {% if funding=='stated-yes' %}selected{% endif %}>Funding mentioned only</option>
+    </select>
+  </div>
+  <div class="tt-field">
+    <label for="recruiting">Recruiting</label>
+    <select id="recruiting" name="recruiting">
+      <option value="">Any status</option>
+      <option value="stated-yes" {% if recruiting=='stated-yes' %}selected{% endif %}>Opening listed only</option>
+    </select>
+  </div>
+  <div class="tt-field">
+    <label for="hide_unknowns">Unconfirmed details</label>
+    <select id="hide_unknowns" name="hide_unknowns">
+      <option value="">Show everyone</option>
+      <option value="1" {% if hide_unknowns %}selected{% endif %}>Only fully confirmed</option>
+    </select>
+  </div>
+  <div class="tt-actions"><button type="submit" class="secondary">Apply filters</button></div>
 </form>
 
 {% if not items %}
 <div class="empty-state">
-  <p class="muted">Empty shortlist. {{ empty_reason }}</p>
-  <p><a class="button secondary" href="/profile">Confirm your profile</a>
-  <a class="button secondary" href="/start">Browse openings</a></p>
+  <h2>{% if profile_blocked %}Confirm your profile first{% else %}Nothing to show yet{% endif %}</h2>
+  <p class="muted">{{ empty_reason }}</p>
+  <div class="hero-actions">
+    {% if profile_blocked %}<a class="button" href="/profile">Confirm your profile</a>{% endif %}
+    <a class="button secondary" href="/directory">Browse faculty library</a>
+  </div>
 </div>
 {% else %}
 <ul class="list-card">
   {% for item in items %}
+  {% set score = (item.rank_score * 100)|round|int %}
   <li>
-    <a class="title" href="/opportunity/{{ item.opportunity_id }}">{{ item.name }}</a>
-    <div class="meta">
-      <span class="score-pill" title="Research compatibility index — not acceptance probability">{{ (item.rank_score * 100)|round|int }}/100</span>
-      <span>Funding:
-        {% if item.funding=='stated-yes' %}<span class="stated">Stated</span>
-        {% elif item.funding=='stated-no' %}Stated no
-        {% else %}<span class="unknown">Unknown</span>{% endif %}
-      </span>
-      <a href="/draft/{{ item.opportunity_id }}">Write letter</a>
+    <div class="card-top">
+      <div>
+        <a class="title" href="/opportunity/{{ item.opportunity_id }}">{{ item.name }}</a>
+        <div class="meta"><span>{{ item.institution or 'Institution unknown' }}</span>{% if item.kind %}<span>{{ item.kind|replace('_', ' ')|title }}</span>{% endif %}</div>
+      </div>
+      {% if score > 0 %}
+      <span class="score-pill" title="Research compatibility index — not acceptance probability">{{ score }}/100{% if item.intel and item.intel.label %} · {{ item.intel.label }}{% endif %}</span>
+      {% else %}
+      <span class="status-badge neutral" title="Saved manually — not yet ranked">Saved · not ranked</span>
+      {% endif %}
+    </div>
+    <div class="chip-row">
+      <span class="chip">{{ item.funding|tri_state(kind='funding') }}</span>
+      <span class="chip">{{ item.status|tri_state(kind='recruitment') }}</span>
+      <span class="chip">{{ item.eligibility|tri_state(kind='international') }}</span>
+      {% if item.deadline %}<span class="chip">Deadline {{ item.deadline|deadline_label }}</span>{% endif %}
+    </div>
+    {% if item.intel %}
+      {% if item.intel.why %}
+      <p class="muted" style="margin:0.4rem 0 0"><strong>Why:</strong> {{ item.intel.why[0] }}{% if item.intel.why|length > 1 %} <span class="fineprint">+{{ item.intel.why|length - 1 }} more on the opportunity page</span>{% endif %}</p>
+      {% endif %}
+      {% if item.intel.gaps %}
+      <p class="muted" style="margin:0.25rem 0 0"><strong>Gap to close:</strong> {{ item.intel.gaps[0] }}</p>
+      {% endif %}
+    {% elif score > 0 %}
+    <p class="muted" style="margin:0.4rem 0 0">Ranked from your confirmed interests and skills. Open the opportunity for the evidence behind the score.</p>
+    {% else %}
+    <p class="muted" style="margin:0.4rem 0 0">Not scored yet — rebuild the ranking after confirming your profile.</p>
+    {% endif %}
+    <p class="fineprint" style="margin:0.4rem 0 0">{{ item.checked_at|verified_label }}</p>
+    <div class="card-actions">
+      <a class="button small" href="/draft/{{ item.opportunity_id }}">Prepare application</a>
+      <a class="button secondary small" href="/opportunity/{{ item.opportunity_id }}">View evidence</a>
     </div>
   </li>
   {% endfor %}
@@ -50,5 +104,6 @@
 <form method="post" action="/shortlist/rebuild" class="toolbar">
   <input type="hidden" name="page_token" value="{{ page_token }}">
   <button type="submit" class="secondary">Rebuild ranking</button>
+  <span class="muted">Re-scores every opening from your confirmed profile and replaces the current list.</span>
 </form>
 {% endblock %}

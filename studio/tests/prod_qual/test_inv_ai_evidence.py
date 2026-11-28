@@ -85,7 +85,7 @@ def test_INV04_approve_draft_blocks_invented_url(conn):
     did = save_or_update_draft(
         conn, opp["id"], {"recipient": "a@b.c", "subject": "s", "body": body, "content_hash": h}
     )
-    with pytest.raises(ValueError, match="[Uu]ncited"):
+    with pytest.raises(ValueError, match="[Uu]ncited|unsupported claim"):
         approve_draft(conn, did)
 
 

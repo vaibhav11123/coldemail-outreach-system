@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from studio.drafting.evidence import EvidenceItem
-from studio.drafts import has_uncited_claim
+from studio.drafts import has_hard_evidence_violation
 
 
 @dataclass
@@ -71,15 +71,26 @@ def inspect_application_quality(
             QualityCheck("publications", "Publication references", "warn", "No faculty publication evidence attached.")
         )
 
-    # Student achievements
-    if has_uncited_claim(body, allow):
+    # Student achievements — mandatory evidence only for the inspector hard-fail path.
+    # Inventiveness (≥5 novel tokens) is reserved for AI rewrite guards, not offline templates.
+    if has_hard_evidence_violation(body, allow):
         report.checks.append(
-            QualityCheck("student", "Student achievements", "fail", "Possible uncited claim detected.")
+            QualityCheck(
+                "student",
+                "Student achievements",
+                "fail",
+                "Unsupported claim or URL not grounded in approved evidence.",
+            )
         )
         report.hard_fail = True
     else:
         report.checks.append(
-            QualityCheck("student", "Student achievements", "pass", "No uncited claim heuristic fired.")
+            QualityCheck(
+                "student",
+                "Student achievements",
+                "pass",
+                "Claims are grounded in approved evidence.",
+            )
         )
 
     # Research connection specificity

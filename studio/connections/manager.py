@@ -34,26 +34,58 @@ def _openalex_status() -> ConnectionStatus:
 
 
 def _gmail_status() -> ConnectionStatus:
-    from studio.mail.gmail import gmail_status
+    from studio.mail.gmail import CLIENT_ID_SECRET, gmail_status
 
     g = gmail_status()
+    if g.get("connected"):
+        return ConnectionStatus(
+            connected=True,
+            detail=g.get("permissions_detail") or g.get("permissions") or "",
+            account_hint=g.get("email") or "",
+            can_disconnect=True,
+        )
+    if not get_secret(CLIENT_ID_SECRET):
+        return ConnectionStatus(
+            connected=False,
+            detail=(
+                "Production Google sign-in is not packaged for this build. "
+                "Use institute email, advanced SMTP, or download a .eml from a draft."
+            ),
+            disabled_reason="Not available in this release",
+        )
     return ConnectionStatus(
-        connected=bool(g.get("connected")),
-        detail=g.get("permissions_detail") or g.get("permissions") or "",
-        account_hint=g.get("email") or "",
-        can_disconnect=bool(g.get("connected")),
+        connected=False,
+        detail=g.get("permissions_detail") or g.get("permissions") or "Connect Gmail to send approved letters.",
+        account_hint="",
+        can_disconnect=False,
     )
 
 
 def _outlook_status() -> ConnectionStatus:
-    from studio.mail.outlook import outlook_status
+    from studio.mail.outlook import CLIENT_ID_SECRET, outlook_status
 
     o = outlook_status()
+    if o.get("connected"):
+        return ConnectionStatus(
+            connected=True,
+            detail=o.get("detail") or "",
+            account_hint=o.get("email") or "",
+            can_disconnect=True,
+        )
+    if not get_secret(CLIENT_ID_SECRET):
+        return ConnectionStatus(
+            connected=False,
+            detail=(
+                "Production Microsoft sign-in is not packaged for this build. "
+                "Use institute email, advanced SMTP, or download a .eml from a draft."
+            ),
+            disabled_reason="Not available in this release",
+        )
     return ConnectionStatus(
-        connected=bool(o.get("connected")),
-        detail=o.get("detail") or "",
-        account_hint=o.get("email") or "",
-        can_disconnect=bool(o.get("connected")),
+        connected=False,
+        detail=o.get("detail") or "Connect Outlook to send approved letters.",
+        account_hint="",
+        can_disconnect=False,
     )
 
 

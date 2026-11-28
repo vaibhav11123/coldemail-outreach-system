@@ -15,10 +15,11 @@ from fastapi.templating import Jinja2Templates
 from studio.dataset.reader import CatalogSession, activate_local_catalog
 from studio.licensing.dek_cache import cache_dek, load_cached_dek
 from studio.licensing.device import load_or_create_device_identity
-from studio.licensing.service import issuer_keys
 from studio.paths import PACKAGE_ROOT, app_data_dir
+from studio.status_labels import register_template_filters
 
 TEMPLATES = Jinja2Templates(directory=str(PACKAGE_ROOT / "templates"))
+register_template_filters(TEMPLATES.env)
 
 
 def _default_package_dir() -> Path | None:
@@ -36,13 +37,66 @@ def _default_package_dir() -> Path | None:
     return None
 
 
+def _package_issuer_public_hex(package_dir: Path) -> str | None:
+    """Trust package-embedded issuer (manifest / .aslic), not operator issuer_keys()."""
+    trusted = (os.environ.get("STUDIO_TRUSTED_ISSUER_PUBLIC") or "").strip()
+    if trusted:
+        return trusted
+    for name in ("manifest.json", "CustomerLicense.aslic"):
+        path = package_dir / name
+        if not path.is_file():
+            continue
+        try:
+            import json
+
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            if name == "manifest.json":
+                hex_key = (doc.get("issuer_public") or "").strip()
+            else:
+                hex_key = (doc.get("issuer_public") or "").strip()
+            if hex_key:
+                return hex_key
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
+
+def _humanize_licence_error(exc: Exception) -> str:
+    msg = str(exc)
+    if "issuer public key mismatch" in msg.lower():
+        return (
+            "We couldn't open your research catalog. "
+            "Your catalog could not be verified against this installation of Academic Studio. "
+            "Your research workspace and saved applications have not been changed. "
+            "Select your purchased catalog again, or recover your purchase. "
+            "Technical details · Error AS-LIC-ISSUER-MISMATCH"
+        )
+    if "expired" in msg.lower():
+        return (
+            "This entitlement has expired. Recover your purchase or contact support. "
+            "Technical details · Error AS-LIC-EXPIRED"
+        )
+    if "signature" in msg.lower():
+        return (
+            "The licence file could not be verified (signature invalid or package corrupted). "
+            "Technical details · Error AS-LIC-SIGNATURE"
+        )
+    if "device" in msg.lower() or "unwrap" in msg.lower():
+        return (
+            "This catalogue is bound to a different device. "
+            "Use activation recovery to move your licence. "
+            "Technical details · Error AS-LIC-DEVICE"
+        )
+    return msg
+
+
 def _open_session(package_dir: Path) -> CatalogSession:
     device = load_or_create_device_identity()
-    issuer = issuer_keys()
-    # Prefer cached DEK when .aslic validates, to avoid repeated unwrap in UI
+    # Prefer package-embedded issuer public; never force operator issuer_keys().
+    issuer_hex = _package_issuer_public_hex(package_dir)
     session = activate_local_catalog(
         package_dir,
-        issuer_public_hex=issuer.export_public_hex(),
+        issuer_public_hex=issuer_hex,
         device=device,
     )
     cached = load_cached_dek(session.entitlement.license_id, device.device_id)
@@ -61,6 +115,8 @@ def build_reader_router(render_ctx) -> APIRouter:
         q: str | None = None,
         university: str | None = None,
         sort: str = "display_name",
+        status: str | None = None,
+        funding: str | None = None,
     ):
         package_dir = _default_package_dir()
         error = None
@@ -70,8 +126,8 @@ def build_reader_router(render_ctx) -> APIRouter:
         entitlement = None
         if not package_dir:
             error = (
-                "No protected package configured. Set STUDIO_PROTECTED_PACKAGE to a "
-                "folder containing ResearchCatalog.asdb and CustomerLicense.aslic."
+                "No purchased catalog is connected yet. Choose the folder from your "
+                "delivery below — it contains ResearchCatalog.asdb and CustomerLicense.aslic."
             )
         else:
             try:
@@ -80,6 +136,10 @@ def build_reader_router(render_ctx) -> APIRouter:
                 record_count = session.record_count()
                 entitlement = session.entitlement
                 rows = session.search(query=q or None, university=university or None, limit=200)
+                if status:
+                    rows = [r for r in rows if (r.get("status") or "unknown") == status]
+                if funding:
+                    rows = [r for r in rows if (r.get("funding") or "unknown") == funding]
                 reverse = sort.startswith("-")
                 key = sort.lstrip("-") or "display_name"
                 allowed = {
@@ -97,7 +157,7 @@ def build_reader_router(render_ctx) -> APIRouter:
                         reverse=reverse,
                     )
             except Exception as exc:  # noqa: BLE001
-                error = str(exc)
+                error = _humanize_licence_error(exc)
         ctx = render_ctx(
             request,
             nav="reader",
@@ -109,6 +169,8 @@ def build_reader_router(render_ctx) -> APIRouter:
             q=q or "",
             university=university or "",
             sort=sort,
+            status=status or "",
+            funding=funding or "",
             entitlement=entitlement,
         )
         return TEMPLATES.TemplateResponse(request, "reader.html", ctx)

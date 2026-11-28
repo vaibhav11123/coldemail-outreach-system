@@ -296,6 +296,21 @@ def migrate(conn: sqlite3.Connection) -> None:
     if v3 is None:
         conn.execute("INSERT INTO schema_migrations(version) VALUES (3)")
 
+    # v4: distinguish manually saved shortlist from ranking recommendations
+    cols = {
+        r["name"]
+        for r in conn.execute("PRAGMA table_info(shortlist_item)").fetchall()
+    }
+    if "pinned" not in cols:
+        conn.execute(
+            "ALTER TABLE shortlist_item ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0"
+        )
+    v4 = conn.execute(
+        "SELECT version FROM schema_migrations WHERE version = 4"
+    ).fetchone()
+    if v4 is None:
+        conn.execute("INSERT INTO schema_migrations(version) VALUES (4)")
+
 
 def recover_intents_on_startup(conn: sqlite3.Connection) -> int:
     """Abandoned submitted intents become unknown_delivery. Never pending."""

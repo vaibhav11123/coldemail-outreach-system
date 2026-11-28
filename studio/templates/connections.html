@@ -1,8 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Connections — Academic Outreach Studio{% endblock %}
+{% block title %}Settings &amp; connections — Academic Studio{% endblock %}
+{% block main_class %}layout-default{% endblock %}
 {% block content %}
+<p class="eyebrow">Settings</p>
 <h1>Connections</h1>
-<p>Make your research workspace yours. Every connection is optional — the included library, profile, drafts and tracker work without accounts.</p>
+<p class="lede">Make your research workspace yours. Every connection is optional — the included library, profile, drafts and tracker work without accounts.</p>
+
+<nav class="task-nav" aria-label="Settings sections">
+  {% for section in sections %}<a class="chip" href="#section-{{ section.id }}">{{ section.title }}</a>{% endfor %}
+  <a class="chip" href="#privacy">Privacy &amp; data</a>
+  <a class="chip" href="/backup">Backup</a>
+  <a class="chip" href="/activate">Licence</a>
+</nav>
 
 <div class="sheet ai-hero">
   <h2>Set up your workspace</h2>
@@ -10,28 +19,28 @@
   <ul class="list">
     {% for step in setup_steps %}
     <li>
-      {% if step.done %}<span class="stated">Ready</span>{% endif %}
+      {% if step.done %}<span class="status-badge ok">Ready</span>{% endif %}
       <strong>{{ step.title }}</strong> — {{ step.detail }}
-      <a class="button secondary" href="{{ step.href }}" style="margin-left:0.5rem">{{ step.cta }}</a>
+      <a class="button secondary small" href="{{ step.href }}">{{ step.cta }}</a>
     </li>
     {% endfor %}
   </ul>
-  <p><a class="button" href="/start">Start exploring research opportunities</a></p>
+  <p><a class="button" href="/directory">Start exploring faculty</a></p>
 </div>
 
 {% for section in sections %}
-<h2 id="section-{{ section.id }}">{{ section.title }}</h2>
+<h2 class="section-label" id="section-{{ section.id }}">{{ section.title }}</h2>
 <div class="ai-grid">
   {% for card in section.cards %}
   <div class="sheet ai-card" id="{{ card.id }}">
     <h3>{{ card.title }}</h3>
     <p class="muted">{{ card.purpose }}</p>
     {% if card.status.connected %}
-    <p><span class="stated">Connected</span> {{ card.status.account_hint }}</p>
+    <p><span class="status-badge ok">Connected</span> {{ card.status.account_hint }}</p>
     <p class="muted">{{ card.status.detail }}</p>
     {% elif card.status.disabled_reason or card.production_status in ['clearance_required', 'unavailable'] %}
-    <p class="disabled-reason">{{ card.status.disabled_reason or card.commercial_note or 'Not available yet' }}</p>
-    <p class="muted">{{ card.status.detail }}</p>
+    <p><span class="status-badge warn">{{ card.status.disabled_reason or 'Not available in this release' }}</span></p>
+    <p class="disabled-reason">{{ card.commercial_note or card.status.detail or 'Not available in this release' }}</p>
     {% else %}
     <p class="muted">{{ card.status.detail }}</p>
     {% endif %}
@@ -52,7 +61,7 @@
       <button type="submit">{{ card.button_label }}</button>
     </form>
     {% if github_repos %}
-    <p class="stated" style="margin-top:0.75rem">Suggested projects — confirm each on Profile</p>
+    <p class="status-badge ok" style="margin-top:0.75rem">Suggested projects — confirm each on Profile</p>
     <ul class="list">
       {% for repo in github_repos %}
       <li><strong>{{ repo.name }}</strong> — {{ repo.language }}{% if repo.description %}: {{ repo.description[:80] }}{% endif %}</li>
@@ -128,8 +137,8 @@
     <form method="get" action="/connections/calendar.ics">
       <button type="submit" class="secondary">{{ card.button_label }}</button>
     </form>
-    {% elif card.production_status in ['clearance_required', 'unavailable'] %}
-    <button type="button" class="secondary" disabled>{{ card.button_label }}</button>
+    {% elif card.status.disabled_reason or card.production_status in ['clearance_required', 'unavailable'] %}
+    <button type="button" class="secondary" disabled aria-disabled="true">{{ card.button_label }}</button>
     {% else %}
     <p><a class="button secondary" href="{{ card.connect_href }}">{{ card.button_label }}</a></p>
     {% endif %}
@@ -142,13 +151,32 @@
 </div>
 {% endfor %}
 
-<details class="sheet" style="margin-top:1.5rem">
-  <summary>Connection requirements (CON-01–18)</summary>
+<section class="sheet" id="privacy">
+  <h2>Privacy &amp; your data</h2>
+  <p>Your profile, drafts and applications live on this computer. Credentials are kept in your system keychain, not in backups.</p>
+  <p class="toolbar">
+    <a class="button secondary" href="/tracker/export">Export applications (CSV)</a>
+    <a class="button secondary" href="/backup">Back up workspace</a>
+  </p>
+  <details class="plain">
+    <summary>Delete my data</summary>
+    <p>Removes your profile, drafts, applications, people you imported yourself, and this app’s saved connections. The bundled Summer library stays. This cannot be undone — make a backup first.</p>
+    <form method="post" action="/tracker/delete-all">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="confirm">Type DELETE to confirm</label>
+      <input id="confirm" name="confirm" autocomplete="off">
+      <p class="toolbar"><button type="submit" class="danger">Delete all my data</button></p>
+    </form>
+  </details>
+</section>
+
+<details class="sheet">
+  <summary>Technical reference (connection requirements)</summary>
   <ul class="list">
     {% for req in requirements %}
     <li><code>{{ req.id }}</code> — {{ req.text }}</li>
     {% endfor %}
   </ul>
-  <p class="muted">Commercially restricted integrations stay disabled until approval. A documented interface alone is not production-ready.</p>
+  <p class="muted">Integrations that need a third-party approval stay switched off until it is granted. A documented interface alone is not production-ready.</p>
 </details>
 {% endblock %}

@@ -1,21 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Demo — Academic Outreach Studio{% endblock %}
+{% block title %}Demo — Academic Studio{% endblock %}
 {% block content %}
+<div class="demo-banner" role="note"><strong>Demo data</strong><span>Every card is labelled demo. Synthetic people only. Works offline.</span></div>
 <h1>Demo openings</h1>
-<p class="muted">Every card is labeled demo. Synthetic people only. Works offline.</p>
 {% if not items %}
 <p class="flash error">No demo openings loaded.</p>
 {% else %}
-<ul class="list">
+<ul class="list-card">
   {% for item in items %}
   <li>
-    <span class="stated">Demo</span>
-    <a href="/opportunity/{{ item.id }}">{{ item.name }}</a>
-    — {{ item.institution }}
-    · Applications:
-    {% if item.status == 'stated-yes' %}<span class="stated">Stated open</span>
-    {% elif item.status == 'stated-no' %}Stated closed
-    {% else %}<span class="unknown">Unknown</span>{% endif %}
+    <div class="card-top">
+      <a class="title" href="/opportunity/{{ item.id }}">{{ item.name }}</a>
+      <span class="status-badge warn">Demo</span>
+    </div>
+    <div class="meta">
+      <span>{{ item.institution or 'Institution unknown' }}</span>
+      <span>{{ item.status|tri_state(kind='applications') }}</span>
+    </div>
   </li>
   {% endfor %}
 </ul>

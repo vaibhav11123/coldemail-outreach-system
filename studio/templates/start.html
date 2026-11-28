@@ -1,42 +1,46 @@
 {% extends "base.html" %}
-{% block title %}Openings — Academic Outreach Studio{% endblock %}
+{% block title %}Start — Academic Studio{% endblock %}
 {% block content %}
-<h1>How do you want to start?</h1>
+<p class="eyebrow">Where to look</p>
+<h1>Start with your purchased catalog</h1>
 {% if not profile_ready %}
-<p class="flash error">Confirm at least one interest and one project on your profile first.</p>
+<p class="flash error">Confirm at least one interest and one project on <a href="/profile">your profile</a> to get ranked matches. You can still browse the library.</p>
 {% endif %}
+
+<section class="sheet cta-card primary">
+  <h2>Summer 2027 library</h2>
+  <p>The researchers included with Academic Studio — search them by topic, university or funding signal. Unknown stays unknown.</p>
+  <div class="hero-actions">
+    <a class="button" href="/directory">Open faculty library</a>
+    <a class="button secondary" href="/reader">Open purchased catalog</a>
+  </div>
+  <p class="fineprint">Prefer the older entry point? <a href="/library">Library search</a> forwards to the faculty library.</p>
+</section>
+
+<h2 class="section-label">Expand your library</h2>
+<p class="muted">Optional. Add people the bundled catalog does not cover.</p>
 
 <div class="grid-2">
   <div class="sheet">
-    <h2>Summer 2027 library</h2>
-    <p>Search the researchers included with the app. Unknown stays unknown.</p>
-    <a class="button" href="/library">Open library</a>
-  </div>
-  <div class="sheet">
-    <h2>Explore a demo</h2>
-    <p>Synthetic openings labeled demo. Works offline.</p>
-    <a class="button" href="/demo">Open demo</a>
-  </div>
-  <div class="sheet">
-    <h2>Paste one official URL</h2>
+    <h3>Paste one official URL</h3>
     <form method="post" action="/fetch-url">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <label for="url">Lab or program page</label>
       <input id="url" name="url" placeholder="https://…">
-      <button type="submit">Fetch page</button>
+      <p class="toolbar"><button type="submit" class="secondary">Fetch page</button></p>
     </form>
   </div>
   <div class="sheet">
-    <h2>Import CSV or Excel</h2>
+    <h3>Import CSV or Excel</h3>
     <form method="post" action="/import" enctype="multipart/form-data">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <label for="file">File</label>
       <input id="file" name="file" type="file" accept=".csv,.xlsx">
-      <button type="submit">Preview mapping</button>
+      <p class="toolbar"><button type="submit" class="secondary">Preview mapping</button></p>
     </form>
   </div>
   <div class="sheet">
-    <h2>Add one person</h2>
+    <h3>Add one person</h3>
     <form method="post" action="/add-person">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <label for="name">Name</label>
@@ -45,11 +49,11 @@
       <input id="affiliation" name="affiliation">
       <label for="email">Email (optional)</label>
       <input id="email" name="email">
-      <button type="submit">Add</button>
+      <p class="toolbar"><button type="submit" class="secondary">Add</button></p>
     </form>
   </div>
   <div class="sheet">
-    <h2>Collect a department directory</h2>
+    <h3>Collect a department directory</h3>
     <form method="post" action="/faculty">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <label for="school">School</label>
@@ -58,23 +62,29 @@
         <option value="{{ s.id }}">{{ s.name }}</option>
         {% endfor %}
       </select>
-      <button type="submit">Collect</button>
+      <p class="toolbar"><button type="submit" class="secondary">Collect</button></p>
     </form>
   </div>
 </div>
 
 <div class="sheet">
-  <h2>Enable live research discovery</h2>
+  <h3>Enable live research discovery</h3>
   <p class="muted">Search academic publications beyond the included library. OpenAlex emails an activation link — no payment for the free allowance.</p>
-  <p><a class="button" href="/connections#openalex">Activate on Connections</a></p>
-  <details style="margin-top:1rem">
-    <summary class="muted">Advanced: paste an existing OpenAlex key</summary>
-    <form method="post" action="/openalex/paste" style="margin-top:0.75rem">
+  <p><a class="button secondary" href="/connections#openalex">Activate on Settings</a></p>
+  <details class="plain">
+    <summary>Advanced: paste an existing OpenAlex key</summary>
+    <form method="post" action="/openalex/paste">
       <input type="hidden" name="page_token" value="{{ page_token }}">
       <label for="oa_key">API key</label>
       <input id="oa_key" name="api_key">
-      <button type="submit" class="secondary">Save key</button>
+      <p class="toolbar"><button type="submit" class="secondary">Save key</button></p>
     </form>
   </details>
+</div>
+
+<div class="demo-banner">
+  <strong>Just looking?</strong>
+  <span>The demo uses synthetic openings labelled demo. It works offline and is never mixed into your real shortlist.</span>
+  <a class="button secondary small" href="/demo">Open demo</a>
 </div>
 {% endblock %}

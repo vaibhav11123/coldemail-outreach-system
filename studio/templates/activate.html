@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Activate licence — Academic Studio{% endblock %}
+{% block main_class %}layout-focus{% endblock %}
 {% block content %}
-<section class="hero">
-  <p class="hero-kicker">One-time purchase · Two authorized devices · No subscription</p>
+<section class="hero hero-compact">
+  <p class="eyebrow">One-time purchase · Two authorised devices · No subscription</p>
   <h1>Activate your purchase</h1>
-  <p class="lead">Welcome to your research workspace. Enter the licence id from your delivery email. No additional payment.</p>
+  <p class="lede">Welcome to your research workspace. Enter the licence key from your delivery email. There is nothing more to pay.</p>
 </section>
 
 {% if status %}
@@ -12,62 +13,88 @@
 {% endif %}
 {% if error %}
 <div class="flash error" role="alert">{{ error }}</div>
+{% if 'issuer' in (error|lower) or 'could not be verified' in (error|lower) %}
+<div class="sheet flash-warn">
+  <h2>Your catalog could not be verified</h2>
+  <p>This usually means the catalog folder and the licence file came from different deliveries, or this copy of Academic Studio is older than your purchase. Your workspace, profile and applications are unchanged.</p>
+  <ol>
+    <li>Choose the folder from your <strong>latest</strong> delivery email.</li>
+    <li>Install the <code>CustomerLicense.aslic</code> file that came with it.</li>
+    <li>Still stuck? <a href="mailto:{{ support }}">Email support</a> with your licence key — we re-issue it at no charge.</li>
+  </ol>
+  <p><a class="button secondary" href="/activate/help">Open recovery help</a></p>
+</div>
+{% endif %}
 {% endif %}
 
-<div class="grid-2">
-  <div class="sheet">
-    <h2>Activate on this device</h2>
-    <p class="muted">Use this when the seller (or your local issuer) already registered your purchase on this machine’s licence store — typical for operator testing and same-machine fulfilment.</p>
-    <form method="post" action="/activate" class="stack">
-      <input type="hidden" name="page_token" value="{{ page_token }}">
-      <input type="hidden" name="action" value="activate_local">
+<div class="sheet">
+  <h2>Activate on this device</h2>
+  <p class="muted">Use this when your purchase is already registered on this computer — typical for same-machine fulfilment.</p>
+  <form method="post" action="/activate" class="stack">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <input type="hidden" name="action" value="activate_local">
+    <div>
       <label for="email">Email address</label>
       <input id="email" name="email" type="email" value="{{ email or '' }}" placeholder="you@example.com" required>
+    </div>
+    <div>
       <label for="license_id">Licence key</label>
       <input id="license_id" name="license_id" value="{{ license_id or '' }}" placeholder="lic_…" required>
-      <label for="package_dir">Package folder (optional)</label>
-      <input id="package_dir" name="package_dir" value="{{ package_dir or '' }}" placeholder="/path/to/delivery with ResearchCatalog.asdb">
-      <label for="replace_device_id">Replace previous device id (optional)</label>
-      <input id="replace_device_id" name="replace_device_id" value="" placeholder="Only when transferring from an old computer">
-      <button type="submit">Activate Academic Studio</button>
-    </form>
-    <p class="muted" style="margin-top:1rem">This device: <code class="mono">{{ device.device_id }}</code></p>
-  </div>
-
-  <div class="sheet">
-    <h2>Offline activation request</h2>
-    <p class="muted">Manual fulfilment (Option A): download a request file, email it with your payment reference, then install the <code>.aslic</code> the seller returns.</p>
-    <form method="post" action="/activate" class="stack">
-      <input type="hidden" name="page_token" value="{{ page_token }}">
-      <input type="hidden" name="action" value="download_request">
-      <label for="license_id_req">Licence key</label>
-      <input id="license_id_req" name="license_id" value="{{ license_id or '' }}" placeholder="lic_…" required>
-      <button type="submit" class="secondary">Download activation request</button>
-    </form>
-
-    <form method="post" action="/activate" class="stack" style="margin-top:1.5rem" enctype="multipart/form-data">
-      <input type="hidden" name="page_token" value="{{ page_token }}">
-      <input type="hidden" name="action" value="install_aslic">
-      <label for="package_dir_aslic">Package folder</label>
-      <input id="package_dir_aslic" name="package_dir" value="{{ package_dir or '' }}" placeholder="/path/to/delivery" required>
-      <label for="aslic_file">CustomerLicense.aslic from seller</label>
-      <input id="aslic_file" name="aslic_file" type="file" accept=".aslic,application/json,text/plain" required>
-      <button type="submit" class="secondary">Install licence file</button>
-    </form>
-  </div>
+    </div>
+    <div>
+      <label for="package_dir">Delivery folder (optional)</label>
+      <input id="package_dir" name="package_dir" value="{{ package_dir or '' }}" placeholder="Folder where you saved your delivery files">
+      <p class="fineprint">The folder that contains your catalog file (<code>ResearchCatalog.asdb</code>). Tip: open it in your file manager, copy its location, and paste it here.</p>
+    </div>
+    <details class="plain">
+      <summary>Moving from an old computer?</summary>
+      <label for="replace_device_id">Previous device ID</label>
+      <input id="replace_device_id" name="replace_device_id" value="" placeholder="Only needed when transferring a licence">
+    </details>
+    <button type="submit">Activate Academic Studio</button>
+  </form>
+  <p class="fineprint">This device: <code>{{ device.device_id }}</code></p>
 </div>
 
-<div class="grid-2">
-  <div class="sheet-quiet">
-    <h2>Recover your licence</h2>
-    <p>Lost the email? Contact <a href="mailto:{{ support }}">{{ support }}</a> from the address used at purchase. Include the payment reference. We re-send the entitlement after verifying the transaction — we do not charge again.</p>
-    <p><a class="button secondary" href="/activate/help">Installation &amp; recovery help</a></p>
-  </div>
-  <div class="sheet-quiet">
-    <h2>Delivery expectations</h2>
-    <p>{{ delivery_sla }}</p>
-    <p class="muted">{{ refund }}</p>
-    <p><a href="/offer">View products &amp; pricing</a> · <a href="/reader">Open Catalog Reader</a></p>
-  </div>
+<details class="sheet">
+  <summary>No internet or manual delivery? Activate offline</summary>
+  <p class="muted">Download a request file, email it to us with your payment reference, then install the <code>.aslic</code> licence file we send back.</p>
+  <form method="post" action="/activate" class="stack">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <input type="hidden" name="action" value="download_request">
+    <div>
+      <label for="license_id_req">Licence key</label>
+      <input id="license_id_req" name="license_id" value="{{ license_id or '' }}" placeholder="lic_…" required>
+    </div>
+    <button type="submit" class="secondary">Download activation request</button>
+  </form>
+
+  <form method="post" action="/activate" class="stack" style="margin-top:1.5rem" enctype="multipart/form-data">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <input type="hidden" name="action" value="install_aslic">
+    <div>
+      <label for="package_dir_aslic">Delivery folder</label>
+      <input id="package_dir_aslic" name="package_dir" value="{{ package_dir or '' }}" placeholder="Folder where you saved your delivery files" required>
+      <p class="fineprint">The same folder as above — your licence file will be saved inside it.</p>
+    </div>
+    <div>
+      <label for="aslic_file">Licence file from us (<code>CustomerLicense.aslic</code>)</label>
+      <input id="aslic_file" name="aslic_file" type="file" accept=".aslic,application/json,text/plain" required>
+    </div>
+    <button type="submit" class="secondary">Install licence file</button>
+  </form>
+</details>
+
+<div class="sheet-quiet">
+  <h2>Recover your licence</h2>
+  <p>Lost the email? Write to <a href="mailto:{{ support }}">{{ support }}</a> from the address you used at purchase and include your payment reference. We re-send your licence after verifying the payment — you are never charged again.</p>
+  <p><a class="button secondary" href="/activate/help">Installation &amp; recovery help</a></p>
+</div>
+
+<div class="sheet-quiet">
+  <h2>Delivery expectations</h2>
+  <p>{{ delivery_sla }}</p>
+  <p class="muted">{{ refund }}</p>
+  <p><a href="/offer">View products &amp; pricing</a> · <a href="/reader">Open purchased catalog</a></p>
 </div>
 {% endblock %}

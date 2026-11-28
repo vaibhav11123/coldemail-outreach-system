@@ -1,104 +1,118 @@
 {% extends "base.html" %}
-{% block title %}Opening — Academic Outreach Studio{% endblock %}
+{% block title %}{{ researcher.display_name }} — Academic Studio{% endblock %}
+{% block main_class %}layout-split{% endblock %}
 {% block content %}
-{% if opp.demo %}<p class="stated">Demo</p>{% endif %}
-<p class="hero-kicker">Opening</p>
-<h1>{{ researcher.display_name }}</h1>
-<p class="muted">{{ institution }} · Check date: <span class="mono">{{ opp.checked_at or 'unknown' }}</span></p>
-<p class="toolbar"><a class="button" href="/draft/{{ opp.id }}">Write letter</a>
-<a class="button secondary" href="/shortlist">Back to shortlist</a></p>
+{% set eff = effective or {'label': ('Expired' if expired else 'Unconfirmed'), 'expired': expired, 'effective': ('expired' if expired else 'unconfirmed'), 'reported': (opp.status|tri_state(kind='applications')), 'can_prepare_opening': (not expired)} %}
+<p class="breadcrumb"><a href="/directory">Faculty library</a> · <a href="/shortlist">My shortlist</a></p>
+{% if opp.demo %}
+<div class="demo-banner" role="note"><strong>Demo opening</strong><span>This is synthetic sample data for exploring the app. Do not contact this person.</span></div>
+{% endif %}
 
-<div class="grid-2">
-  <div class="sheet">
-    <h2>Opportunity</h2>
-    <p>Kind: {{ opp.kind }}</p>
-    <p>Applications:
-      {% if opp.status == 'stated-yes' %}<span class="stated">Stated open</span>
-      {% elif opp.status == 'stated-no' %}Stated closed
-      {% else %}<span class="unknown">Unknown</span>{% endif %}
-    </p>
-    <p>Funding:
-      {% if opp.funding == 'stated-yes' %}<span class="stated">Stated</span>
-      {% elif opp.funding == 'stated-no' %}Stated no
-      {% else %}<span class="unknown">Unknown</span>{% endif %}
-    </p>
-    <p>International students:
-      {% if opp.eligibility == 'stated-yes' %}<span class="stated">Stated eligible</span>
-      {% elif opp.eligibility == 'stated-no' %}Stated not eligible
-      {% else %}<span class="unknown">Unknown</span>{% endif %}
-    </p>
-    <p>Deadline:
-      {% if opp.deadline %}
-        {% if expired %}<span class="expired">{{ opp.deadline }}</span> Expired
-        {% else %}{{ opp.deadline }}{% endif %}
-      {% else %}<span class="unknown">Unknown</span>{% endif %}
-    </p>
-    {% if expired %}
-    <p class="muted">The check date still records what the source said; the deadline is past, so treat this opening as expired for planning.</p>
-    {% endif %}
-    <p>Apply link:
-      {% if opp.apply_url %}<a href="{{ opp.apply_url }}">{{ opp.apply_url }}</a>
-      {% else %}<span class="unknown">Unknown</span>{% endif %}
-    </p>
-    <p>Direct email invited:
-      {% if opp.email_invited == 'stated-yes' %}<span class="stated">Stated yes</span>
-      {% elif opp.email_invited == 'stated-no' %}Stated no
-      {% else %}<span class="unknown">Unknown</span>{% endif %}
-    </p>
-    {% if opp.note %}<p class="muted">Note: {{ opp.note }}</p>{% endif %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Opening</p>
+    <h1>{{ researcher.display_name }}</h1>
+    <p class="muted">{{ institution }} · {{ opp.checked_at|verified_label }}</p>
+  </div>
+  <div class="chip-row">
+    {% if eff.effective == 'open' %}<span class="status-badge ok">{{ eff.label }}</span>
+    {% elif eff.effective == 'unconfirmed' %}<span class="status-badge neutral">{{ eff.label }}</span>
+    {% else %}<span class="status-badge bad">{{ eff.label }}</span>{% endif %}
+  </div>
+</div>
 
-    <h3>Papers</h3>
-    {% if publications %}
-    <ul class="list">
-      {% for p in publications[:3] %}
-      <li>
-        {% if p.url %}<a href="{{ p.url }}">{{ p.title }}</a>{% else %}{{ p.title }}{% endif %}
-        {% if p.year %} ({{ p.year }}){% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p class="muted">Publications are missing. The draft will not invent one.</p>
-    {% endif %}
+{% if eff.expired %}
+<div class="flash flash-warn" role="status">
+  <strong>This opening has expired.</strong> The source said “{{ eff.reported }}” when it was last verified, but the deadline has passed. Check the official page before preparing anything.
+</div>
+{% elif eff.effective == 'closed' %}
+<div class="flash flash-warn" role="status"><strong>Applications are closed</strong> according to the source.</div>
+{% endif %}
+
+<div class="toolbar">
+  {% if eff.can_prepare_opening %}
+  <a class="button" href="/draft/{{ opp.id }}">Prepare application</a>
+  {% else %}
+  <a class="button secondary" href="/draft/{{ opp.id }}">Prepare application anyway</a>
+  {% endif %}
+  {% if opp.apply_url and opp.apply_url.startswith(('http://', 'https://')) %}
+  <a class="button secondary" href="{{ opp.apply_url }}" target="_blank" rel="noopener noreferrer">Visit official application page</a>
+  {% endif %}
+  <form method="post" action="/shortlist/add/{{ opp.id }}" class="inline-form">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary">Add to shortlist</button>
+  </form>
+</div>
+
+<div class="split-pane">
+  <div class="split-pane-main">
+    <div class="sheet">
+      <h2>Opportunity</h2>
+      <dl class="kv">
+        <dt>Type</dt><dd>{{ (opp.kind or 'Not stated')|replace('_', ' ')|title }}</dd>
+        <dt>Applications</dt><dd>{{ eff.label }} <span class="muted">· source: {{ eff.reported }}</span></dd>
+        <dt>Funding</dt><dd>{{ opp.funding|tri_state(kind='funding') }}</dd>
+        <dt>International students</dt><dd>{{ opp.eligibility|tri_state(kind='international') }}</dd>
+        <dt>Deadline</dt><dd>{% if opp.deadline %}{% if eff.expired %}<span class="expired">{{ opp.deadline|deadline_label }}</span>{% else %}{{ opp.deadline|deadline_label }}{% endif %}{% else %}<span class="unknown">Unknown</span> · no deadline recorded{% endif %}</dd>
+        <dt>Direct email</dt><dd>{{ opp.email_invited|tri_state }}{% if opp.email_invited == 'stated-yes' %} <span class="muted">· inquiries welcome</span>{% endif %}</dd>
+        <dt>Last verified</dt><dd>{{ (opp.checked_at|verified_label)|replace('Last verified: ', '') }}</dd>
+      </dl>
+      {% if opp.note %}<p class="muted">Note: {{ opp.note }}</p>{% endif %}
+      {% if eff.expired %}
+      <p class="muted">The verification date records what the source said at the time. Because the deadline is past, treat this opening as expired for planning.</p>
+      {% endif %}
+
+      <h3>Recent papers</h3>
+      {% if publications %}
+      <ul class="list">
+        {% for p in publications[:3] %}
+        <li>
+          {% if p.url %}<a href="{{ p.url }}" rel="noopener">{{ p.title }}</a>{% else %}{{ p.title }}{% endif %}
+          {% if p.year %} ({{ p.year }}){% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">No publications on file. Your letter will not invent one.</p>
+      {% endif %}
+    </div>
   </div>
-  <div class="sheet">
-    <h2>Research compatibility</h2>
-    {% if match_intel %}
-    <p class="score-pill">{{ match_intel.overall }}/100 · {{ match_intel.label }}</p>
-    <ul class="list">
-      <li>Research interests · {{ match_intel.topic }}/100</li>
-      <li>Technical skills · {{ match_intel.skills }}/100</li>
-      <li>Relevant publications · {{ match_intel.publications }}/100</li>
-      <li>Previous experience · {{ match_intel.experience }}/100</li>
-    </ul>
-    {% if match_intel.why %}
-    <h3>Why this researcher matches you</h3>
-    <ul class="list">{% for w in match_intel.why %}<li>{{ w }}</li>{% endfor %}</ul>
-    {% endif %}
-    {% if match_intel.gaps %}
-    <h3>Potential gaps</h3>
-    <ul class="list">{% for g in match_intel.gaps %}<li>{{ g }}</li>{% endfor %}</ul>
-    {% endif %}
-    <p class="fineprint">{{ match_intel.recruitment_note }} {{ match_intel.funding_note }} {{ match_intel.disclaimer }}</p>
-    {% elif reasons %}
-    <ul class="list">
-      {% for r in reasons %}
-      <li>
-        <strong>{{ r.type }}</strong>
-        {% if r.applicant %}<div>You: {{ r.applicant }}</div>{% endif %}
-        <div>Source: {{ r.source }}</div>
-        {% if r.url %}<div class="mono"><a href="{{ r.url }}">{{ r.url }}</a></div>{% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p class="muted">Fit is not scored yet — rebuild the shortlist after confirming your profile.</p>
-    {% endif %}
-    <p><a class="button" href="/draft/{{ opp.id }}">Prepare draft</a></p>
-    <form method="post" action="/shortlist/add/{{ opp.id }}">
-      <input type="hidden" name="page_token" value="{{ page_token }}">
-      <button type="submit" class="secondary">Add to shortlist</button>
-    </form>
-  </div>
+
+  <aside class="split-pane-side" aria-label="Research compatibility">
+    <div class="sheet">
+      <h2>Research compatibility</h2>
+      {% if match_intel %}
+      <p class="score-pill">{{ match_intel.overall }}/100 · {{ match_intel.label }}</p>
+      <ul class="list">
+        <li>Research interests · {{ match_intel.topic }}/100</li>
+        <li>Technical skills · {{ match_intel.skills }}/100</li>
+        <li>Relevant publications · {{ match_intel.publications }}/100</li>
+        <li>Previous experience · {{ match_intel.experience }}/100</li>
+      </ul>
+      {% if match_intel.why %}
+      <h3>Why this researcher matches you</h3>
+      <ul class="list">{% for w in match_intel.why %}<li>{{ w }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if match_intel.gaps %}
+      <h3>Potential gaps</h3>
+      <ul class="list">{% for g in match_intel.gaps %}<li>{{ g }}</li>{% endfor %}</ul>
+      {% endif %}
+      <p class="fineprint">{{ match_intel.recruitment_note }} {{ match_intel.funding_note }} {{ match_intel.disclaimer }}</p>
+      {% elif reasons %}
+      <ul class="list">
+        {% for r in reasons %}
+        <li>
+          <strong>{{ r.type }}</strong>
+          {% if r.applicant %}<div>You: {{ r.applicant }}</div>{% endif %}
+          <div>Source: {{ r.source }}</div>
+          {% if r.url %}<div class="mono"><a href="{{ r.url }}" rel="noopener">{{ r.url }}</a></div>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">Fit is not scored yet — <a href="/shortlist?view=recommended">rebuild your matches</a> after confirming your profile.</p>
+      {% endif %}
+    </div>
+  </aside>
 </div>
 {% endblock %}
