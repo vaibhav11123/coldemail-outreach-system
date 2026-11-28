@@ -243,6 +243,29 @@ def test_cli_editions(studio_home):
     assert main(["editions"]) == 0
 
 
+def test_cli_fulfil_requires_verified_payment(studio_home, tmp_path):
+    from studio.dataset.cli import main
+
+    rc = main(
+        [
+            "fulfil",
+            "--sku",
+            "dataset",
+            "--out",
+            str(tmp_path / "nope"),
+            "--customer",
+            "c",
+            "--email",
+            "c@e.edu",
+            "--provider",
+            "paypal",
+            "--payment-ref",
+            "X",
+        ]
+    )
+    assert rc == 2
+
+
 def test_cli_fulfil_dataset_writes_receipt(studio_home, tmp_path):
     from studio.dataset.cli import main
 
@@ -264,6 +287,7 @@ def test_cli_fulfil_dataset_writes_receipt(studio_home, tmp_path):
             "TXN-TEST-001",
             "--verified-by",
             "pytest",
+            "--verified-payment",
         ]
     )
     assert rc == 0
@@ -272,9 +296,65 @@ def test_cli_fulfil_dataset_writes_receipt(studio_home, tmp_path):
     assert receipt["sku"] == SKU.STANDARD_DATASET.value
     assert receipt["payment_provider"] == "paypal"
     assert receipt["external_payment_id"] == "TXN-TEST-001"
+    assert receipt["payment_verified"] is True
     assert (out / "faculty_catalog.csv").exists()
+    assert (out / "faculty_catalog.sqlite").exists()
+    assert (out / "START_HERE.txt").exists()
+    assert (out / "GlobalResearch.xlsx").exists()
+    assert (out / "DELIVERY_INSTRUCTIONS.txt").exists()
     assert (out / "manifest.json").exists()
     store_raw = json.loads((studio_home / "license_store.json").read_text(encoding="utf-8"))
     purchase = next(iter(store_raw["purchases"].values()))
     assert purchase["external_payment_id"] == "TXN-TEST-001"
     assert purchase["payment_provider"] == "paypal"
+
+
+def test_cli_issue_licence_from_activation_request(studio_home, tmp_path):
+    from studio.dataset.cli import main
+    from studio.licensing.activation import LicenseStore, build_activation_request
+    from studio.licensing.crypto import IssuerKeys
+    from studio.licensing.device import create_device_identity
+
+    issuer = IssuerKeys.generate()
+    studio_home.mkdir(parents=True, exist_ok=True)
+    # Persist issuer the CLI will load
+    (studio_home / "dev_issuer.json").write_text(
+        json.dumps(
+            {
+                "private_hex": issuer.export_private_hex(),
+                "public_hex": issuer.export_public_hex(),
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    store = LicenseStore(studio_home / "license_store.json", issuer)
+    purchase = store.register_purchase(
+        customer_id="cust_act",
+        customer_email="act@example.edu",
+        sku=SKU.ACADEMIC_STUDIO,
+        payment_provider="paypal",
+        external_payment_id="TXN-ACT",
+    )
+    device = create_device_identity()
+    req = build_activation_request(device, purchase.license_id)
+    req_path = tmp_path / "activation_request.json"
+    req_path.write_text(json.dumps(req.to_dict(), indent=2) + "\n", encoding="utf-8")
+    aslic = tmp_path / "CustomerLicense.aslic"
+    rc = main(
+        [
+            "issue-licence",
+            "--request",
+            str(req_path),
+            "--out",
+            str(aslic),
+            "--license-id",
+            purchase.license_id,
+        ]
+    )
+    assert rc == 0
+    assert aslic.exists()
+    doc = json.loads(aslic.read_text(encoding="utf-8"))
+    assert doc["format"] == "academic-studio-license"
+    assert doc["entitlement"]["license_id"] == purchase.license_id
+    assert doc["entitlement"]["device_id"] == device.device_id

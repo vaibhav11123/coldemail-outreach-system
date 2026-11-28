@@ -88,6 +88,15 @@ def cmd_fulfil(args: argparse.Namespace) -> int:
 
     For 1–10 sales/week: no always-on licensing server required.
     """
+    if not args.verified_payment:
+        print(
+            "Refusing fulfilment without --verified-payment. "
+            "Confirm the transaction in the payment provider dashboard first "
+            "(do not rely on customer-uploaded screenshots alone).",
+            file=sys.stderr,
+        )
+        return 2
+
     sku_alias = args.sku.lower().strip()
     if sku_alias in {"dataset", "standard", "standard_dataset", "global_research_dataset"}:
         sku = SKU.STANDARD_DATASET
@@ -116,8 +125,13 @@ def cmd_fulfil(args: argparse.Namespace) -> int:
     notes = _fulfilment_notes(
         provider=args.provider,
         payment_ref=args.payment_ref,
-        verified_by=args.verified_by,
+        verified_by=args.verified_by or "operator",
     )
+    # Encode verification attestation into ledger notes
+    notes_obj = json.loads(notes)
+    notes_obj["payment_verified"] = True
+    notes_obj["verification"] = "provider_dashboard"
+    notes = json.dumps(notes_obj, sort_keys=True)
     out_dir = Path(args.out)
     if sku is SKU.STANDARD_DATASET:
         result = package_standard_dataset(
@@ -159,18 +173,92 @@ def cmd_fulfil(args: argparse.Namespace) -> int:
         "customer_email": args.email,
         "payment_provider": args.provider,
         "external_payment_id": args.payment_ref,
+        "payment_verified": True,
         "license_id": purchase.license_id,
         "out_dir": str(out_dir.resolve()),
         "package": result,
+        "delivery_sla": "Within 24 hours after payment clears (business days).",
         "next_steps": [
-            "Verify payment remains settled (no refund/chargeback).",
-            "Deliver out_dir via private link or marketplace file delivery.",
-            "Keep delivery_ledger.sqlite and fulfilment_receipt.json backed up.",
+            "Re-check payment remains settled (no refund/chargeback).",
+            "Deliver out_dir via private link (never a public identical marketplace file for datasets).",
+            "For Studio, wait for activation_request.json then run issue-licence if offline.",
+            "Keep delivery_ledger.sqlite and fulfilment_receipt.json backed up (operator only).",
         ],
     }
     receipt_path = out_dir / "fulfilment_receipt.json"
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    # Customer-safe instructions (no operator ledger secrets beyond licence id)
+    customer_note = out_dir / "DELIVERY_INSTRUCTIONS.txt"
+    customer_note.write_text(
+        "Academic Outreach — delivery\n"
+        "============================\n\n"
+        f"Product: {sku.value}\n"
+        f"Licence id: {purchase.license_id}\n"
+        f"Customer: {args.email}\n\n"
+        "Dataset buyers: open START_HERE.txt then GlobalResearch.xlsx.\n"
+        "Studio buyers: install/open Academic Studio, open /activate, enter this licence id.\n"
+        "If the seller uses offline activation, download an activation request and email it back.\n\n"
+        "Do not publish this folder. Support uses your payment reference + this licence id.\n",
+        encoding="utf-8",
+    )
     print(json.dumps(receipt, indent=2))
+    return 0
+
+
+def cmd_issue_licence(args: argparse.Namespace) -> int:
+    """Issue CustomerLicense.aslic from a customer activation_request.json (Option A)."""
+    from studio.licensing.activation import ActivationRequest, activate_device
+    from studio.licensing.crypto import b64d
+
+    req_path = Path(args.request)
+    data = json.loads(req_path.read_text(encoding="utf-8"))
+    license_id = args.license_id or data.get("license_id")
+    if not license_id:
+        print("licence id required (--license-id or inside request JSON)", file=sys.stderr)
+        return 2
+
+    issuer = _issuer_from_env()
+    store = LicenseStore(app_data_dir() / "license_store.json", issuer)
+    rec = store.get(license_id)
+    if not rec:
+        print(f"Unknown licence {license_id} — fulfil the purchase first.", file=sys.stderr)
+        return 2
+
+    request = ActivationRequest(
+        license_id=license_id,
+        device_id=data["device_id"],
+        device_fingerprint=data["device_fingerprint"],
+        ed25519_public=b64d(data["ed25519_public"]),
+        x25519_public=b64d(data["x25519_public"]),
+        challenge=b64d(data["challenge"]),
+        challenge_signature=b64d(data["challenge_signature"]),
+        nonce=data["nonce"],
+        requested_at=int(data["requested_at"]),
+    )
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        ent = activate_device(
+            store,
+            request,
+            aslic_path=out,
+            replace_device_id=args.replace_device_id,
+        )
+    except PermissionError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "license_id": ent.license_id,
+                "device_id": request.device_id,
+                "aslic": str(out.resolve()),
+                "expires_at": ent.expires_at,
+            },
+            indent=2,
+        )
+    )
     return 0
 
 
@@ -309,6 +397,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--provider", required=True, help="paypal | fastspring | cashfree | …")
     p.add_argument("--payment-ref", required=True, help="Provider transaction / order id")
     p.add_argument("--verified-by", help="Operator identity for the receipt")
+    p.add_argument(
+        "--verified-payment",
+        action="store_true",
+        help="Required: attest you verified the payment in the provider dashboard",
+    )
     p.add_argument("--sqlite", help="Optional source SQLite; default mini/bundled studio DB")
     p.add_argument(
         "--activate",
@@ -316,6 +409,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Studio only: activate for this machine (ops/testing; not customer delivery)",
     )
     p.set_defaults(func=cmd_fulfil)
+
+    p = sub.add_parser(
+        "issue-licence",
+        help="Issue CustomerLicense.aslic from a customer activation_request.json",
+    )
+    p.add_argument("--request", required=True, help="Path to activation_request.json")
+    p.add_argument("--out", required=True, help="Output CustomerLicense.aslic path")
+    p.add_argument("--license-id", help="Override licence id if not in request")
+    p.add_argument("--replace-device-id", help="Drop a previous device slot")
+    p.set_defaults(func=cmd_issue_licence)
 
     p = sub.add_parser("package-standard", help="Build fingerprinted Standard Dataset package")
     p.add_argument("--out", required=True)

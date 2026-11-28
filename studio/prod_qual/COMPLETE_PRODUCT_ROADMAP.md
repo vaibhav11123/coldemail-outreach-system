@@ -110,9 +110,12 @@ Legend: `[x]` verified in repo · `[~]` partial / scaffold · `[ ]` not built
 
 - ₹0 upfront / ₹0 mandatory monthly infrastructure — `ZERO_COST_COMMERCIAL.md`
 - Prefer MoR / payment links; eliminate Gumroad/Payhip/Lemon Squeezy as primary — `COMMERCIAL_DISTRIBUTION.md`
-- Manual fulfilment first: `python -m studio.dataset fulfil`
+- Manual fulfilment first: `python -m studio.dataset fulfil --verified-payment`
+- Purchase lifecycle + failure matrix: `PURCHASE_LIFECYCLE.md`
+- Graphical activation: `/activate` (+ offline request / `issue-licence`)
 - No Keygen subscription; optional Cloudflare Workers later
 - Biggest commercial blocker: merchant product-category approval (not engineering)
+- Installer binaries still unbuilt (PyInstaller specs only) — do not claim shippable EXE/DMG yet
 
 ## Engineering principles (locked)
 

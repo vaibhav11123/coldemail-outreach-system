@@ -39,8 +39,14 @@ def studio_home(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def client(studio_home):
+    import studio.app as app_mod
+
     app = create_app(data_dir=studio_home)
-    return TestClient(app, base_url="http://127.0.0.1:8765")
+    token = app_mod.PAGE_TOKEN
+    with TestClient(app, base_url="http://127.0.0.1:8765") as c:
+        c.cookies.set("studio_page_token", token)
+        c.page_token = token  # type: ignore[attr-defined]
+        yield c
 
 
 @pytest.fixture()
@@ -280,6 +286,35 @@ def test_monitor_matches_export_ids(studio_home, mini_records, tmp_path):
     assert any(f.ledger_hits for f in findings)
     # Explicit non-accusation note
     assert "Candidate only" in findings[0].notes
+
+
+def test_activate_pages_render(client):
+    r = client.get("/activate")
+    assert r.status_code == 200
+    assert "Activate your purchase" in r.text
+    assert "Download activation request" in r.text
+    help_page = client.get("/activate/help")
+    assert help_page.status_code == 200
+    assert "licence recovery" in help_page.text.lower() or "Licence recovery" in help_page.text or "Recover" in help_page.text
+
+
+def test_activate_download_request(client):
+    token = client.page_token  # type: ignore[attr-defined]
+    r = client.post(
+        "/activate",
+        data={
+            "page_token": token,
+            "action": "download_request",
+            "license_id": "lic_demo123",
+            "email": "buyer@example.edu",
+        },
+    )
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/json")
+    body = r.json()
+    assert body["license_id"] == "lic_demo123"
+    assert body["format"] == "academic-studio-activation-request"
+    assert "challenge" in body
 
 
 def test_revoke_blocks_later_activation(client):

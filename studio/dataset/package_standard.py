@@ -1,9 +1,10 @@
-"""Standard Dataset: personalized Excel, CSV, JSON with forensic fingerprints."""
+"""Standard Dataset: personalized Excel, CSV, JSON, SQLite with forensic fingerprints."""
 
 from __future__ import annotations
 
 import csv
 import json
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -21,9 +22,113 @@ from studio.dataset.records import FACTUAL_FIELDS, attach_export_ids
 from studio.licensing.crypto import IssuerKeys, sign_ed25519
 from studio.licensing.ledger import DeliveryLedger, sha256_bytes, sha256_file
 from studio.licensing.products import SKU
+from studio.paths import PACKAGE_ROOT
 
 
 EXPORT_COLUMNS = ("export_id",) + FACTUAL_FIELDS
+
+DATA_DICTIONARY = """Global Research Dataset — data dictionary
+========================================
+
+export_id       Customer-specific surrogate ID (HMAC). Use this in spreadsheets;
+                it is unique to your licensed delivery.
+canonical_id    Internal stable id for this faculty record in our catalog.
+display_name    Faculty member display name (factual).
+email           Professional email when known (factual; may be empty).
+university      Current institutional affiliation when known.
+status          Opening/recruiting status label when present.
+funding         Funding signal when present (unknown stays unknown).
+eligibility     Eligibility notes when present.
+deadline        Application deadline when present (ISO date or text).
+apply_url       Official application or lab URL when present.
+email_invited   Whether email invitation is indicated by source notes.
+note            Free-text opportunity note from sources.
+paper_title     Representative publication title when present.
+paper_year      Publication year when present.
+paper_url       Publication URL when present.
+paper_abstract  Publication abstract excerpt when present.
+
+Factual fields are not altered for fingerprinting. Only export_id values and
+row ordering are personalized. Redistribution of this package is prohibited.
+"""
+
+
+def write_sqlite(path: Path, rows: list[dict[str, Any]], provenance: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        path.unlink()
+    conn = sqlite3.connect(str(path))
+    try:
+        cols = list(EXPORT_COLUMNS)
+        col_sql = ", ".join(f'"{c}" TEXT' for c in cols)
+        conn.execute(f"CREATE TABLE faculty ({col_sql})")
+        placeholders = ", ".join("?" for _ in cols)
+        conn.executemany(
+            f'INSERT INTO faculty ({", ".join(cols)}) VALUES ({placeholders})',
+            [[str(row.get(c) or "") for c in cols] for row in rows],
+        )
+        conn.execute(
+            "CREATE TABLE provenance (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        conn.executemany(
+            "INSERT INTO provenance(key, value) VALUES (?, ?)",
+            [(str(k), str(v)) for k, v in provenance.items()],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def write_customer_docs(
+    out_dir: Path,
+    *,
+    ctx: FingerprintContext,
+    customer_email: str | None,
+    record_count: int,
+    banner: str,
+) -> list[str]:
+    """Customer-facing documents (no issuer secrets, no operator receipts)."""
+    written: list[str] = []
+    start = out_dir / "START_HERE.txt"
+    start.write_text(
+        "Global Research Dataset — start here\n"
+        "====================================\n\n"
+        f"{banner}\n\n"
+        f"Licensed to: {customer_email or ctx.customer_id}\n"
+        f"Licence id: {ctx.license_id}\n"
+        f"Records in this delivery: {record_count}\n\n"
+        "Open GlobalResearch.xlsx (or faculty_catalog.xlsx) in Excel/LibreOffice.\n"
+        "CSV/, JSON/, and SQLite copies contain the same factual fields.\n"
+        "Read LICENSE.txt and Data_Dictionary.txt before sharing anything.\n\n"
+        "Delivery is personalized. Do not upload this folder to public drives.\n"
+        "Support: see LICENSE.txt / purchase confirmation email.\n"
+        "Typical fulfilment SLA after payment clears: within 24 hours on business days.\n",
+        encoding="utf-8",
+    )
+    written.append(start.name)
+
+    licence_src = PACKAGE_ROOT / "legal" / "LICENCE_INDIVIDUAL.md"
+    licence_txt = out_dir / "LICENSE.txt"
+    if licence_src.exists():
+        licence_txt.write_text(licence_src.read_text(encoding="utf-8"), encoding="utf-8")
+    else:
+        licence_txt.write_text(
+            "Individual perpetual licence included in purchase. See seller documentation.\n",
+            encoding="utf-8",
+        )
+    written.append(licence_txt.name)
+
+    dictionary = out_dir / "Data_Dictionary.txt"
+    dictionary.write_text(DATA_DICTIONARY, encoding="utf-8")
+    written.append(dictionary.name)
+
+    # Stable alias expected by marketplace copy / docs
+    xlsx = out_dir / "faculty_catalog.xlsx"
+    alias = out_dir / "GlobalResearch.xlsx"
+    if xlsx.exists() and not alias.exists():
+        alias.write_bytes(xlsx.read_bytes())
+        written.append(alias.name)
+    return written
 
 
 def build_export_id_map(
@@ -142,14 +247,17 @@ def package_standard_dataset(
     csv_path = out_dir / "faculty_catalog.csv"
     json_path = out_dir / "faculty_catalog.json"
     xlsx_path = out_dir / "faculty_catalog.xlsx"
+    sqlite_path = out_dir / "faculty_catalog.sqlite"
     write_csv(csv_path, rows, banner)
     write_json(json_path, rows, provenance)
     write_xlsx(xlsx_path, rows, banner, provenance)
+    write_sqlite(sqlite_path, rows, provenance)
 
     file_hashes = {
         csv_path.name: sha256_file(csv_path),
         json_path.name: sha256_file(json_path),
         xlsx_path.name: sha256_file(xlsx_path),
+        sqlite_path.name: sha256_file(sqlite_path),
     }
 
     delivery_id = "local"
@@ -168,14 +276,41 @@ def package_standard_dataset(
         )
         delivery_id = rec.delivery_id
         provenance = provenance_payload(ctx, delivery_id)
-        # Rewrite JSON/XLSX provenance with real delivery_id (CSV banner has licence ids)
+        # Rewrite JSON/XLSX/SQLite provenance with real delivery_id
         write_json(json_path, rows, provenance)
         write_xlsx(xlsx_path, rows, banner, provenance)
+        write_sqlite(sqlite_path, rows, provenance)
         file_hashes = {
             csv_path.name: sha256_file(csv_path),
             json_path.name: sha256_file(json_path),
             xlsx_path.name: sha256_file(xlsx_path),
+            sqlite_path.name: sha256_file(sqlite_path),
         }
+
+    docs = write_customer_docs(
+        out_dir,
+        ctx=ctx,
+        customer_email=customer_email,
+        record_count=len(rows),
+        banner=banner,
+    )
+    readme = out_dir / "README.txt"
+    readme.write_text(
+        banner
+        + "\n\nYou received the complete faculty catalog for offline use.\n"
+        "Start with START_HERE.txt. Factual fields match other legitimate deliveries; "
+        "export_id values are unique to your licence for redistribution deterrence.\n",
+        encoding="utf-8",
+    )
+    for name in [*docs, readme.name]:
+        path = out_dir / name
+        if path.exists() and path.is_file():
+            file_hashes[name] = sha256_file(path)
+
+    # Re-copy Excel alias after final xlsx hash inputs are stable
+    alias = out_dir / "GlobalResearch.xlsx"
+    alias.write_bytes(xlsx_path.read_bytes())
+    file_hashes[alias.name] = sha256_file(alias)
 
     manifest_path = out_dir / "manifest.json"
     manifest, _sig = write_manifest(
@@ -185,14 +320,6 @@ def package_standard_dataset(
         file_hashes=file_hashes,
         record_count=len(rows),
         issuer=issuer,
-    )
-    readme = out_dir / "README.txt"
-    readme.write_text(
-        banner
-        + "\n\nYou received the complete faculty catalog for offline use.\n"
-        "Factual fields are identical to other legitimate deliveries; export_id "
-        "values are unique to your licence for redistribution deterrence.\n",
-        encoding="utf-8",
     )
 
     return {

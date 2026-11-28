@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Activation help — Academic Studio{% endblock %}
+{% block content %}
+<h1>Installation &amp; licence recovery</h1>
+<p class="lede">Academic Studio is sold as a one-time purchase. The licence is included. This page covers common failure cases without requiring paid support tools.</p>
+
+<div class="sheet">
+  <h2>Typical journey</h2>
+  <ol>
+    <li>Pay through the approved checkout or payment link.</li>
+    <li>Receive a private download within the stated delivery window (usually within 24 hours after payment clears).</li>
+    <li>Install or open Academic Studio.</li>
+    <li>Open <a href="/activate">Activate</a>, enter your licence id, and either activate on this device or send an offline activation request.</li>
+    <li>Start researching offline. Connect AI or email later if you want.</li>
+  </ol>
+</div>
+
+<div class="sheet">
+  <h2>If something goes wrong</h2>
+  <ul class="list">
+    <li><strong>Paid but received nothing</strong> — Email support with the payment reference. We verify the provider record and resend.</li>
+    <li><strong>Download interrupted / ZIP corrupt</strong> — Ask for a fresh link. Checksums are in <code>manifest.json</code>.</li>
+    <li><strong>Licence rejected</strong> — Read the exact error on Activate (wrong device, revoked, issuer mismatch, expired entitlement).</li>
+    <li><strong>New computer</strong> — Use Activate with “replace previous device id” (two devices maximum).</li>
+    <li><strong>AI or email connection fails</strong> — Built-in drafts and <code>.eml</code> export still work offline.</li>
+    <li><strong>Workspace damaged</strong> — Use Backup / restore. Re-download the purchased catalog package if needed.</li>
+    <li><strong>Refund</strong> — Studio entitlements are revoked after refund; already-downloaded dataset files are contractual.</li>
+  </ul>
+</div>
+
+<div class="sheet-quiet">
+  <h2>Public vs private files</h2>
+  <p>The Studio installer (when published) may be shared as a downloadable program. Your personalized dataset, <code>CustomerLicense.aslic</code>, and private download links must not be forwarded. Forwarding the installer alone must not unlock another person’s catalog.</p>
+  <p><a class="button" href="/activate">Back to Activate</a>
+     <a class="button secondary" href="mailto:{{ support }}">Email support</a></p>
+</div>
+{% endblock %}

@@ -74,7 +74,9 @@ Status: `[x]` implemented, tested, verified in-repo · `[~]` partial · `[ ]` no
 
 ## Production licensing control plane (P0)
 
-- [x] Manual fulfilment path (payment verify → package → ledger receipt) for low volume
+- [x] Manual fulfilment path (`fulfil --verified-payment` → package → ledger) for low volume
+- [x] Purchase lifecycle + failure matrix — `PURCHASE_LIFECYCLE.md`
+- [x] Graphical `/activate` + offline activation request / `issue-licence`
 - [~] Payment webhook scaffold (shared secret, **fail-closed if unset**) — needs approved provider + idempotency
 - [~] Cloudflare security-audit skill run-1 **incomplete** — see `CLOUDFLARE_SECURITY_AUDIT.md` (not a release-gate pen-test)
 - [ ] Optional Workers + D1 entitlement API (only when automation thresholds hit)

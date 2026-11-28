@@ -89,7 +89,9 @@ Template inquiry: `studio/prod_qual/MERCHANT_OUTREACH.md`.
 - Keep `LicenseStore` for **dev/test** and **manual fulfilment** on the operator machine.
 - Optional later: Cloudflare Worker verifies payment webhooks + stores entitlements in D1; packaging remains Python on a trusted build host.
 - See `KEYGEN_EVALUATION.md` (no Keygen spend) and `COMMERCIAL_DISTRIBUTION.md` (channels + launch checklist).
-- Fulfilment command: `python -m studio.dataset fulfil --help`
+- Fulfilment command: `python -m studio.dataset fulfil --help` (requires `--verified-payment`)
+- Purchase lifecycle (Option A default): `PURCHASE_LIFECYCLE.md`
+- Customer activation UI: `/activate` · offline `issue-licence` CLI
 
 ## Honest limitations
 

@@ -123,7 +123,11 @@ PAGE_TOKEN: str = new_page_token()
 IMPORT_CACHE: dict[str, Any] = {}
 FETCH_CACHE: dict[str, Any] = {}
 
-OFFER_REFUND = "If the app does not open or the library fails to load, email support within 14 days for a refund."
+OFFER_REFUND = (
+    "If the app does not open or the licensed catalog fails to load, email support "
+    "within 14 days for a refund. After refund, Studio entitlements are revoked. "
+    "Dataset files already downloaded are contractual — see the individual licence."
+)
 SUPPORT_EMAIL = "support@academic-outreach.studio"
 
 APPLICATION_STATES = [
@@ -195,9 +199,20 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
 
     from studio.dataset.reader_routes import build_reader_router
     from studio.licensing.api import build_licensing_router
+    from studio.licensing.customer_routes import build_customer_licensing_router
 
     app.include_router(build_licensing_router())
     app.include_router(build_reader_router(ctx))
+    app.include_router(
+        build_customer_licensing_router(
+            render=lambda request, name, **kw: TEMPLATES.TemplateResponse(
+                request, name, ctx(request, **kw)
+            ),
+            require_token=require_token,
+            support_email=SUPPORT_EMAIL,
+            refund_copy=OFFER_REFUND,
+        )
+    )
 
     def get_conn():
         return dbmod.connect()
