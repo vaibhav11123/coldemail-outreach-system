@@ -39,9 +39,8 @@
     <p><span class="status-badge ok">Connected</span> {{ card.status.account_hint }}</p>
     <p class="muted">{{ card.status.detail }}</p>
     {% elif card.status.disabled_reason or card.production_status in ['clearance_required', 'unavailable'] %}
-    <p><span class="status-badge neutral">Not available yet</span></p>
-    <p class="disabled-reason">{{ card.status.disabled_reason or card.commercial_note or 'Not available yet' }}</p>
-    <p class="muted">{{ card.status.detail }}</p>
+    <p><span class="status-badge warn">{{ card.status.disabled_reason or 'Not available in this release' }}</span></p>
+    <p class="disabled-reason">{{ card.commercial_note or card.status.detail or 'Not available in this release' }}</p>
     {% else %}
     <p class="muted">{{ card.status.detail }}</p>
     {% endif %}
@@ -138,7 +137,7 @@
     <form method="get" action="/connections/calendar.ics">
       <button type="submit" class="secondary">{{ card.button_label }}</button>
     </form>
-    {% elif card.production_status in ['clearance_required', 'unavailable'] %}
+    {% elif card.status.disabled_reason or card.production_status in ['clearance_required', 'unavailable'] %}
     <button type="button" class="secondary" disabled aria-disabled="true">{{ card.button_label }}</button>
     {% else %}
     <p><a class="button secondary" href="{{ card.connect_href }}">{{ card.button_label }}</a></p>
