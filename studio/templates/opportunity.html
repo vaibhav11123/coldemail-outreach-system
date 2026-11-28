@@ -29,7 +29,7 @@
 <div class="flash flash-warn" role="status"><strong>Applications are closed</strong> according to the source.</div>
 {% endif %}
 
-<p class="toolbar">
+<div class="toolbar">
   {% if eff.can_prepare_opening %}
   <a class="button" href="/draft/{{ opp.id }}">Prepare application</a>
   {% else %}
@@ -42,7 +42,7 @@
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit" class="secondary">Add to shortlist</button>
   </form>
-</p>
+</div>
 
 <div class="split-pane">
   <div class="split-pane-main">

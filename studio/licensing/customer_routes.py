@@ -65,7 +65,7 @@ def build_customer_licensing_router(
         return render(
             request,
             "activate_help.html",
-            nav="activate",
+            nav="help",
             support=support_email,
         )
 

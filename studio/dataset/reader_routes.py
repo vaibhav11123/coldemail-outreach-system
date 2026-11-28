@@ -126,8 +126,8 @@ def build_reader_router(render_ctx) -> APIRouter:
         entitlement = None
         if not package_dir:
             error = (
-                "No protected package configured. Set STUDIO_PROTECTED_PACKAGE to a "
-                "folder containing ResearchCatalog.asdb and CustomerLicense.aslic."
+                "No purchased catalog is connected yet. Choose the folder from your "
+                "delivery below — it contains ResearchCatalog.asdb and CustomerLicense.aslic."
             )
         else:
             try:

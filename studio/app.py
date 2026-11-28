@@ -2669,13 +2669,40 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         backups = []
         if backup_dir.is_dir():
             for p in sorted(backup_dir.glob("studio-backup-*.zip"), reverse=True)[:12]:
+                stat = p.stat()
                 backups.append(
-                    {"name": p.name, "size_kb": max(1, p.stat().st_size // 1024)}
+                    {
+                        "name": p.name,
+                        "size_kb": max(1, stat.st_size // 1024),
+                        "created": datetime.fromtimestamp(stat.st_mtime).strftime(
+                            "%Y-%m-%d"
+                        ),
+                    }
                 )
+        summary: dict[str, int] = {}
+        conn = get_conn()
+        try:
+            for key, table in (
+                ("facts", "profile_fact"),
+                ("shortlist", "shortlist_item"),
+                ("drafts", "draft"),
+                ("applications", "application"),
+            ):
+                summary[key] = conn.execute(
+                    f"SELECT COUNT(*) AS c FROM {table}"
+                ).fetchone()["c"]
+        finally:
+            conn.close()
         return TEMPLATES.TemplateResponse(
             request,
             "backup.html",
-            ctx(request, nav="backup", backups=backups),
+            ctx(
+                request,
+                nav="backup",
+                backups=backups,
+                last_backup=backups[0] if backups else None,
+                summary=summary,
+            ),
         )
 
     @app.post("/backup/create")

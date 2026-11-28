@@ -246,6 +246,11 @@ main.layout-focus { max-width: 640px; }
 .panel > :last-child,
 .sheet > :last-child { margin-bottom: 0; }
 
+.sheet h3,
+.panel h3 { margin-top: 1.1rem; }
+.sheet h3:first-child,
+.panel h3:first-child { margin-top: 0; }
+
 .sheet-quiet {
   background: transparent;
   border: none;
@@ -357,6 +362,8 @@ main.layout-focus { max-width: 640px; }
   gap: 1.25rem;
 }
 
+.grid-2 > .sheet, .grid-3 > .sheet { margin: 0; }
+
 .grid-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -461,19 +468,19 @@ summary:focus-visible {
   outline-offset: 2px;
 }
 
-button.secondary, .button.secondary, .btn.secondary, .btn.ghost {
+button.secondary, .button.secondary, .btn.secondary, .btn.ghost, .button.ghost {
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--line-strong);
 }
 
-button.secondary:hover, .button.secondary:hover, .btn.secondary:hover, .btn.ghost:hover {
+button.secondary:hover, .button.secondary:hover, .btn.secondary:hover, .btn.ghost:hover, .button.ghost:hover {
   background: var(--sea-soft);
   border-color: var(--sea);
   color: var(--sea-deep);
 }
 
-.btn.ghost { border-color: transparent; background: transparent; }
+.btn.ghost, .button.ghost { border-color: transparent; background: transparent; }
 
 button.small, .button.small, .btn.small {
   min-height: 34px;
