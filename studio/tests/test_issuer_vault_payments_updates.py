@@ -131,3 +131,37 @@ def test_hardware_probe_honest(studio_home):
     summary = describe_device_security()
     assert summary["hardware_adapter"]["status"] == "not_implemented"
     assert "software identity" in summary["honest_claim"]
+
+
+def test_monitor_findings_log_dedupes(studio_home, tmp_path):
+    from studio.licensing.ledger import DeliveryLedger
+    from studio.licensing.monitor import (
+        MonitorFinding,
+        append_findings_log,
+        evaluate_public_text,
+    )
+
+    ledger = DeliveryLedger(studio_home / "delivery_ledger.sqlite")
+    log = tmp_path / "piracy.json"
+    finding = evaluate_public_text(
+        source="local_corpus",
+        text="CustomerLicense.aslic R-ABCDEF12",
+        ledger=ledger,
+        url="/tmp/leak.csv",
+    )
+    assert finding is not None
+    append_findings_log(log, [finding])
+    append_findings_log(log, [finding])
+    rows = json.loads(log.read_text(encoding="utf-8"))
+    assert len(rows) == 1
+
+
+def test_ops_backup_copies_control_plane(studio_home):
+    from studio.licensing.ops_backup import backup_control_plane
+
+    studio_home.mkdir(parents=True, exist_ok=True)
+    (studio_home / "license_store.json").write_text("{}\n", encoding="utf-8")
+    (studio_home / "delivery_ledger.sqlite").write_bytes(b"sqlite")
+    meta = backup_control_plane(tag="test")
+    assert "license_store.json" in meta["copied"]
+    assert Path(meta["dir"]).is_dir()

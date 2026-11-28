@@ -187,6 +187,12 @@ def cmd_fulfil(args: argparse.Namespace) -> int:
     }
     receipt_path = out_dir / "fulfilment_receipt.json"
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    # Operator-local durability: dated copies of ledger + license store (₹0 filesystem)
+    from studio.licensing.ops_backup import backup_control_plane
+
+    backup_meta = backup_control_plane(tag=f"fulfil-{purchase.license_id}")
+    receipt["control_plane_backup"] = backup_meta
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     # Customer-safe instructions (no operator ledger secrets beyond licence id)
     customer_note = out_dir / "DELIVERY_INSTRUCTIONS.txt"
     customer_note.write_text(

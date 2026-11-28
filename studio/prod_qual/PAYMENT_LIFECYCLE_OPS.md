@@ -10,6 +10,14 @@
 4. Personalized dataset ZIP and/or Studio licence issuance.
 5. Private delivery; customer activates via `/activate`.
 
+Optional bridge when Studio is already running locally:
+
+```bash
+studio/scripts/post_payment_then_fulfil.sh dataset cust1 a@b.c fastspring TXN123 /tmp/out
+```
+
+Each `fulfil` also copies `license_store.json` / `delivery_ledger.sqlite` / `payment_events.jsonl` into `~/.academic-outreach-studio/backups/control-plane-*`.
+
 ## Automated webhook path (when provider supports it)
 
 `POST /api/licensing/webhook/payment` with `X-Studio-Webhook-Secret`:

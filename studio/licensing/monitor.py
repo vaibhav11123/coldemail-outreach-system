@@ -138,6 +138,15 @@ def scan_local_corpus(paths: list[Path], ledger: DeliveryLedger) -> list[Monitor
     return findings
 
 
+def _finding_dedupe_key(row: dict) -> str:
+    """Stable key so weekly rescans do not spam the findings log."""
+    ids = ",".join(sorted(str(x) for x in (row.get("export_ids") or [])))
+    url = str(row.get("url") or "")
+    source = str(row.get("source") or "")
+    markers = ",".join(sorted(str(x) for x in (row.get("matched_markers") or [])))
+    return f"{source}|{url}|{ids}|{markers}"
+
+
 def append_findings_log(path: Path, findings: list[MonitorFinding]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     existing: list[dict] = []
@@ -146,7 +155,14 @@ def append_findings_log(path: Path, findings: list[MonitorFinding]) -> None:
             existing = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             existing = []
-    existing.extend(f.to_dict() for f in findings)
+    seen = {_finding_dedupe_key(row) for row in existing if isinstance(row, dict)}
+    for finding in findings:
+        row = finding.to_dict()
+        key = _finding_dedupe_key(row)
+        if key in seen:
+            continue
+        seen.add(key)
+        existing.append(row)
     path.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
 
 
