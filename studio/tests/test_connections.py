@@ -62,6 +62,11 @@ def test_connections_screen(client):
     assert "GitHub" in r.text
     assert "CON-01" in r.text
     assert "No developer accounts or API keys required" in r.text
+    # Align with /mail: no live Connect path until OAuth clients are packaged.
+    assert r.text.count("Not available in this release") >= 2
+    gmail = r.text[r.text.find('id="gmail"') : r.text.find('id="gmail"') + 700]
+    assert "disabled" in gmail
+    assert 'href="/mail">Connect</a>' not in gmail
 
 
 def test_workspace_setup_steps_discovery_ready():
