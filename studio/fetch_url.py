@@ -52,7 +52,9 @@ def fetch_text(url: str) -> tuple[str, str]:
     # charset
     ctype = resp.headers.get("Content-Type", "")
     m = re.search(r"charset=([\w-]+)", ctype, re.I)
-    encoding = (m.group(1) if m else None) or resp.apparent_encoding or "utf-8"
+    # Do not use resp.apparent_encoding after streaming — it re-reads the body
+    # and raises "content already consumed".
+    encoding = (m.group(1) if m else None) or "utf-8"
     for enc in (encoding, "utf-8", "windows-1252"):
         try:
             text = raw.decode(enc)

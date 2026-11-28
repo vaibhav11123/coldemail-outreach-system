@@ -11,13 +11,14 @@ SCHOOLS = [
     {
         "id": "mit",
         "name": "Massachusetts Institute of Technology",
-        "url": "https://www.eecs.mit.edu/people/faculty-advisors/",
+        # Role listing moved; /people/faculty-advisors/ is a 404 as of 2026-11.
+        "url": "https://www.eecs.mit.edu/role/faculty/",
         "openalex_institution": "I63966007",
     },
     {
         "id": "stanford",
         "name": "Stanford University",
-        "url": "https://cs.stanford.edu/people/faculty",
+        "url": "https://www.cs.stanford.edu/people/faculty",
         "openalex_institution": "I97018004",
     },
     {
