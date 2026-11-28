@@ -79,18 +79,26 @@ def send_via_smtp(
     subject: str,
     body: str,
     use_tls: bool = True,
+    use_ssl: bool = False,
 ) -> str:
     msg = EmailMessage()
     msg["From"] = sender
     msg["To"] = recipient
     msg["Subject"] = subject
     msg.set_content(body)
-    with smtplib.SMTP(host, port, timeout=30) as smtp:
-        if use_tls:
-            smtp.starttls()
-        if username:
-            smtp.login(username, password)
-        smtp.send_message(msg)
+    # Port 465 → implicit TLS (common for IIT / institutional SMTPS)
+    if use_ssl or int(port) == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=30) as smtp:
+            if username:
+                smtp.login(username, password)
+            smtp.send_message(msg)
+    else:
+        with smtplib.SMTP(host, port, timeout=30) as smtp:
+            if use_tls:
+                smtp.starttls()
+            if username:
+                smtp.login(username, password)
+            smtp.send_message(msg)
     return f"smtp:{int(time.time())}"
 
 
@@ -150,6 +158,7 @@ def perform_send(
                 subject=draft["subject"],
                 body=draft["body"],
                 use_tls=bool(smtp_config.get("use_tls", True)),
+                use_ssl=bool(smtp_config.get("use_ssl", False)),
             )
         mark_sent(conn, intent_id, mid)
         app = conn.execute(

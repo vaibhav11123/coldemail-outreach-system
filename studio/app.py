@@ -34,16 +34,22 @@ from studio.fetch_url import extract_opportunity_suggestions, fetch_text
 from studio.identity import flag_name_conflict, merge_researchers, undo_merge
 from studio.jobs import enqueue, get_job, register_handler, start_worker
 from studio.mail import (
+    active_mail_summary,
     can_send_now,
+    connect_institute,
+    connect_manual_smtp,
     daily_limit as mail_daily_limit,
     disconnect_gmail,
+    disconnect_institute,
     disconnect_outlook,
+    discover_email_config,
     finish_gmail_oauth,
     finish_outlook_oauth,
     gmail_status,
     outlook_status,
     record_send,
     set_reply_consent,
+    smtp_config_from_store,
     start_gmail_oauth,
     start_outlook_oauth,
 )
@@ -1241,18 +1247,28 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 LIMIT 20
                 """
             ).fetchall()
+            summary = active_mail_summary()
             smtp = {
-                "host": get_secret("smtp_host") or "127.0.0.1",
-                "port": get_secret("smtp_port") or "1025",
+                "host": get_secret("smtp_host") or "",
+                "port": get_secret("smtp_port") or "465",
                 "username": get_secret("smtp_username") or "",
                 "sender": get_secret("smtp_sender") or "",
                 "use_tls": get_secret("smtp_use_tls") == "1",
+                "use_ssl": get_secret("smtp_use_ssl") == "1",
             }
-            gmail = gmail_status()
-            outlook = outlook_status()
             smtp_connected = bool(get_secret("smtp_host") and get_secret("smtp_sender"))
-            mailbox_ready = bool(gmail["connected"] or outlook["connected"] or smtp_connected)
             ok_quota, quota_label = can_send_now()
+            discover_email = (request.query_params.get("email") or "").strip()
+            discovery = None
+            suggested_username = ""
+            if discover_email:
+                # Registry + offline paths first; network ISPDB only when needed
+                disc = discover_email_config(discover_email, allow_network=False)
+                if disc.auth_method == "manual":
+                    disc = discover_email_config(discover_email, allow_network=True)
+                discovery = disc.as_dict()
+                if disc.smtp:
+                    suggested_username = disc.smtp.resolved_username(disc.email)
             return TEMPLATES.TemplateResponse(
                 request,
                 "mail.html",
@@ -1262,9 +1278,14 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     drafts=drafts,
                     smtp=smtp,
                     smtp_connected=smtp_connected,
-                    mailbox_ready=mailbox_ready,
-                    gmail=gmail,
-                    outlook=outlook,
+                    mailbox_ready=summary["mailbox_ready"],
+                    mailbox_kind=summary["kind"],
+                    gmail=summary["gmail"],
+                    outlook=summary["outlook"],
+                    institute=summary["institute"],
+                    discover_email=discover_email,
+                    discovery=discovery,
+                    suggested_username=suggested_username,
                     quota_label=quota_label,
                     quota_ok=ok_quota,
                     daily_limit=mail_daily_limit(),
@@ -1275,29 +1296,73 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         finally:
             conn.close()
 
+    @app.post("/mail/discover")
+    async def mail_discover(page_token: str = Form(...), email: str = Form("")):
+        require_token(page_token)
+        email = (email or "").strip()
+        if not email:
+            return RedirectResponse(
+                "/mail?err=1&flash=Enter%20an%20email%20address",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/mail?email={quote(email)}",
+            status_code=303,
+        )
+
+    @app.post("/mail/connect/institute")
+    async def mail_connect_institute(
+        page_token: str = Form(...),
+        email: str = Form(""),
+        username: str = Form(""),
+        password: str = Form(""),
+    ):
+        require_token(page_token)
+        result = connect_institute(email, username, password, allow_network=True)
+        if result.get("ok"):
+            return RedirectResponse(
+                f"/mail?flash={quote(result.get('message') or 'Connected')}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/mail?email={quote(email)}&err=1&flash={quote(result.get('message') or 'Connect failed')}",
+            status_code=303,
+        )
+
+    @app.post("/mail/disconnect/institute")
+    async def mail_disconnect_institute(page_token: str = Form(...)):
+        require_token(page_token)
+        disconnect_institute()
+        return RedirectResponse(
+            "/mail?flash=Institutional%20email%20disconnected", status_code=303
+        )
+
     @app.post("/mail/connect")
     async def mail_connect(
         page_token: str = Form(...),
         host: str = Form(""),
-        port: str = Form("1025"),
+        port: str = Form("465"),
         username: str = Form(""),
         password: str = Form(""),
         sender: str = Form(""),
         use_tls: str = Form(""),
+        use_ssl: str = Form(""),
     ):
         require_token(page_token)
-        if not host.strip() or not sender.strip():
+        result = connect_manual_smtp(
+            host=host,
+            port=port,
+            username=username,
+            password=password,
+            sender=sender,
+            use_tls=bool(use_tls),
+            use_ssl=bool(use_ssl) or (port.strip() == "465"),
+        )
+        if not result.get("ok"):
             return RedirectResponse(
-                "/mail?err=1&flash=Host%20and%20From%20address%20are%20required",
+                f"/mail?err=1&flash={quote(result.get('message') or 'Save failed')}",
                 status_code=303,
             )
-        set_secret("smtp_host", host.strip())
-        set_secret("smtp_port", port)
-        set_secret("smtp_username", username)
-        if password:
-            set_secret("smtp_password", password)
-        set_secret("smtp_sender", sender.strip())
-        set_secret("smtp_use_tls", "1" if use_tls else "0")
         return RedirectResponse("/mail?flash=Mailbox%20saved", status_code=303)
 
     @app.post("/mail/connect/gmail")
@@ -1618,11 +1683,10 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     @app.post("/mail/send/{draft_id}")
     async def mail_send(draft_id: int, page_token: str = Form(...)):
         require_token(page_token)
-        gmail = gmail_status()
-        smtp_ready = bool(get_secret("smtp_host") and get_secret("smtp_sender"))
-        if not gmail["connected"] and not smtp_ready:
+        summary = active_mail_summary()
+        if not summary["mailbox_ready"]:
             return RedirectResponse(
-                "/mail?err=1&flash=No%20email%20connected.%20Continue%20with%20Google%20or%20use%20Advanced%20SMTP.",
+                "/mail?err=1&flash=No%20email%20connected.%20Enter%20your%20address%20or%20Continue%20with%20Google.",
                 status_code=303,
             )
         ok_quota, quota_msg = can_send_now()
@@ -1630,7 +1694,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             return RedirectResponse(
                 f"/mail?err=1&flash={quote(quota_msg)}", status_code=303
             )
-        provider = "gmail" if gmail["connected"] else "smtp"
+        kind = summary["kind"]
+        provider = "gmail" if kind == "gmail" else "smtp"
         conn = get_conn()
         try:
             draft = conn.execute("SELECT * FROM draft WHERE id=?", (draft_id,)).fetchone()
@@ -1653,14 +1718,12 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                 )
             smtp_config = None
             if provider == "smtp":
-                smtp_config = {
-                    "host": get_secret("smtp_host"),
-                    "port": get_secret("smtp_port") or "1025",
-                    "username": get_secret("smtp_username") or "",
-                    "password": get_secret("smtp_password") or "",
-                    "sender": get_secret("smtp_sender"),
-                    "use_tls": get_secret("smtp_use_tls") == "1",
-                }
+                smtp_config = smtp_config_from_store()
+                if not smtp_config:
+                    return RedirectResponse(
+                        "/mail?err=1&flash=SMTP%20settings%20missing",
+                        status_code=303,
+                    )
             try:
                 perform_send(conn, intent_id, smtp_config)
                 record_send()

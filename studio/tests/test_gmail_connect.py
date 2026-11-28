@@ -32,13 +32,13 @@ def test_connect_email_screen_copy(client):
     assert "Connect your email" in r.text
     assert "Continue with Google" in r.text
     assert "Continue with Microsoft" in r.text
-    assert "We never ask for your email password" in r.text
     assert "Set up later" in r.text
-    # passwords / SMTP not above Advanced
+    assert "university email" in r.text.lower() or "Email address" in r.text
+    # passwords / SMTP not above Advanced on the landing path
     before_adv = r.text.split("Advanced email settings")[0]
     assert "app password" not in before_adv.lower()
     assert 'name="password"' not in before_adv
-    assert "SMTP" not in before_adv
+    assert "Manual SMTP" not in before_adv
 
 
 def test_gmail_scopes_are_send_only():
