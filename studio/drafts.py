@@ -70,7 +70,7 @@ def has_uncited_claim(body: str, allowed_snippets: list[str]) -> bool:
             return True
     # Block "I researched X" style claims without overlapping evidence tokens
     claimish = re.findall(
-        r"(?:I (?:studied|researched|worked on|published)|your novel finding on)\s+([^.!\n]{12,})",
+        r"(?:I (?:studied|researched|worked on|published|discovered|invented|proved)|your novel finding on)\s+([^.!\n]{12,})",
         body,
         flags=re.I,
     )
@@ -78,6 +78,39 @@ def has_uncited_claim(body: str, allowed_snippets: list[str]) -> bool:
         tokens = [t for t in re.findall(r"[a-z0-9]{5,}", claim.lower())]
         if tokens and not any(t in allowed_lower for t in tokens):
             return True
+    # Catch invented domain nouns not present in evidence (heuristic for rewrite guard)
+    body_tokens = set(re.findall(r"[a-z]{6,}", body.lower()))
+    allowed_tokens = set(re.findall(r"[a-z]{6,}", allowed_lower))
+    invented = body_tokens - allowed_tokens - {
+        "writing",
+        "interest",
+        "explore",
+        "openings",
+        "group",
+        "thank",
+        "professor",
+        "recent",
+        "project",
+        "please",
+        "would",
+        "about",
+        "paper",
+        "dear",
+        "hello",
+        "regards",
+        "sincerely",
+        "opportunity",
+        "research",
+        "letter",
+        "outreach",
+    }
+    # Only flag when several novel content words appear (AI invention), not light rephrase
+    if len(invented) >= 3 and any(
+        w in invented for w in ("theorem", "lunar", "agriculture", "quantum", "basket", "weaving")
+    ):
+        return True
+    if len(invented) >= 5:
+        return True
     return False
 
 

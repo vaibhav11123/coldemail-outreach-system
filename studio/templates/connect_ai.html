@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Connect your AI — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Connect your AI</h1>
+<p>Use your existing AI account to improve research outreach. Connecting AI is optional — the built-in draft always works.</p>
+
+{% if step_heading %}
+<p class="stated">{{ step_heading }}</p>
+{% endif %}
+
+<div class="sheet ai-hero">
+  <h2>Free AI</h2>
+  <p class="muted">No subscription or payment required</p>
+  {% set free = cards|selectattr('id', 'equalto', 'openrouter')|list %}
+  {% if free %}
+  {% set card = free[0] %}
+  <p>{% if card.status.connected %}<span class="stated">Connected</span> {{ card.status.account_hint }}{% else %}{{ card.subtitle }}{% endif %}</p>
+  {% if not card.status.connected %}
+  <form method="post" action="/ai/connect/openrouter">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit">Connect free AI</button>
+  </form>
+  <p class="muted" style="margin-top:0.75rem">You sign in once; we never see your password.</p>
+  {% else %}
+  <form method="post" action="/ai/disconnect/openrouter" style="display:inline">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary">Disconnect</button>
+  </form>
+  <form method="post" action="/ai/activate/openrouter" style="display:inline">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary"{% if card.is_active %} disabled{% endif %}>Use for rewrite</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</div>
+
+<h2>Already have an AI subscription?</h2>
+<div class="ai-grid">
+  {% for card in cards if card.id != 'openrouter' and not card.advanced %}
+  <div class="sheet ai-card">
+    <h3>{{ card.title }}</h3>
+    <p class="muted">{{ card.subtitle }}</p>
+    {% if card.status.connected %}
+    <p><span class="stated">Connected</span> {{ card.status.account_hint }}</p>
+    <form method="post" action="/ai/disconnect/{{ card.id }}" style="display:inline">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="secondary">Disconnect</button>
+    </form>
+    <form method="post" action="/ai/activate/{{ card.id }}" style="display:inline">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="secondary"{% if card.is_active %} disabled{% endif %}>Use for rewrite</button>
+    </form>
+    {% else %}
+    <p class="muted">{{ card.status.detail }}</p>
+    <form method="post" action="/ai/connect/{{ card.id }}">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="secondary" {% if card.auth_kind == 'unavailable' %}disabled{% endif %}>{{ card.button_label }}</button>
+    </form>
+    {% endif %}
+    {% if card.status.commercial_note %}
+    <p class="disabled-reason">{{ card.status.commercial_note }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<form method="post" action="/ai/continue-without" style="margin:1.5rem 0">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <button type="submit" class="secondary">Continue without AI</button>
+</form>
+<p class="muted">Your credentials stay on your device. You can disconnect at any time.</p>
+
+<details class="sheet">
+  <summary>Advanced settings</summary>
+  <p class="muted">Only if you already manage API keys or a local server.</p>
+  {% for card in cards if card.advanced %}
+  <div style="margin:1rem 0; padding-bottom:1rem; border-bottom:1px solid var(--color-border)">
+    <h3>{{ card.title }}</h3>
+    <p class="muted">{{ card.status.detail }}</p>
+    {% if card.id == 'custom' %}
+    <form method="post" action="/ai/finish/custom">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="base_url">Base URL (OpenAI-compatible)</label>
+      <input id="base_url" name="base_url" placeholder="http://127.0.0.1:1234/v1">
+      <label for="custom_key">API key (optional)</label>
+      <input id="custom_key" name="api_key" type="password" autocomplete="new-password">
+      <label for="custom_model">Model id</label>
+      <input id="custom_model" name="model" placeholder="local-model">
+      <button type="submit" class="secondary">Save custom provider</button>
+    </form>
+    {% elif card.id == 'gemini' or card.id == 'claude' or card.id == 'grok' %}
+    <form method="post" action="/ai/finish/{{ card.id }}">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="key-{{ card.id }}">API key</label>
+      <input id="key-{{ card.id }}" name="api_key" type="password" autocomplete="new-password">
+      <button type="submit" class="secondary">Save</button>
+    </form>
+    {% else %}
+    <form method="post" action="/ai/connect/{{ card.id }}">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="secondary">{{ card.button_label }}</button>
+    </form>
+    {% endif %}
+    {% if card.status.connected %}
+    <form method="post" action="/ai/disconnect/{{ card.id }}">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="secondary">Disconnect {{ card.title }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <div style="margin-top:1rem">
+    <h3>OpenRouter code paste</h3>
+    <p class="muted">If the browser cannot redirect back (SSH/remote), paste the authorization code here.</p>
+    <form method="post" action="/ai/finish/openrouter">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="or_code">Authorization code</label>
+      <input id="or_code" name="code">
+      <button type="submit" class="secondary">Exchange code</button>
+    </form>
+    <form method="post" action="/ai/connect/openrouter-headless" style="margin-top:0.5rem">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="secondary">Start headless OpenRouter auth</button>
+    </form>
+  </div>
+</details>
+
+<div class="sheet">
+  <h2>MCP (optional distribution)</h2>
+  <p class="muted">Rather than connecting AI into this app, eligible AI clients can call our tools. Experimental.</p>
+  <p class="mono">search_professors · get_professor_profile · find_research_openings · get_research_papers · get_student_profile · generate_evidence_bound_draft · validate_draft · save_draft</p>
+  <p><a href="/ai/mcp">MCP server notes</a></p>
+</div>
+{% endblock %}

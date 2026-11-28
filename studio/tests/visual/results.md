@@ -114,3 +114,26 @@ The draft body was restored to the original cited text and saved. It is back to 
 - Screenshot: `/opt/cursor/artifacts/visual/s5_uncited_blocked_fixed.png`
 - The previous failing run is kept as `s5_draft_uncited_claim_APPROVED_not_blocked_FAIL_fixed.png`.
 - After the test I restored the cited body (see the note in the final report).
+
+## BYOAI Connect AI
+
+Run: 2026-11-28 01:28–01:33 UTC against http://127.0.0.1:8765/ai. Screenshots are `/opt/cursor/artifacts/visual/byoai_*.png`.
+
+| # | Check | Result | Evidence |
+|---|-------|--------|----------|
+| 1a | Page title and h1 read "Connect your AI" | PASS | `byoai_01_main_top_1280.png` (tab title "Connect your AI — Academic Outreach Studio") |
+| 1b | "Connect free AI" is the prominent button | PASS | Filled brown primary button inside an accented Free AI card, above the paid-subscription cards. Screenshots 01 and 08 |
+| 1c | "Continue without AI" is present | PASS | Secondary button below the provider cards. `byoai_02_collapsed_advanced_continue_1280.png` |
+| 1d | Advanced settings is collapsed by default | PASS | `<details class="sheet">` has no `open` attribute. Screenshot 02 |
+| 2 | No raw "API key" jargon above the Advanced fold | PASS | In the HTML, "API key" first appears at the `<summary>Advanced settings</summary>` line. Nothing above it. The only mention in the collapsed summary area is the muted line inside the details block. |
+| 3 | Continue without AI lands on drafts with a flash | PASS | `/drafts?flash=Continuing with built-in drafts`, neutral banner "Continuing with built-in drafts". `byoai_03_continue_without_ai_drafts_flash.png` |
+| 4 | Expanded Advanced shows Gemini, Claude, Grok and custom fields | PASS | Gemini API key + Save; Claude and Grok API key fields; Custom AI provider (base URL, optional key, model id); OpenRouter code paste. Screenshots 04 and 05. The Claude block was confirmed in the HTML and sits between the two screenshots. |
+| 5 | Connect free AI navigates toward openrouter.ai | PASS | Network is reachable. Browser landed on `openrouter.ai/sign-up?redirect_url=…callback_url=http://127.0.0.1:8765/ai/callback/openrouter&code_challenge=…` (PKCE). `byoai_06_connect_free_ai_openrouter_signup.png` |
+| 6 | Snapshots at 1280 and about 390 | PASS | 1280: screenshots 01–06. About 390: Chrome zoom 500% on a 1920 px screen gives a ~384 px viewport, `byoai_07_narrow_390_top.png` and `byoai_08_narrow_390_connect_free_ai.png`. The nav wraps, the title and Free AI card fit, and there is no horizontal scroll. |
+
+Totals: 8 of 8 checks PASS, 0 FAIL.
+
+Notes:
+- Items 1–4 and 6 hold for the page as rendered. The "Powered by OpenRouter" line appears twice in the Free AI card (once before the button, once as the sign-in note). This is redundant but not a defect for this checklist.
+- The "Advanced settings" summary shows no visible disclosure triangle in Chrome. It is still clickable and expands.
+- After step 5 the browser was left on openrouter.ai and then returned to /ai. No credentials were entered and the zoom was reset to 100%.

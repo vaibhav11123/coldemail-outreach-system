@@ -60,6 +60,16 @@ from studio.security import (
 )
 from studio.sheet_import import commit_import, read_tabular, suggest_mapping
 from studio.summer_loader import load_summer_zip, seed_mini_bundled
+from studio.ai.engine import rewrite_draft
+from studio.ai.registry import (
+    continue_without_ai,
+    disconnect_provider,
+    get_active_provider,
+    get_provider,
+    list_provider_cards,
+    set_active_provider,
+)
+from studio.ai.types import EvidenceBoundRequest
 
 TEMPLATES = Jinja2Templates(directory=str(PACKAGE_ROOT / "templates"))
 
@@ -875,6 +885,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                         "content_hash": "",
                         "approved_hash": None,
                     }
+            active = get_active_provider()
+            ai_status = active.get_status() if active else None
             return TEMPLATES.TemplateResponse(request, "draft.html",
                 ctx(
                     request,
@@ -883,7 +895,79 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
                     draft=draft,
                     error=error,
                     mailto=mailto_link(draft["recipient"], draft["subject"], draft["body"]),
+                    ai_status=ai_status,
+                    rewrite_note=request.query_params.get("rewrite"),
+                    rewrite_error=request.query_params.get("rwerr") == "1",
                 ),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/draft/{opportunity_id}/rewrite")
+    async def draft_rewrite(opportunity_id: int, page_token: str = Form(...)):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM draft WHERE opportunity_id=?", (opportunity_id,)
+            ).fetchone()
+            if not row:
+                return RedirectResponse(
+                    f"/draft/{opportunity_id}?rewrite=No%20draft%20yet&rwerr=1",
+                    status_code=303,
+                )
+            facts = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT kind, body, confirmed FROM profile_fact WHERE confirmed=1"
+                )
+            ]
+            opp = conn.execute(
+                "SELECT * FROM opportunity WHERE id=?", (opportunity_id,)
+            ).fetchone()
+            pubs = [
+                dict(p)
+                for p in conn.execute(
+                    "SELECT title, url, abstract FROM publication WHERE researcher_id=?",
+                    (opp["researcher_id"],),
+                )
+            ] if opp else []
+            evidence = [f["body"] for f in facts]
+            evidence.extend([p.get("title") or "" for p in pubs])
+            evidence.extend([p.get("url") or "" for p in pubs])
+            evidence.extend([p.get("abstract") or "" for p in pubs])
+            citations = [
+                {
+                    "applicant": next((f["body"] for f in facts if f["kind"] == "project"), ""),
+                    "source": (pubs[0].get("abstract") or pubs[0].get("title") if pubs else ""),
+                    "url": (pubs[0].get("url") if pubs else ""),
+                }
+            ]
+            req = EvidenceBoundRequest(
+                recipient=row["recipient"],
+                subject=row["subject"],
+                body=row["body"],
+                evidence_snippets=evidence,
+                citations=citations,
+            )
+            result = rewrite_draft(req)
+            if result.ok and result.body:
+                clear_approval_if_edited(
+                    conn, int(row["id"]), row["recipient"], result.subject or row["subject"], result.body
+                )
+            note = result.error or (
+                f"Rewritten with {result.provider_id}"
+                if not result.used_deterministic_fallback
+                else "Kept built-in draft"
+            )
+            err = "1" if (result.rejected_claims or (result.error and result.used_deterministic_fallback and not result.ok)) else ""
+            if result.rejected_claims:
+                err = "1"
+                note = result.rejected_claims[0]
+            return RedirectResponse(
+                f"/draft/{opportunity_id}?rewrite={quote(note)}"
+                + (f"&rwerr={err}" if err else ""),
+                status_code=303,
             )
         finally:
             conn.close()
@@ -1198,21 +1282,164 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         )
 
     @app.post("/mail/ai-key")
-    async def mail_ai_key(
-        page_token: str = Form(...),
-        provider: str = Form(...),
-        api_key: str = Form(...),
-    ):
+    async def mail_ai_key(page_token: str = Form(...)):
         require_token(page_token)
-        set_secret(f"ai_{provider}", api_key.strip())
-        return RedirectResponse("/mail?flash=AI%20key%20saved", status_code=303)
+        return RedirectResponse("/ai", status_code=303)
 
     @app.post("/mail/ai-disconnect")
     async def mail_ai_disconnect(page_token: str = Form(...)):
         require_token(page_token)
-        for p in ("claude", "gemini", "chatgpt", "copilot"):
-            delete_secret(f"ai_{p}")
-        return RedirectResponse("/mail?flash=AI%20disconnected", status_code=303)
+        return RedirectResponse("/ai", status_code=303)
+
+    # ---- BYOAI: Connect your AI ----
+    @app.get("/ai", response_class=HTMLResponse)
+    async def ai_connect(request: Request):
+        return TEMPLATES.TemplateResponse(
+            request,
+            "connect_ai.html",
+            ctx(
+                request,
+                nav="ai",
+                cards=list_provider_cards(),
+                step_heading="Power up your research outreach",
+            ),
+        )
+
+    @app.get("/ai/mcp", response_class=HTMLResponse)
+    async def ai_mcp(request: Request):
+        return TEMPLATES.TemplateResponse(
+            request, "ai_mcp.html", ctx(request, nav="ai")
+        )
+
+    @app.post("/ai/continue-without")
+    async def ai_continue_without(page_token: str = Form(...)):
+        require_token(page_token)
+        continue_without_ai()
+        return RedirectResponse(
+            "/drafts?flash=Continuing%20with%20built-in%20drafts", status_code=303
+        )
+
+    @app.post("/ai/connect/{provider_id}")
+    async def ai_connect_provider(
+        request: Request, provider_id: str, page_token: str = Form(...)
+    ):
+        require_token(page_token)
+        headless = provider_id == "openrouter-headless"
+        pid = "openrouter" if headless else provider_id
+        p = get_provider(pid)
+        if not p:
+            return RedirectResponse("/ai?err=1&flash=Unknown%20provider", status_code=303)
+        port = os.environ.get("STUDIO_PORT", "8765")
+        callback_base = f"http://127.0.0.1:{port}"
+        if headless:
+            result = p.connect_headless_start()  # type: ignore[attr-defined]
+        else:
+            result = p.connect_start(callback_base)
+        if result.redirect_url and result.ok and not result.needs_paste_code:
+            return RedirectResponse(result.redirect_url, status_code=303)
+        if not result.ok and result.redirect_url and not result.needs_paste_code:
+            return RedirectResponse(
+                f"/ai?err=1&flash={quote(result.message)}", status_code=303
+            )
+        return TEMPLATES.TemplateResponse(
+            request,
+            "ai_setup.html",
+            ctx(
+                request,
+                nav="ai",
+                provider=p,
+                message=result.message,
+                redirect_url=result.redirect_url,
+                needs_paste=bool(result.needs_paste_code or not result.ok),
+                paste_kind=(result.extra or {}).get("paste_kind", "code"),
+            ),
+        )
+
+    @app.get("/ai/setup/{provider_id}", response_class=HTMLResponse)
+    async def ai_setup_get(request: Request, provider_id: str):
+        p = get_provider(provider_id)
+        if not p:
+            return RedirectResponse("/ai?err=1&flash=Unknown%20provider", status_code=303)
+        return TEMPLATES.TemplateResponse(
+            request,
+            "ai_setup.html",
+            ctx(
+                request,
+                nav="ai",
+                provider=p,
+                message=p.get_status().detail,
+                redirect_url=None,
+                needs_paste=True,
+                paste_kind="api_key",
+            ),
+        )
+
+    @app.post("/ai/finish/{provider_id}")
+    async def ai_finish_provider(
+        provider_id: str,
+        page_token: str = Form(...),
+        code: str = Form(""),
+        api_key: str = Form(""),
+        base_url: str = Form(""),
+        model: str = Form(""),
+        state: str = Form(""),
+    ):
+        require_token(page_token)
+        p = get_provider(provider_id)
+        if not p:
+            return RedirectResponse("/ai?err=1&flash=Unknown%20provider", status_code=303)
+        result = p.connect_finish(
+            code=code, api_key=api_key, base_url=base_url, model=model, state=state
+        )
+        if result.ok:
+            set_active_provider(provider_id)
+            return RedirectResponse(
+                f"/ai?flash={quote(result.message)}", status_code=303
+            )
+        return RedirectResponse(
+            f"/ai?err=1&flash={quote(result.message)}", status_code=303
+        )
+
+    @app.get("/ai/callback/{provider_id}")
+    async def ai_oauth_callback(
+        provider_id: str,
+        code: str = "",
+        state: str = "",
+        error: str = "",
+    ):
+        if error:
+            return RedirectResponse(
+                f"/ai?err=1&flash={quote(error)}", status_code=303
+            )
+        p = get_provider(provider_id)
+        if not p:
+            return RedirectResponse("/ai?err=1&flash=Unknown%20provider", status_code=303)
+        result = p.connect_finish(code=code, state=state)
+        if result.ok:
+            set_active_provider(provider_id)
+            return RedirectResponse(
+                f"/ai?flash={quote(result.message)}", status_code=303
+            )
+        return RedirectResponse(
+            f"/ai?err=1&flash={quote(result.message)}", status_code=303
+        )
+
+    @app.post("/ai/disconnect/{provider_id}")
+    async def ai_disconnect_provider(provider_id: str, page_token: str = Form(...)):
+        require_token(page_token)
+        disconnect_provider(provider_id)
+        return RedirectResponse("/ai?flash=Disconnected", status_code=303)
+
+    @app.post("/ai/activate/{provider_id}")
+    async def ai_activate_provider(provider_id: str, page_token: str = Form(...)):
+        require_token(page_token)
+        p = get_provider(provider_id)
+        if not p or not p.get_status().connected:
+            return RedirectResponse(
+                "/ai?err=1&flash=Connect%20this%20account%20first", status_code=303
+            )
+        set_active_provider(provider_id)
+        return RedirectResponse("/ai?flash=Using%20this%20AI%20for%20rewrite", status_code=303)
 
     @app.post("/mail/reply-consent")
     async def mail_reply_consent(page_token: str = Form(...), consent: str = Form("")):

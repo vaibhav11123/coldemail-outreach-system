@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Set up {{ provider.display_name }} — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>{{ provider.display_name }}</h1>
+<p class="muted">{{ message }}</p>
+{% if redirect_url %}
+<p><a class="button" href="{{ redirect_url }}" rel="noopener">Continue in browser</a></p>
+{% endif %}
+{% if needs_paste %}
+<form method="post" action="/ai/finish/{{ provider.id }}">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  {% if paste_kind == 'custom' %}
+  <label for="base_url">Base URL</label>
+  <input id="base_url" name="base_url">
+  <label for="api_key">API key (optional)</label>
+  <input id="api_key" name="api_key" type="password" autocomplete="new-password">
+  <label for="model">Model</label>
+  <input id="model" name="model">
+  {% else %}
+  <label for="code">{% if paste_kind == 'api_key' %}API key{% else %}Code or token{% endif %}</label>
+  <input id="code" name="{% if paste_kind == 'api_key' %}api_key{% else %}code{% endif %}" {% if paste_kind == 'api_key' %}type="password" autocomplete="new-password"{% endif %}>
+  {% endif %}
+  <button type="submit">Save and connect</button>
+</form>
+{% endif %}
+<p><a href="/ai">Back to Connect your AI</a></p>
+{% endblock %}

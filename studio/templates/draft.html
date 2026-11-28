@@ -38,18 +38,16 @@
 
 <div class="sheet">
   <h2>Optional rewrite</h2>
-  <p>Connect ChatGPT, Claude, Gemini, or Copilot under Mail settings, or open the chat you already use.</p>
-  <form method="post" action="/draft/{{ draft.id }}/open-chat">
+  {% if ai_status and ai_status.connected %}
+  <p>Using <strong>{{ ai_status.label }}</strong>{% if ai_status.account_hint %} ({{ ai_status.account_hint }}){% endif %}. AI may only rephrase cited sentences.</p>
+  <form method="post" action="/draft/{{ opportunity_id }}/rewrite">
     <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label for="provider">Chat</label>
-    <select id="provider" name="provider">
-      <option value="chatgpt">ChatGPT</option>
-      <option value="claude">Claude</option>
-      <option value="gemini">Gemini</option>
-      <option value="copilot">Copilot</option>
-    </select>
-    <button type="submit" class="secondary">Copy prompt and open</button>
+    <button type="submit" class="secondary">Rewrite with connected AI</button>
   </form>
+  {% else %}
+  <p>Built-in draft works without AI. <a href="/ai">Connect free AI</a> to rephrase with your own account.</p>
+  {% endif %}
+  {% if rewrite_note %}<p class="flash {% if rewrite_error %}error{% endif %}">{{ rewrite_note }}</p>{% endif %}
 </div>
 
 <script>

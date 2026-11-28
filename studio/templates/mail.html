@@ -35,25 +35,9 @@
 </div>
 
 <div class="sheet">
-  <h2>AI rewrite accounts</h2>
-  <p>Deterministic draft always works. Connected models may only rephrase cited sentences.</p>
-  <form method="post" action="/mail/ai-key">
-    <input type="hidden" name="page_token" value="{{ page_token }}">
-    <label for="provider">Provider</label>
-    <select id="provider" name="provider">
-      <option value="claude">Claude (API key)</option>
-      <option value="gemini">Gemini (AI Studio key)</option>
-      <option value="chatgpt">ChatGPT (token)</option>
-      <option value="copilot">Copilot (device token)</option>
-    </select>
-    <label for="api_key">Key or token</label>
-    <input id="api_key" name="api_key">
-    <button type="submit" class="secondary">Save</button>
-  </form>
-  <form method="post" action="/mail/ai-disconnect">
-    <input type="hidden" name="page_token" value="{{ page_token }}">
-    <button type="submit" class="secondary">Disconnect AI keys</button>
-  </form>
+  <h2>AI rewrite</h2>
+  <p>Connecting AI is optional and feels like signing into an account — not pasting keys. OpenAI-compatible keys stay under Advanced on the AI screen.</p>
+  <p><a class="button" href="/ai">Connect your AI</a></p>
 </div>
 
 <div class="sheet">
