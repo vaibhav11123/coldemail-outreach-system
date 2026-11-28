@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Tracker — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Applications</h1>
+{% if not items %}
+<p class="muted">No applications yet. Prepare a draft from an opening first.</p>
+{% else %}
+<ul class="list">
+  {% for a in items %}
+  <li>
+    <strong>{{ a.name }}</strong>
+    — {{ a.state }} · {{ a.channel }}
+    {% if a.deadline %}<span class="mono"> · {{ a.deadline }}</span>{% endif %}
+    <form method="post" action="/tracker/{{ a.id }}/state" style="display:inline">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <label for="state-{{ a.id }}" class="sr-only">State</label>
+      <select id="state-{{ a.id }}" name="state">
+        {% for s in states %}
+        <option value="{{ s }}" {% if a.state==s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="secondary">Update</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<p><a class="button secondary" href="/tracker/export">Export CSV</a></p>
+
+<div class="sheet">
+  <h2>Delete my data</h2>
+  <p>Removes your profile, drafts, applications, user-imported people, and this app's secrets. Bundled Summer rows and the HR CSV stay.</p>
+  <form method="post" action="/tracker/delete-all">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label for="confirm">Type DELETE to confirm</label>
+    <input id="confirm" name="confirm" autocomplete="off">
+    <button type="submit" class="danger">Delete all my data</button>
+  </form>
+</div>
+{% endblock %}

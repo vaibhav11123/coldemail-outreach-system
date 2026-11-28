@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Return — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>When you come back</h1>
+<p class="muted">Deadlines inside 14 days and cards whose check date is older than 30 days.</p>
+
+<div class="sheet">
+  <h2>Deadlines in 14 days</h2>
+  {% if not deadlines %}
+  <p class="muted">None.</p>
+  {% else %}
+  <ul class="list">
+    {% for d in deadlines %}
+    <li><a href="/opportunity/{{ d.id }}">{{ d.name }}</a> — <span class="mono">{{ d.deadline }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+
+<div class="sheet">
+  <h2>Stale checks (older than 30 days)</h2>
+  {% if not stale %}
+  <p class="muted">None.</p>
+  {% else %}
+  <ul class="list">
+    {% for s in stale %}
+    <li><a href="/opportunity/{{ s.id }}">{{ s.name }}</a> — checked <span class="mono">{{ s.checked_at }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+
+<div class="sheet">
+  <h2>Alerts</h2>
+  <p>These lists are the retention hook. Turn on notifications when you want reminders.</p>
+  <form method="post" action="/return/alerts">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label><input type="checkbox" name="alerts" value="1" {% if alerts_on %}checked{% endif %}> Enable deadline and stale alerts</label>
+    <button type="submit" class="secondary">Save</button>
+  </form>
+</div>
+
+<div class="sheet">
+  <h2>Profiles</h2>
+  <p>More than one student profile. Mailboxes are not shared across profiles.</p>
+  <ul class="list">
+    {% for p in profiles %}
+    <li>{{ p.label }} {% if p.is_active %}<span class="stated">Active</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  <form method="post" action="/return/add-profile">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label for="label">New profile label</label>
+    <input id="label" name="label">
+    <button type="submit" class="secondary">Add profile</button>
+  </form>
+</div>
+{% endblock %}

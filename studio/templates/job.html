@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Job — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Job {{ job.id }}</h1>
+<p>Kind: {{ job.kind }} · Status: {{ job.status }} · Progress: {{ job.progress }}%</p>
+{% if job.error %}<p class="flash error">{{ job.error }}</p>{% endif %}
+<meta http-equiv="refresh" content="2">
+{% if job.status in ['done', 'failed', 'cancelled', 'interrupted'] %}
+<p><a class="button" href="/start">Back to openings</a></p>
+{% else %}
+<p class="muted">Working… this page refreshes.</p>
+<form method="post" action="/job/{{ job.id }}/cancel">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <button type="submit" class="secondary">Cancel</button>
+</form>
+{% endif %}
+{% endblock %}

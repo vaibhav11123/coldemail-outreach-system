@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Opening — Academic Outreach Studio{% endblock %}
+{% block content %}
+{% if opp.demo %}<p class="stated">Demo</p>{% endif %}
+<h1>{{ researcher.display_name }}</h1>
+<p class="muted">{{ institution }} · Check date: <span class="mono">{{ opp.checked_at or 'unknown' }}</span></p>
+
+<div class="grid-2">
+  <div class="sheet">
+    <h2>Opportunity</h2>
+    <p>Kind: {{ opp.kind }}</p>
+    <p>Applications:
+      {% if opp.status == 'stated-yes' %}<span class="stated">Stated open</span>
+      {% elif opp.status == 'stated-no' %}Stated closed
+      {% else %}<span class="unknown">Unknown</span>{% endif %}
+    </p>
+    <p>Funding:
+      {% if opp.funding == 'stated-yes' %}<span class="stated">Stated</span>
+      {% elif opp.funding == 'stated-no' %}Stated no
+      {% else %}<span class="unknown">Unknown</span>{% endif %}
+    </p>
+    <p>International students:
+      {% if opp.eligibility == 'stated-yes' %}<span class="stated">Stated eligible</span>
+      {% elif opp.eligibility == 'stated-no' %}Stated not eligible
+      {% else %}<span class="unknown">Unknown</span>{% endif %}
+    </p>
+    <p>Deadline:
+      {% if opp.deadline %}
+        {% if expired %}<span class="expired">{{ opp.deadline }}</span> Expired
+        {% else %}{{ opp.deadline }}{% endif %}
+      {% else %}<span class="unknown">Unknown</span>{% endif %}
+    </p>
+    {% if expired %}
+    <p class="muted">The check date still records what the source said; the deadline is past, so treat this opening as expired for planning.</p>
+    {% endif %}
+    <p>Apply link:
+      {% if opp.apply_url %}<a href="{{ opp.apply_url }}">{{ opp.apply_url }}</a>
+      {% else %}<span class="unknown">Unknown</span>{% endif %}
+    </p>
+    <p>Direct email invited:
+      {% if opp.email_invited == 'stated-yes' %}<span class="stated">Stated yes</span>
+      {% elif opp.email_invited == 'stated-no' %}Stated no
+      {% else %}<span class="unknown">Unknown</span>{% endif %}
+    </p>
+    {% if opp.note %}<p class="muted">Note: {{ opp.note }}</p>{% endif %}
+
+    <h3>Papers</h3>
+    {% if publications %}
+    <ul class="list">
+      {% for p in publications[:3] %}
+      <li>
+        {% if p.url %}<a href="{{ p.url }}">{{ p.title }}</a>{% else %}{{ p.title }}{% endif %}
+        {% if p.year %} ({{ p.year }}){% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Publications are missing. The draft will not invent one.</p>
+    {% endif %}
+  </div>
+  <div class="sheet">
+    <h2>Why it fits</h2>
+    {% if reasons %}
+    <ul class="list">
+      {% for r in reasons %}
+      <li>
+        <strong>{{ r.type }}</strong>
+        {% if r.applicant %}<div>You: {{ r.applicant }}</div>{% endif %}
+        <div>Source: {{ r.source }}</div>
+        {% if r.url %}<div class="mono"><a href="{{ r.url }}">{{ r.url }}</a></div>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Fit is not scored yet, or no cited overlap was found.</p>
+    {% endif %}
+    <p><a class="button" href="/draft/{{ opp.id }}">Prepare draft</a></p>
+    <form method="post" action="/shortlist/add/{{ opp.id }}">
+      <input type="hidden" name="page_token" value="{{ page_token }}">
+      <button type="submit" class="secondary">Add to shortlist</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

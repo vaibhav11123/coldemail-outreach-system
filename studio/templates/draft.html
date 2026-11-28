@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Draft — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Draft</h1>
+<p class="muted">Every research sentence must cite your confirmed profile or a sourced paper. Direct send is optional under Mail.</p>
+
+{% if error %}<p class="flash error">{{ error }}</p>{% endif %}
+
+<form method="post" action="/draft/{{ opportunity_id }}">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <label for="recipient">Recipient</label>
+  <input id="recipient" name="recipient" value="{{ draft.recipient }}">
+  <label for="subject">Subject</label>
+  <input id="subject" name="subject" value="{{ draft.subject }}">
+  <label for="body">Body</label>
+  <textarea id="body" name="body" rows="12">{{ draft.body }}</textarea>
+  <p>
+    <button type="submit" name="action" value="save">Save</button>
+    <button type="submit" name="action" value="approve" class="secondary">Approve this exact letter</button>
+  </p>
+</form>
+
+{% if draft.approved_hash == draft.content_hash %}
+<p class="stated">Approved</p>
+{% else %}
+<p class="disabled-reason">Not approved. Editing recipient, subject, or body clears approval.</p>
+{% endif %}
+
+<p>
+  <button type="button" id="copy-btn" class="secondary">Copy</button>
+  <a class="button secondary" href="/draft/{{ draft.id }}/eml">Download .eml</a>
+  <a class="button secondary" href="{{ mailto }}">Open in mail app</a>
+</p>
+<form method="post" action="/draft/{{ draft.id }}/sent-by-me">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <button type="submit" class="secondary">I sent this</button>
+</form>
+
+<div class="sheet">
+  <h2>Optional rewrite</h2>
+  <p>Connect ChatGPT, Claude, Gemini, or Copilot under Mail settings, or open the chat you already use.</p>
+  <form method="post" action="/draft/{{ draft.id }}/open-chat">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label for="provider">Chat</label>
+    <select id="provider" name="provider">
+      <option value="chatgpt">ChatGPT</option>
+      <option value="claude">Claude</option>
+      <option value="gemini">Gemini</option>
+      <option value="copilot">Copilot</option>
+    </select>
+    <button type="submit" class="secondary">Copy prompt and open</button>
+  </form>
+</div>
+
+<script>
+document.getElementById('copy-btn')?.addEventListener('click', async () => {
+  const text = document.getElementById('body').value;
+  await navigator.clipboard.writeText(text);
+  alert('Copied');
+});
+</script>
+{% endblock %}

@@ -82,3 +82,7 @@ staffspy_*_snapshot_*.csv
 
 # Secrets / configs
 .env
+# Studio local data
+*.sqlite
+*.sqlite-*
+secrets.json

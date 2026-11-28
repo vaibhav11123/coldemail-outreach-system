@@ -1,0 +1,1548 @@
+"""Academic Outreach Studio — FastAPI + Jinja2 local app."""
+
+from __future__ import annotations
+
+import csv
+import io
+import json
+import os
+import secrets
+import tempfile
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import Any
+from urllib.parse import quote
+
+from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from studio import db as dbmod
+from studio.demo import seed_demo
+from studio.drafts import (
+    approve_draft,
+    clear_approval_if_edited,
+    content_hash,
+    generate_draft,
+    mailto_link,
+    save_or_update_draft,
+    to_eml,
+)
+from studio.faculty import collect_school, import_people, list_schools
+from studio.fetch_url import extract_opportunity_suggestions, fetch_text
+from studio.identity import flag_name_conflict, merge_researchers, undo_merge
+from studio.jobs import enqueue, get_job, register_handler, start_worker
+from studio.mailer_studio import create_intent, perform_send
+from studio.matching import rebuild_shortlist
+from studio.openalex import request_api_key, save_pasted_key
+from studio.paths import PACKAGE_ROOT, REPO_ROOT, app_data_dir, bundled_data_dir
+from studio.planner import (
+    PERSONAL_GMAIL_CAP,
+    academic_queue,
+    classify_hr,
+    load_hr_dataframe,
+    preview_row,
+    schedule_again,
+    sent_in_rolling_24h,
+)
+from studio.secrets_store import (
+    delete_all_studio_secrets,
+    delete_secret,
+    get_secret,
+    set_secret,
+)
+from studio.security import (
+    new_page_token,
+    require_localhost_host,
+    require_page_token,
+    set_page_token_cookie,
+)
+from studio.sheet_import import commit_import, read_tabular, suggest_mapping
+from studio.summer_loader import load_summer_zip, seed_mini_bundled
+
+TEMPLATES = Jinja2Templates(directory=str(PACKAGE_ROOT / "templates"))
+
+def render(request: Request, name: str, **context):
+    return TEMPLATES.TemplateResponse(request, name, context)
+
+PAGE_TOKEN: str = new_page_token()
+IMPORT_CACHE: dict[str, Any] = {}
+FETCH_CACHE: dict[str, Any] = {}
+
+OFFER_PRICE = "Included with this build (local personal use)."
+OFFER_REFUND = "If the app does not open or the library fails to load, email support within 14 days for a refund."
+SUPPORT_EMAIL = "support@academic-outreach.studio"
+
+APPLICATION_STATES = [
+    "drafted",
+    "ready",
+    "submitted_by_me",
+    "replied",
+    "interview",
+    "rejected",
+    "stopped",
+]
+
+
+def create_app(data_dir: Path | None = None) -> FastAPI:
+    global PAGE_TOKEN
+    if data_dir is not None:
+        os.environ["STUDIO_DATA_DIR"] = str(data_dir)
+    os.environ.setdefault("STUDIO_FORCE_LOCAL_SECRETS", "1")
+    PAGE_TOKEN = new_page_token()
+
+    app = FastAPI(title="Academic Outreach Studio")
+    app.mount("/static", StaticFiles(directory=str(PACKAGE_ROOT / "static")), name="static")
+
+    conn = dbmod.connect()
+    dbmod.migrate(conn)
+    dbmod.recover_intents_on_startup(conn)
+    dbmod.interrupt_running_jobs(conn)
+    seed_demo(conn)
+    _ensure_library(conn)
+    conn.close()
+
+    _register_jobs()
+    start_worker()
+
+    def _page_token_missing(request: Request) -> bool:
+        return request.cookies.get("studio_page_token") != PAGE_TOKEN
+
+    @app.middleware("http")
+    async def security_middleware(request: Request, call_next):
+        if request.url.path.startswith("/static"):
+            return await call_next(request)
+        try:
+            require_localhost_host(request)
+        except Exception as exc:  # noqa: BLE001
+            detail = getattr(exc, "detail", str(exc))
+            return Response(str(detail), status_code=403)
+        response = await call_next(request)
+        if _page_token_missing(request):
+            set_page_token_cookie(response, PAGE_TOKEN)
+        return response
+
+    def ctx(request: Request, nav: str = "", **extra: Any) -> dict:
+        data = {
+            "request": request,
+            "nav": nav,
+            "page_token": PAGE_TOKEN,
+            "flash": request.query_params.get("flash"),
+            "flash_error": request.query_params.get("err") == "1",
+        }
+        data.update(extra)
+        return data
+
+    def require_token(form_token: str | None) -> None:
+        # Build a minimal request-like check against process token
+        class _R:
+            cookies = {"studio_page_token": PAGE_TOKEN}
+
+        require_page_token(_R(), form_token)  # type: ignore[arg-type]
+
+    def get_conn():
+        return dbmod.connect()
+
+    def profile_ready(conn) -> bool:
+        interests = conn.execute(
+            "SELECT COUNT(*) AS c FROM profile_fact WHERE kind='interest' AND confirmed=1"
+        ).fetchone()["c"]
+        projects = conn.execute(
+            "SELECT COUNT(*) AS c FROM profile_fact WHERE kind='project' AND confirmed=1"
+        ).fetchone()["c"]
+        return interests > 0 and projects > 0
+
+    @app.get("/", response_class=HTMLResponse)
+    async def home(request: Request):
+        return RedirectResponse("/offer", status_code=302)
+
+    # ---- S0 Offer ----
+    @app.get("/offer", response_class=HTMLResponse)
+    async def offer(request: Request):
+        return TEMPLATES.TemplateResponse(request, "offer.html",
+            ctx(
+                request,
+                nav="offer",
+                price=OFFER_PRICE,
+                refund=OFFER_REFUND,
+                support=SUPPORT_EMAIL,
+            ),
+        )
+
+    # ---- S1 Profile ----
+    @app.get("/profile", response_class=HTMLResponse)
+    async def profile_get(request: Request):
+        conn = get_conn()
+        try:
+            applicant = conn.execute("SELECT * FROM applicant WHERE id=1").fetchone()
+            facts = conn.execute(
+                "SELECT * FROM profile_fact ORDER BY id DESC"
+            ).fetchall()
+            return TEMPLATES.TemplateResponse(request, "profile.html",
+                ctx(
+                    request,
+                    nav="profile",
+                    applicant=applicant,
+                    facts=facts,
+                    profile_ready=profile_ready(conn),
+                ),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/profile")
+    async def profile_post(
+        request: Request,
+        page_token: str = Form(...),
+        mode: str = Form("internship"),
+        degree_level: str = Form("undergraduate"),
+        degree_year: str = Form(""),
+        countries: str = Form(""),
+        funding_need: str = Form("no_preference"),
+        dates_free: str = Form(""),
+        github_url: str = Form(""),
+        portfolio_url: str = Form(""),
+        interest: str = Form(""),
+        skill: str = Form(""),
+        project: str = Form(""),
+        cv: UploadFile | None = File(None),
+    ):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(
+                """
+                UPDATE applicant SET mode=?, degree_level=?, degree_year=?, countries=?,
+                    funding_need=?, dates_free=?, github_url=?, portfolio_url=?,
+                    updated_at=datetime('now')
+                WHERE id=1
+                """,
+                (
+                    mode,
+                    degree_level,
+                    degree_year,
+                    countries,
+                    funding_need,
+                    dates_free,
+                    github_url,
+                    portfolio_url,
+                ),
+            )
+            for kind, body in (("interest", interest), ("skill", skill), ("project", project)):
+                if body.strip():
+                    conn.execute(
+                        """
+                        INSERT INTO profile_fact(kind, body, source, confirmed)
+                        VALUES (?, ?, 'typed', 1)
+                        """,
+                        (kind, body.strip()),
+                    )
+            if cv is not None and cv.filename:
+                raw = await cv.read()
+                text = raw.decode("utf-8", errors="replace")
+                for line in text.splitlines():
+                    line = line.strip()
+                    if line:
+                        conn.execute(
+                            """
+                            INSERT INTO profile_fact(kind, body, source, confirmed)
+                            VALUES ('skill', ?, 'cv', 0)
+                            """,
+                            (line[:500],),
+                        )
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+        finally:
+            conn.close()
+        ready_now = False
+        conn2 = get_conn()
+        try:
+            ready_now = profile_ready(conn2)
+        finally:
+            conn2.close()
+        if ready_now:
+            msg = "Profile%20saved"
+        elif not (interest.strip() or skill.strip() or project.strip()):
+            msg = "Nothing%20new%20to%20save.%20Add%20an%20interest%20or%20project."
+        else:
+            msg = "Saved.%20Confirm%20interest%20and%20project%20to%20unlock%20shortlist."
+        return RedirectResponse(f"/profile?flash={msg}", status_code=303)
+
+    @app.post("/profile/confirm/{fact_id}")
+    async def profile_confirm(fact_id: int, page_token: str = Form(...)):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            conn.execute("UPDATE profile_fact SET confirmed=1 WHERE id=?", (fact_id,))
+        finally:
+            conn.close()
+        return RedirectResponse("/profile", status_code=303)
+
+    @app.post("/profile/reject/{fact_id}")
+    async def profile_reject(fact_id: int, page_token: str = Form(...)):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            conn.execute("DELETE FROM profile_fact WHERE id=? AND confirmed=0", (fact_id,))
+        finally:
+            conn.close()
+        return RedirectResponse("/profile", status_code=303)
+
+    # ---- S2 Start ----
+    @app.get("/start", response_class=HTMLResponse)
+    async def start(request: Request):
+        conn = get_conn()
+        try:
+            return TEMPLATES.TemplateResponse(request, "start.html",
+                ctx(
+                    request,
+                    nav="start",
+                    profile_ready=profile_ready(conn),
+                    schools=list_schools(),
+                ),
+            )
+        finally:
+            conn.close()
+
+    @app.get("/demo", response_class=HTMLResponse)
+    async def demo_list(request: Request):
+        conn = get_conn()
+        try:
+            rows = conn.execute(
+                """
+                SELECT o.id, r.display_name AS name, a.institution, o.status
+                FROM opportunity o
+                JOIN researcher r ON r.id = o.researcher_id
+                LEFT JOIN affiliation a ON a.researcher_id = r.id AND a.is_current = 1
+                WHERE o.demo = 1
+                """
+            ).fetchall()
+            return TEMPLATES.TemplateResponse(request, "demo.html",
+                ctx(request, nav="start", items=rows),
+            )
+        finally:
+            conn.close()
+
+    @app.get("/library", response_class=HTMLResponse)
+    async def library(request: Request, q: str = ""):
+        conn = get_conn()
+        try:
+            if q.strip():
+                like = f"%{q.strip()}%"
+                rows = conn.execute(
+                    """
+                    SELECT o.id AS opportunity_id, r.display_name AS name,
+                           a.institution, o.funding
+                    FROM opportunity o
+                    JOIN researcher r ON r.id = o.researcher_id
+                    LEFT JOIN affiliation a ON a.researcher_id = r.id AND a.is_current = 1
+                    WHERE r.origin = 'bundled'
+                      AND (r.display_name LIKE ? OR a.institution LIKE ? OR o.note LIKE ?)
+                    ORDER BY r.display_name
+                    LIMIT 100
+                    """,
+                    (like, like, like),
+                ).fetchall()
+                empty = "No match for that search."
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT o.id AS opportunity_id, r.display_name AS name,
+                           a.institution, o.funding
+                    FROM opportunity o
+                    JOIN researcher r ON r.id = o.researcher_id
+                    LEFT JOIN affiliation a ON a.researcher_id = r.id AND a.is_current = 1
+                    WHERE r.origin = 'bundled'
+                    ORDER BY r.display_name
+                    LIMIT 100
+                    """
+                ).fetchall()
+                empty = "Library is empty."
+            return TEMPLATES.TemplateResponse(request, "library.html",
+                ctx(request, nav="start", items=rows, q=q, empty_reason=empty),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/add-person")
+    async def add_person(
+        page_token: str = Form(...),
+        name: str = Form(...),
+        affiliation: str = Form(""),
+        email: str = Form(""),
+    ):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            cur = conn.execute(
+                "INSERT INTO researcher(display_name, email, origin) VALUES (?, ?, 'manual')",
+                (name.strip(), email.strip() or None),
+            )
+            rid = cur.lastrowid
+            conn.execute(
+                "INSERT INTO researcher_id(researcher_id, source, external_id) VALUES (?, 'manual', ?)",
+                (rid, f"manual:{name}|{affiliation}|{email}".lower()),
+            )
+            if affiliation.strip():
+                conn.execute(
+                    "INSERT INTO affiliation(researcher_id, institution, is_current) VALUES (?, ?, 1)",
+                    (rid, affiliation.strip()),
+                )
+            ocur = conn.execute(
+                """
+                INSERT INTO opportunity(
+                    researcher_id, kind, status, funding, eligibility, deadline,
+                    apply_url, email_invited, checked_at, origin, demo, note
+                ) VALUES (?, 'unknown', 'unknown', 'unknown', 'unknown', NULL, NULL,
+                          'unknown', date('now'), 'manual', 0, NULL)
+                """,
+                (rid,),
+            )
+            flag_name_conflict(conn, name.strip(), rid)
+            conn.execute("COMMIT")
+            oid = ocur.lastrowid
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+        finally:
+            conn.close()
+        return RedirectResponse(f"/opportunity/{oid}", status_code=303)
+
+    @app.post("/fetch-url")
+    async def fetch_url_post(page_token: str = Form(...), url: str = Form("")):
+        require_token(page_token)
+        if not url.strip():
+            return RedirectResponse(
+                "/start?flash=Paste%20an%20http%20or%20https%20URL%20first&err=1",
+                status_code=303,
+            )
+        try:
+            final_url, html = fetch_text(url.strip())
+        except Exception as exc:  # noqa: BLE001
+            return RedirectResponse(
+                f"/start?flash={quote(str(exc))}&err=1", status_code=303
+            )
+        suggestions = extract_opportunity_suggestions(html, final_url)
+        fetch_id = secrets.token_hex(8)
+        FETCH_CACHE[fetch_id] = {
+            "url": final_url,
+            "suggestions": suggestions,
+            "html": html[:5000],
+        }
+        return RedirectResponse(f"/fetch-url/review/{fetch_id}", status_code=303)
+
+    @app.get("/fetch-url/review/{fetch_id}", response_class=HTMLResponse)
+    async def fetch_review(request: Request, fetch_id: str):
+        data = FETCH_CACHE.get(fetch_id)
+        if not data:
+            return RedirectResponse("/start?flash=Fetch%20expired&err=1", status_code=303)
+        return TEMPLATES.TemplateResponse(request, "fetch_confirm.html",
+            ctx(
+                request,
+                nav="start",
+                fetch_id=fetch_id,
+                suggestions=data["suggestions"],
+                name="",
+                email="",
+                error=None,
+            ),
+        )
+
+    @app.post("/fetch-url/confirm")
+    async def fetch_confirm(
+        page_token: str = Form(...),
+        fetch_id: str = Form(...),
+        name: str = Form(...),
+        email: str = Form(""),
+        confirm: list[str] = Form(default=[]),
+    ):
+        require_token(page_token)
+        data = FETCH_CACHE.get(fetch_id)
+        if not data:
+            return RedirectResponse("/start?flash=Fetch%20expired&err=1", status_code=303)
+        fields = {
+            "status": "unknown",
+            "funding": "unknown",
+            "eligibility": "unknown",
+            "deadline": None,
+            "apply_url": None,
+            "email_invited": "unknown",
+            "note": None,
+        }
+        notes = []
+        for idx in confirm:
+            try:
+                s = data["suggestions"][int(idx)]
+            except (ValueError, IndexError, KeyError):
+                continue
+            if s["field"] in fields and s["field"] != "deadline" and s["field"] != "apply_url":
+                fields[s["field"]] = s["value"]
+            elif s["field"] == "deadline":
+                fields["deadline"] = s["value"]
+            elif s["field"] == "apply_url":
+                fields["apply_url"] = s["value"]
+            notes.append(s.get("quote") or "")
+        fields["note"] = "; ".join(n for n in notes if n) or None
+        conn = get_conn()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            cur = conn.execute(
+                "INSERT INTO researcher(display_name, email, origin) VALUES (?, ?, 'url')",
+                (name.strip(), email.strip() or None),
+            )
+            rid = cur.lastrowid
+            conn.execute(
+                "INSERT INTO researcher_id(researcher_id, source, external_id) VALUES (?, 'manual', ?)",
+                (rid, f"url:{data['url']}|{name}".lower()),
+            )
+            ocur = conn.execute(
+                """
+                INSERT INTO opportunity(
+                    researcher_id, kind, status, funding, eligibility, deadline,
+                    apply_url, email_invited, checked_at, origin, demo, note
+                ) VALUES (?, 'unknown', ?, ?, ?, ?, ?, ?, date('now'), 'url', 0, ?)
+                """,
+                (
+                    rid,
+                    fields["status"],
+                    fields["funding"],
+                    fields["eligibility"],
+                    fields["deadline"],
+                    fields["apply_url"],
+                    fields["email_invited"],
+                    fields["note"],
+                ),
+            )
+            for idx in confirm:
+                try:
+                    s = data["suggestions"][int(idx)]
+                except (ValueError, IndexError, KeyError):
+                    continue
+                conn.execute(
+                    "INSERT INTO evidence(opportunity_id, quote, url) VALUES (?, ?, ?)",
+                    (ocur.lastrowid, s.get("quote") or s["field"], s.get("url")),
+                )
+            conn.execute("COMMIT")
+            oid = ocur.lastrowid
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+        finally:
+            conn.close()
+        FETCH_CACHE.pop(fetch_id, None)
+        return RedirectResponse(f"/opportunity/{oid}", status_code=303)
+
+    @app.post("/import")
+    async def import_preview(
+        page_token: str = Form(...),
+        file: UploadFile = File(...),
+    ):
+        require_token(page_token)
+        raw = await file.read()
+        try:
+            headers, rows, warnings = read_tabular(file.filename or "upload.csv", raw)
+        except Exception as exc:  # noqa: BLE001
+            return RedirectResponse(
+                f"/start?flash={quote(str(exc))}&err=1", status_code=303
+            )
+        import_id = secrets.token_hex(8)
+        mapping = suggest_mapping(headers)
+        IMPORT_CACHE[import_id] = {"headers": headers, "rows": rows, "mapping": mapping}
+        # redirect to mapping page via temporary store — render directly
+        return RedirectResponse(f"/import/map/{import_id}", status_code=303)
+
+    @app.get("/import/map/{import_id}", response_class=HTMLResponse)
+    async def import_map(request: Request, import_id: str):
+        data = IMPORT_CACHE.get(import_id)
+        if not data:
+            return RedirectResponse("/start?flash=Import%20expired&err=1", status_code=303)
+        preview = [
+            {k: r.get(k) for k in data["headers"][:4]} for r in data["rows"][:5]
+        ]
+        return TEMPLATES.TemplateResponse(request, "import_map.html",
+            ctx(
+                request,
+                nav="start",
+                import_id=import_id,
+                headers=data["headers"],
+                mapping=data["mapping"],
+                warnings=[],
+                preview=preview,
+            ),
+        )
+
+    @app.post("/import/confirm")
+    async def import_confirm(
+        page_token: str = Form(...),
+        import_id: str = Form(...),
+        name_col: str = Form(...),
+        affiliation_col: str = Form(...),
+        email_col: str = Form(""),
+    ):
+        require_token(page_token)
+        data = IMPORT_CACHE.get(import_id)
+        if not data:
+            return RedirectResponse("/start?flash=Import%20expired&err=1", status_code=303)
+        mapping = {
+            "name": name_col,
+            "affiliation": affiliation_col,
+            "email": email_col or None,
+        }
+        conn = get_conn()
+        try:
+            count = commit_import(conn, data["rows"], mapping)
+        except Exception as exc:  # noqa: BLE001
+            conn.close()
+            return RedirectResponse(
+                f"/start?flash={quote(str(exc))}&err=1", status_code=303
+            )
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        IMPORT_CACHE.pop(import_id, None)
+        return RedirectResponse(
+            f"/library?flash={quote(f'Imported {count} rows')}", status_code=303
+        )
+
+    @app.post("/faculty")
+    async def faculty_collect(page_token: str = Form(...), school: str = Form(...)):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            job_id = enqueue(conn, "faculty", {"school_id": school})
+        finally:
+            conn.close()
+        return RedirectResponse(f"/job/{job_id}", status_code=303)
+
+    @app.post("/openalex/connect")
+    async def openalex_connect(page_token: str = Form(...), email: str = Form(...)):
+        require_token(page_token)
+        try:
+            data = request_api_key(email.strip())
+            msg = data.get("message") or f"OpenAlex status {data.get('http_status')}"
+            if data.get("http_status") == 409:
+                msg = "agent_key_exists — revoke at Settings or paste your key."
+        except Exception as exc:  # noqa: BLE001
+            msg = str(exc)
+        return RedirectResponse(f"/start?flash={quote(msg)}", status_code=303)
+
+    @app.post("/openalex/paste")
+    async def openalex_paste(page_token: str = Form(...), api_key: str = Form(...)):
+        require_token(page_token)
+        save_pasted_key(api_key)
+        return RedirectResponse("/start?flash=OpenAlex%20key%20saved", status_code=303)
+
+    @app.get("/job/{job_id}", response_class=HTMLResponse)
+    async def job_status(request: Request, job_id: int):
+        conn = get_conn()
+        try:
+            job = get_job(conn, job_id)
+            if not job:
+                return RedirectResponse("/start?flash=Job%20not%20found&err=1", status_code=303)
+            return TEMPLATES.TemplateResponse(request, "job.html",
+                ctx(request, nav="start", job=job),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/job/{job_id}/cancel")
+    async def job_cancel(job_id: int, page_token: str = Form(...)):
+        require_token(page_token)
+        from studio.jobs import cancel_job
+
+        conn = get_conn()
+        try:
+            cancel_job(conn, job_id)
+        finally:
+            conn.close()
+        return RedirectResponse(f"/job/{job_id}", status_code=303)
+
+    # ---- S3 Opportunity ----
+    @app.get("/opportunity/{opp_id}", response_class=HTMLResponse)
+    async def opportunity(request: Request, opp_id: int):
+        conn = get_conn()
+        try:
+            opp = conn.execute("SELECT * FROM opportunity WHERE id=?", (opp_id,)).fetchone()
+            if not opp:
+                return RedirectResponse("/start?flash=Not%20found&err=1", status_code=303)
+            researcher = conn.execute(
+                "SELECT * FROM researcher WHERE id=?", (opp["researcher_id"],)
+            ).fetchone()
+            aff = conn.execute(
+                "SELECT institution FROM affiliation WHERE researcher_id=? AND is_current=1",
+                (opp["researcher_id"],),
+            ).fetchone()
+            pubs = conn.execute(
+                "SELECT * FROM publication WHERE researcher_id=? ORDER BY year DESC",
+                (opp["researcher_id"],),
+            ).fetchall()
+            short = conn.execute(
+                "SELECT rank_explanation FROM shortlist_item WHERE opportunity_id=?",
+                (opp_id,),
+            ).fetchone()
+            reasons = json.loads(short["rank_explanation"]) if short else []
+            expired = False
+            if opp["deadline"]:
+                try:
+                    expired = date.fromisoformat(str(opp["deadline"])[:10]) < date.today()
+                except ValueError:
+                    expired = False
+            return TEMPLATES.TemplateResponse(request, "opportunity.html",
+                ctx(
+                    request,
+                    nav="start",
+                    opp=opp,
+                    researcher=researcher,
+                    institution=(aff["institution"] if aff else "Unknown"),
+                    publications=pubs,
+                    reasons=reasons,
+                    expired=expired,
+                ),
+            )
+        finally:
+            conn.close()
+
+    # ---- S4 Shortlist ----
+    @app.get("/shortlist", response_class=HTMLResponse)
+    async def shortlist(
+        request: Request,
+        hide_unknowns: str = "",
+        country: str = "",
+    ):
+        conn = get_conn()
+        try:
+            if not profile_ready(conn):
+                return TEMPLATES.TemplateResponse(request, "shortlist.html",
+                    ctx(
+                        request,
+                        nav="shortlist",
+                        items=[],
+                        hide_unknowns=bool(hide_unknowns),
+                        country=country,
+                        empty_reason="Confirm at least one interest and one project first.",
+                    ),
+                )
+            rows = conn.execute(
+                """
+                SELECT s.opportunity_id, s.rank_score, o.funding, o.eligibility,
+                       o.deadline, o.email_invited, o.status,
+                       r.display_name AS name, a.institution
+                FROM shortlist_item s
+                JOIN opportunity o ON o.id = s.opportunity_id
+                JOIN researcher r ON r.id = o.researcher_id
+                LEFT JOIN affiliation a ON a.researcher_id = r.id AND a.is_current = 1
+                ORDER BY s.rank_score DESC
+                """
+            ).fetchall()
+            items = []
+            for r in rows:
+                if hide_unknowns and (
+                    r["funding"] == "unknown"
+                    or r["eligibility"] == "unknown"
+                    or r["status"] == "unknown"
+                ):
+                    continue
+                if country and country.lower() not in (r["institution"] or "").lower():
+                    continue
+                if r["deadline"]:
+                    try:
+                        if date.fromisoformat(str(r["deadline"])[:10]) < date.today():
+                            continue
+                    except ValueError:
+                        pass
+                items.append(r)
+            empty = "Filters removed everyone." if rows else "Rebuild ranking after confirming your profile."
+            return TEMPLATES.TemplateResponse(request, "shortlist.html",
+                ctx(
+                    request,
+                    nav="shortlist",
+                    items=items,
+                    hide_unknowns=bool(hide_unknowns),
+                    country=country,
+                    empty_reason=empty,
+                ),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/shortlist/rebuild")
+    async def shortlist_rebuild(page_token: str = Form(...)):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            if not profile_ready(conn):
+                return RedirectResponse(
+                    "/shortlist?err=1&flash=Confirm%20at%20least%20one%20interest%20and%20one%20project%20first",
+                    status_code=303,
+                )
+            rebuild_shortlist(conn)
+        finally:
+            conn.close()
+        return RedirectResponse("/shortlist?flash=Ranked", status_code=303)
+
+    @app.post("/shortlist/add/{opp_id}")
+    async def shortlist_add(opp_id: int, page_token: str = Form(...)):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            exists = conn.execute(
+                "SELECT id FROM shortlist_item WHERE opportunity_id=?", (opp_id,)
+            ).fetchone()
+            if not exists:
+                conn.execute(
+                    "INSERT INTO shortlist_item(opportunity_id, rank_score, rank_explanation) VALUES (?, 0, '[]')",
+                    (opp_id,),
+                )
+        finally:
+            conn.close()
+        return RedirectResponse("/shortlist", status_code=303)
+
+    # ---- S5 Draft ----
+    @app.get("/drafts", response_class=HTMLResponse)
+    async def drafts_list(request: Request):
+        conn = get_conn()
+        try:
+            items = conn.execute("SELECT * FROM draft ORDER BY updated_at DESC").fetchall()
+            return TEMPLATES.TemplateResponse(request, "drafts.html",
+                ctx(request, nav="drafts", items=items),
+            )
+        finally:
+            conn.close()
+
+    @app.get("/draft/{opportunity_id}", response_class=HTMLResponse)
+    async def draft_get(request: Request, opportunity_id: int):
+        conn = get_conn()
+        try:
+            existing = conn.execute(
+                "SELECT * FROM draft WHERE opportunity_id=?", (opportunity_id,)
+            ).fetchone()
+            opp = conn.execute(
+                "SELECT * FROM opportunity WHERE id=?", (opportunity_id,)
+            ).fetchone()
+            if not opp:
+                return RedirectResponse("/start?err=1&flash=Missing", status_code=303)
+            researcher = conn.execute(
+                "SELECT * FROM researcher WHERE id=?", (opp["researcher_id"],)
+            ).fetchone()
+            error = None
+            if existing:
+                draft = dict(existing)
+            else:
+                facts = [
+                    dict(r)
+                    for r in conn.execute(
+                        "SELECT kind, body, confirmed FROM profile_fact WHERE confirmed=1"
+                    )
+                ]
+                pubs = [
+                    dict(p)
+                    for p in conn.execute(
+                        "SELECT title, year, url, abstract FROM publication WHERE researcher_id=?",
+                        (opp["researcher_id"],),
+                    )
+                ]
+                short = conn.execute(
+                    "SELECT rank_explanation FROM shortlist_item WHERE opportunity_id=?",
+                    (opportunity_id,),
+                ).fetchone()
+                reasons = json.loads(short["rank_explanation"]) if short else []
+                try:
+                    generated = generate_draft(
+                        researcher["display_name"] if researcher else "",
+                        researcher["email"] if researcher and researcher["email"] else "",
+                        facts,
+                        pubs,
+                        reasons,
+                    )
+                    did = save_or_update_draft(conn, opportunity_id, generated)
+                    draft = dict(
+                        conn.execute("SELECT * FROM draft WHERE id=?", (did,)).fetchone()
+                    )
+                except ValueError as exc:
+                    error = str(exc)
+                    draft = {
+                        "id": 0,
+                        "recipient": (researcher["email"] if researcher else "") or "",
+                        "subject": "",
+                        "body": "",
+                        "content_hash": "",
+                        "approved_hash": None,
+                    }
+            return TEMPLATES.TemplateResponse(request, "draft.html",
+                ctx(
+                    request,
+                    nav="drafts",
+                    opportunity_id=opportunity_id,
+                    draft=draft,
+                    error=error,
+                    mailto=mailto_link(draft["recipient"], draft["subject"], draft["body"]),
+                ),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/draft/{opportunity_id}")
+    async def draft_post(
+        opportunity_id: int,
+        page_token: str = Form(...),
+        recipient: str = Form(""),
+        subject: str = Form(""),
+        body: str = Form(""),
+        action: str = Form("save"),
+    ):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            row = conn.execute(
+                "SELECT id FROM draft WHERE opportunity_id=?", (opportunity_id,)
+            ).fetchone()
+            if not row:
+                h = content_hash(recipient, subject, body)
+                did = save_or_update_draft(
+                    conn,
+                    opportunity_id,
+                    {
+                        "recipient": recipient,
+                        "subject": subject,
+                        "body": body,
+                        "content_hash": h,
+                    },
+                )
+            else:
+                did = int(row["id"])
+                clear_approval_if_edited(conn, did, recipient, subject, body)
+            if action == "approve":
+                try:
+                    approve_draft(conn, did)
+                    # ensure application row
+                    app = conn.execute(
+                        "SELECT id FROM application WHERE opportunity_id=?",
+                        (opportunity_id,),
+                    ).fetchone()
+                    if not app:
+                        conn.execute(
+                            """
+                            INSERT INTO application(opportunity_id, channel, state)
+                            VALUES (?, 'email', 'ready')
+                            """,
+                            (opportunity_id,),
+                        )
+                    else:
+                        conn.execute(
+                            "UPDATE application SET state='ready', updated_at=datetime('now') WHERE id=?",
+                            (app["id"],),
+                        )
+                except ValueError as exc:
+                    return RedirectResponse(
+                        f"/draft/{opportunity_id}?flash={quote(str(exc))}&err=1",
+                        status_code=303,
+                    )
+        finally:
+            conn.close()
+        return RedirectResponse(f"/draft/{opportunity_id}?flash=Saved", status_code=303)
+
+    @app.get("/draft/{draft_id}/eml")
+    async def draft_eml(draft_id: int):
+        conn = get_conn()
+        try:
+            # accept opportunity id or draft id
+            row = conn.execute("SELECT * FROM draft WHERE id=?", (draft_id,)).fetchone()
+            if not row:
+                row = conn.execute(
+                    "SELECT * FROM draft WHERE opportunity_id=?", (draft_id,)
+                ).fetchone()
+            if not row:
+                return Response("Not found", status_code=404)
+            data = to_eml(row["recipient"], row["subject"], row["body"])
+            return Response(
+                data,
+                media_type="message/rfc822",
+                headers={"Content-Disposition": f'attachment; filename="draft-{row["id"]}.eml"'},
+            )
+        finally:
+            conn.close()
+
+    @app.post("/draft/{draft_id}/sent-by-me")
+    async def draft_sent_by_me(draft_id: int, page_token: str = Form(...)):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            row = conn.execute("SELECT * FROM draft WHERE id=?", (draft_id,)).fetchone()
+            if not row:
+                row = conn.execute(
+                    "SELECT * FROM draft WHERE opportunity_id=?", (draft_id,)
+                ).fetchone()
+            if row:
+                app = conn.execute(
+                    "SELECT id FROM application WHERE opportunity_id=?",
+                    (row["opportunity_id"],),
+                ).fetchone()
+                if app:
+                    conn.execute(
+                        "UPDATE application SET state='submitted_by_me', updated_at=datetime('now') WHERE id=?",
+                        (app["id"],),
+                    )
+                else:
+                    conn.execute(
+                        """
+                        INSERT INTO application(opportunity_id, channel, state)
+                        VALUES (?, 'email', 'submitted_by_me')
+                        """,
+                        (row["opportunity_id"],),
+                    )
+                oid = row["opportunity_id"]
+            else:
+                oid = draft_id
+        finally:
+            conn.close()
+        return RedirectResponse(f"/draft/{oid}?flash=Marked%20sent", status_code=303)
+
+    @app.post("/draft/{draft_id}/open-chat")
+    async def draft_open_chat(
+        draft_id: int, page_token: str = Form(...), provider: str = Form("chatgpt")
+    ):
+        require_token(page_token)
+        urls = {
+            "chatgpt": "https://chatgpt.com/",
+            "claude": "https://claude.ai/",
+            "gemini": "https://gemini.google.com/",
+            "copilot": "https://github.com/copilot",
+        }
+        return RedirectResponse(urls.get(provider, "https://chatgpt.com/"), status_code=303)
+
+    # ---- S6 Tracker ----
+    @app.get("/tracker", response_class=HTMLResponse)
+    async def tracker(request: Request):
+        conn = get_conn()
+        try:
+            items = conn.execute(
+                """
+                SELECT a.*, r.display_name AS name
+                FROM application a
+                JOIN opportunity o ON o.id = a.opportunity_id
+                JOIN researcher r ON r.id = o.researcher_id
+                ORDER BY a.updated_at DESC
+                """
+            ).fetchall()
+            return TEMPLATES.TemplateResponse(request, "tracker.html",
+                ctx(request, nav="tracker", items=items, states=APPLICATION_STATES),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/tracker/{app_id}/state")
+    async def tracker_state(app_id: int, page_token: str = Form(...), state: str = Form(...)):
+        require_token(page_token)
+        if state not in APPLICATION_STATES:
+            return RedirectResponse("/tracker?err=1&flash=Bad%20state", status_code=303)
+        conn = get_conn()
+        try:
+            conn.execute(
+                "UPDATE application SET state=?, updated_at=datetime('now') WHERE id=?",
+                (state, app_id),
+            )
+        finally:
+            conn.close()
+        return RedirectResponse("/tracker", status_code=303)
+
+    @app.get("/tracker/export")
+    async def tracker_export():
+        conn = get_conn()
+        try:
+            rows = conn.execute(
+                """
+                SELECT a.id, r.display_name, a.channel, a.state, a.deadline, a.link, a.notes
+                FROM application a
+                JOIN opportunity o ON o.id = a.opportunity_id
+                JOIN researcher r ON r.id = o.researcher_id
+                """
+            ).fetchall()
+            buf = io.StringIO()
+            w = csv.writer(buf)
+            w.writerow(["id", "name", "channel", "state", "deadline", "link", "notes"])
+            for r in rows:
+                w.writerow(
+                    [
+                        r["id"],
+                        r["display_name"],
+                        r["channel"],
+                        r["state"],
+                        r["deadline"],
+                        r["link"],
+                        r["notes"],
+                    ]
+                )
+            return Response(
+                buf.getvalue(),
+                media_type="text/csv",
+                headers={"Content-Disposition": "attachment; filename=applications.csv"},
+            )
+        finally:
+            conn.close()
+
+    @app.post("/tracker/delete-all")
+    async def tracker_delete_all(page_token: str = Form(...), confirm: str = Form("")):
+        require_token(page_token)
+        if confirm.strip() != "DELETE":
+            return RedirectResponse(
+                "/tracker?err=1&flash=Type%20DELETE%20to%20confirm", status_code=303
+            )
+        conn = get_conn()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("DELETE FROM profile_fact")
+            conn.execute("DELETE FROM draft")
+            conn.execute("DELETE FROM application_file")
+            conn.execute("DELETE FROM reminder")
+            conn.execute("DELETE FROM application")
+            conn.execute("DELETE FROM send_intent")
+            conn.execute("DELETE FROM shortlist_item")
+            conn.execute("DELETE FROM suppression")
+            # user-imported people (not bundled)
+            conn.execute(
+                """
+                DELETE FROM researcher WHERE origin IN ('import', 'manual', 'url', 'faculty')
+                """
+            )
+            conn.execute(
+                """
+                UPDATE applicant SET degree_year=NULL, countries=NULL, dates_free=NULL,
+                    github_url=NULL, portfolio_url=NULL, funding_need='no_preference',
+                    mode='internship', updated_at=datetime('now')
+                WHERE id=1
+                """
+            )
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+        finally:
+            conn.close()
+        delete_all_studio_secrets()
+        return RedirectResponse("/profile?flash=Deleted", status_code=303)
+
+    # ---- S7 Mail ----
+    @app.get("/mail", response_class=HTMLResponse)
+    async def mail_get(request: Request):
+        conn = get_conn()
+        try:
+            drafts = conn.execute(
+                """
+                SELECT * FROM draft
+                ORDER BY updated_at DESC
+                LIMIT 20
+                """
+            ).fetchall()
+            smtp = {
+                "host": get_secret("smtp_host") or "127.0.0.1",
+                "port": get_secret("smtp_port") or "1025",
+                "username": get_secret("smtp_username") or "",
+                "sender": get_secret("smtp_sender") or "",
+                "use_tls": get_secret("smtp_use_tls") == "1",
+            }
+            connected = bool(get_secret("smtp_host") and get_secret("smtp_sender"))
+            return TEMPLATES.TemplateResponse(request, "mail.html",
+                ctx(
+                    request,
+                    nav="mail",
+                    drafts=drafts,
+                    smtp=smtp,
+                    connected=connected,
+                    reply_consent=get_secret("reply_consent") == "1",
+                ),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/mail/connect")
+    async def mail_connect(
+        page_token: str = Form(...),
+        host: str = Form(""),
+        port: str = Form("1025"),
+        username: str = Form(""),
+        password: str = Form(""),
+        sender: str = Form(""),
+        use_tls: str = Form(""),
+    ):
+        require_token(page_token)
+        if not host.strip() or not sender.strip():
+            return RedirectResponse(
+                "/mail?err=1&flash=Host%20and%20From%20address%20are%20required",
+                status_code=303,
+            )
+        set_secret("smtp_host", host.strip())
+        set_secret("smtp_port", port)
+        set_secret("smtp_username", username)
+        if password:
+            set_secret("smtp_password", password)
+        set_secret("smtp_sender", sender.strip())
+        set_secret("smtp_use_tls", "1" if use_tls else "0")
+        return RedirectResponse("/mail?flash=Mailbox%20saved", status_code=303)
+
+    @app.post("/mail/gmail-start")
+    async def mail_gmail_start(page_token: str = Form(...)):
+        require_token(page_token)
+        # PKCE scaffolding — student completes in browser; no shared client secret
+        state = secrets.token_urlsafe(16)
+        set_secret("gmail_oauth_state", state)
+        return RedirectResponse(
+            f"/mail?flash={quote('Gmail PKCE state saved. Configure client id to continue.')}",
+            status_code=303,
+        )
+
+    @app.post("/mail/ai-key")
+    async def mail_ai_key(
+        page_token: str = Form(...),
+        provider: str = Form(...),
+        api_key: str = Form(...),
+    ):
+        require_token(page_token)
+        set_secret(f"ai_{provider}", api_key.strip())
+        return RedirectResponse("/mail?flash=AI%20key%20saved", status_code=303)
+
+    @app.post("/mail/ai-disconnect")
+    async def mail_ai_disconnect(page_token: str = Form(...)):
+        require_token(page_token)
+        for p in ("claude", "gemini", "chatgpt", "copilot"):
+            delete_secret(f"ai_{p}")
+        return RedirectResponse("/mail?flash=AI%20disconnected", status_code=303)
+
+    @app.post("/mail/reply-consent")
+    async def mail_reply_consent(page_token: str = Form(...), consent: str = Form("")):
+        require_token(page_token)
+        set_secret("reply_consent", "1" if consent else "0")
+        return RedirectResponse("/mail?flash=Consent%20saved", status_code=303)
+
+    @app.post("/mail/send/{draft_id}")
+    async def mail_send(draft_id: int, page_token: str = Form(...)):
+        require_token(page_token)
+        if not get_secret("smtp_host") or not get_secret("smtp_sender"):
+            return RedirectResponse(
+                "/mail?err=1&flash=No%20mailbox%20connected.%20Save%20SMTP%20settings%20first.",
+                status_code=303,
+            )
+        conn = get_conn()
+        try:
+            draft = conn.execute("SELECT * FROM draft WHERE id=?", (draft_id,)).fetchone()
+            if not draft:
+                return RedirectResponse(
+                    "/mail?err=1&flash=Draft%20missing", status_code=303
+                )
+            if draft["approved_hash"] != draft["content_hash"]:
+                return RedirectResponse(
+                    "/mail?err=1&flash=Draft%20is%20not%20approved.%20Approve%20the%20exact%20letter%20first.",
+                    status_code=303,
+                )
+            try:
+                intent_id = create_intent(conn, draft_id, draft["content_hash"], "smtp")
+            except ValueError as exc:
+                return RedirectResponse(
+                    f"/mail?err=1&flash={quote(str(exc))}", status_code=303
+                )
+            smtp_config = {
+                "host": get_secret("smtp_host"),
+                "port": get_secret("smtp_port") or "1025",
+                "username": get_secret("smtp_username") or "",
+                "password": get_secret("smtp_password") or "",
+                "sender": get_secret("smtp_sender"),
+                "use_tls": get_secret("smtp_use_tls") == "1",
+            }
+            try:
+                perform_send(conn, intent_id, smtp_config)
+            except Exception as exc:  # noqa: BLE001
+                return RedirectResponse(
+                    f"/mail?err=1&flash={quote(str(exc))}", status_code=303
+                )
+        finally:
+            conn.close()
+        return RedirectResponse("/mail?flash=Sent", status_code=303)
+
+    # ---- S9 Planner ----
+    @app.get("/planner", response_class=HTMLResponse)
+    async def planner_get(
+        request: Request, queue: str = "hr", stage: str = "FOLLOW_UP_1"
+    ):
+        conn = get_conn()
+        try:
+            cap = PERSONAL_GMAIL_CAP
+            if queue == "hr":
+                df = load_hr_dataframe()
+                buckets = classify_hr(df, stage)
+                used = sent_in_rolling_24h(df, stage)
+                remaining = max(0, cap - used)
+
+                def pack(frame, label_name="Name"):
+                    out = []
+                    for idx, row in frame.iterrows():
+                        out.append(
+                            {
+                                "index": int(idx) if isinstance(idx, (int,)) else idx,
+                                "name": str(row.get(label_name) or row.get("Email") or ""),
+                                "company": str(row.get("Company") or ""),
+                                "recipient": str(row.get("Email") or ""),
+                                "error": str(row.get("Last_Error") or "")
+                                if "Last_Error" in frame.columns
+                                else "",
+                            }
+                        )
+                    return out
+
+                due = pack(buckets["due"])
+                too_early = pack(buckets["too_early"])
+                missed = pack(buckets["missed"])
+                failed = pack(buckets["failed"])
+                preview = None
+                if not buckets["due"].empty:
+                    preview = preview_row(buckets["due"].iloc[0].to_dict())
+            else:
+                buckets = academic_queue(conn)
+                due = [
+                    {
+                        "name": r.get("recipient") or f"app-{r['id']}",
+                        "recipient": r.get("recipient"),
+                        "company": "",
+                    }
+                    for r in buckets["due"]
+                ]
+                too_early = [
+                    {"name": r.get("recipient") or f"app-{r['id']}", "recipient": r.get("recipient"), "company": ""}
+                    for r in buckets["too_early"]
+                ]
+                missed = []
+                failed = []
+                remaining = cap
+                preview = None
+                if due:
+                    preview = {
+                        "recipient": due[0].get("recipient") or "",
+                        "salutation": "Professor",
+                        "subject": "Follow-up",
+                    }
+            return TEMPLATES.TemplateResponse(request, "planner.html",
+                ctx(
+                    request,
+                    nav="planner",
+                    queue=queue,
+                    stage=stage,
+                    due=due,
+                    too_early=too_early,
+                    missed=missed,
+                    failed=failed,
+                    remaining=remaining,
+                    cap=cap,
+                    preview=preview,
+                ),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/planner/schedule-again")
+    async def planner_schedule_again(page_token: str = Form(...), index: int = Form(...)):
+        require_token(page_token)
+        csv_path = REPO_ROOT / "data" / "processed" / "cold_email_outreach_all_cleaned_ranked.csv"
+        if csv_path.exists():
+            schedule_again(csv_path, index)
+        return RedirectResponse("/planner?queue=hr&stage=FOLLOW_UP_1&flash=Scheduled", status_code=303)
+
+    @app.post("/planner/run-hr")
+    async def planner_run_hr(page_token: str = Form(...), stage: str = Form(...)):
+        require_token(page_token)
+        # Never auto-send HR from this environment
+        return RedirectResponse(
+            "/planner?err=1&flash=HR%20send%20disabled%20here", status_code=303
+        )
+
+    @app.post("/planner/run-academic")
+    async def planner_run_academic(page_token: str = Form(...)):
+        require_token(page_token)
+        return RedirectResponse(
+            "/planner?queue=academic&flash=No%20armed%20follow-ups%20or%20mailbox",
+            status_code=303,
+        )
+
+    # ---- S8 Return ----
+    @app.get("/return", response_class=HTMLResponse)
+    async def return_screen(request: Request):
+        conn = get_conn()
+        try:
+            today = date.today()
+            soon = today + timedelta(days=14)
+            stale_before = (today - timedelta(days=30)).isoformat()
+            deadlines = conn.execute(
+                """
+                SELECT o.id, r.display_name AS name, o.deadline
+                FROM opportunity o
+                JOIN researcher r ON r.id = o.researcher_id
+                WHERE o.deadline IS NOT NULL
+                  AND o.deadline >= ?
+                  AND o.deadline <= ?
+                ORDER BY o.deadline
+                """,
+                (today.isoformat(), soon.isoformat()),
+            ).fetchall()
+            stale = conn.execute(
+                """
+                SELECT o.id, r.display_name AS name, o.checked_at
+                FROM opportunity o
+                JOIN researcher r ON r.id = o.researcher_id
+                WHERE o.checked_at IS NOT NULL AND o.checked_at < ?
+                ORDER BY o.checked_at
+                LIMIT 50
+                """,
+                (stale_before,),
+            ).fetchall()
+            profiles = conn.execute("SELECT * FROM profile_slot ORDER BY id").fetchall()
+            if not profiles:
+                profiles = [{"label": "Primary", "is_active": 1}]
+            return TEMPLATES.TemplateResponse(request, "return.html",
+                ctx(
+                    request,
+                    nav="return",
+                    deadlines=deadlines,
+                    stale=stale,
+                    profiles=profiles,
+                    alerts_on=get_secret("alerts_on") == "1",
+                ),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/return/alerts")
+    async def return_alerts(page_token: str = Form(...), alerts: str = Form("")):
+        require_token(page_token)
+        set_secret("alerts_on", "1" if alerts else "0")
+        return RedirectResponse("/return?flash=Alerts%20saved", status_code=303)
+
+    @app.post("/return/add-profile")
+    async def return_add_profile(page_token: str = Form(...), label: str = Form("")):
+        require_token(page_token)
+        if not label.strip():
+            return RedirectResponse(
+                "/return?err=1&flash=Profile%20label%20is%20required",
+                status_code=303,
+            )
+        conn = get_conn()
+        try:
+            conn.execute(
+                "INSERT INTO profile_slot(label, applicant_mode, is_active) VALUES (?, 'internship', 0)",
+                (label.strip(),),
+            )
+        finally:
+            conn.close()
+        return RedirectResponse("/return?flash=Profile%20added", status_code=303)
+
+    # ---- Hosted edition ----
+    @app.get("/hosted", response_class=HTMLResponse)
+    async def hosted_get(request: Request):
+        conn = get_conn()
+        try:
+            accounts = conn.execute("SELECT * FROM hosted_account ORDER BY id").fetchall()
+            return TEMPLATES.TemplateResponse(request, "hosted.html",
+                ctx(request, nav="", accounts=accounts),
+            )
+        finally:
+            conn.close()
+
+    @app.post("/hosted/create")
+    async def hosted_create(
+        page_token: str = Form(...),
+        email: str = Form(...),
+        display_name: str = Form(""),
+    ):
+        require_token(page_token)
+        conn = get_conn()
+        try:
+            conn.execute(
+                "INSERT INTO hosted_account(email, display_name) VALUES (?, ?)",
+                (email.strip(), display_name.strip() or None),
+            )
+        except Exception as exc:  # noqa: BLE001
+            conn.close()
+            return RedirectResponse(
+                f"/hosted?err=1&flash={quote(str(exc))}", status_code=303
+            )
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        return RedirectResponse("/hosted?flash=Created", status_code=303)
+
+    @app.get("/health")
+    async def health():
+        return {"ok": True}
+
+    return app
+
+
+def _ensure_library(conn) -> None:
+    zip_candidates = [
+        Path(os.environ.get("SUMMER_ZIP", "")),
+        Path.home() / "Downloads" / "Summer-2027-research-data-20261122.zip",
+        bundled_data_dir() / "Summer-2027-research-data-20261122.zip",
+    ]
+    for z in zip_candidates:
+        if z and z.exists():
+            try:
+                load_summer_zip(conn, z)
+                return
+            except Exception:
+                continue
+    seed_mini_bundled(conn)
+
+
+def _register_jobs() -> None:
+    def faculty_handler(payload: dict, progress) -> Any:
+        school_id = payload.get("school_id")
+        progress(10)
+        result = collect_school(school_id)
+        progress(70)
+        conn = dbmod.connect()
+        try:
+            if result["people"]:
+                import_people(conn, school_id, result["people"])
+            elif result.get("error"):
+                raise RuntimeError(result["error"])
+            progress(100)
+            return {"count": len(result["people"]), "error": result.get("error")}
+        finally:
+            conn.close()
+
+    register_handler("faculty", faculty_handler)
+
+    def match_handler(payload: dict, progress) -> Any:
+        progress(20)
+        conn = dbmod.connect()
+        try:
+            n = rebuild_shortlist(conn)
+            progress(100)
+            return {"count": n}
+        finally:
+            conn.close()
+
+    register_handler("match", match_handler)
+
+
+app = create_app()
+
+
+def main() -> None:
+    import uvicorn
+
+    uvicorn.run(
+        "studio.app:app",
+        host="127.0.0.1",
+        port=int(os.environ.get("STUDIO_PORT", "8765")),
+        reload=False,
+    )
+
+
+if __name__ == "__main__":
+    main()

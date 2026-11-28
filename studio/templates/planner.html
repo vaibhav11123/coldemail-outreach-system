@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Planner — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Campaign planner</h1>
+<p class="muted">HR and academic queues. Refresh does not rewrite sent columns. Test mode still sends real mail.</p>
+
+<form method="get" action="/planner" class="sheet">
+  <label for="queue">Queue</label>
+  <select id="queue" name="queue">
+    <option value="hr" {% if queue=='hr' %}selected{% endif %}>HR internship list</option>
+    <option value="academic" {% if queue=='academic' %}selected{% endif %}>Academic applications</option>
+  </select>
+  <label for="stage">Stage</label>
+  <select id="stage" name="stage">
+    <option value="INITIAL_SEND" {% if stage=='INITIAL_SEND' %}selected{% endif %}>Initial</option>
+    <option value="FOLLOW_UP_1" {% if stage=='FOLLOW_UP_1' %}selected{% endif %}>Follow-up 1</option>
+    <option value="FOLLOW_UP_2" {% if stage=='FOLLOW_UP_2' %}selected{% endif %}>Follow-up 2</option>
+  </select>
+  <button type="submit" class="secondary">Show</button>
+</form>
+
+<p>Daily cap remaining (rolling 24h): <span class="mono">{{ remaining }}</span> / {{ cap }}</p>
+
+{% if preview %}
+<div class="sheet">
+  <h2>Preview (next due)</h2>
+  <p>To: <span class="mono">{{ preview.recipient }}</span></p>
+  <p>Salutation: {{ preview.salutation }}</p>
+  <p>Subject: {{ preview.subject }}</p>
+</div>
+{% endif %}
+
+{% macro section(title, rows) %}
+<div class="sheet">
+  <h2>{{ title }} ({{ rows|length }})</h2>
+  {% if not rows %}
+  <p class="muted">None.</p>
+  {% else %}
+  <ul class="list">
+    {% for r in rows[:20] %}
+    <li>
+      {{ r.name or r.recipient or '—' }}
+      {% if r.company %} · {{ r.company }}{% endif %}
+      {% if r.error %}<span class="flash error">{{ r.error }}</span>{% endif %}
+      {% if title == 'Missed window' and queue == 'hr' and r.index is defined %}
+      <form method="post" action="/planner/schedule-again" style="display:inline">
+        <input type="hidden" name="page_token" value="{{ page_token }}">
+        <input type="hidden" name="index" value="{{ r.index }}">
+        <button type="submit" class="secondary">Schedule again</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{{ section('Due now', due) }}
+{{ section('Too early', too_early) }}
+{{ section('Missed window', missed) }}
+{{ section('Failed', failed) }}
+
+{% if queue == 'hr' %}
+<form method="post" action="/planner/run-hr">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <input type="hidden" name="stage" value="{{ stage }}">
+  <p class="disabled-reason">This would send {{ due|length }} real HR messages. The planner does not auto-send from cloud tests. Use your local mailbox connection when ready.</p>
+  <button type="submit" disabled title="Disabled in this environment">Send HR due-now ({{ due|length }})</button>
+</form>
+{% else %}
+<form method="post" action="/planner/run-academic">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <button type="submit" {% if not due %}disabled{% endif %}>Send academic due-now ({{ due|length }})</button>
+  {% if not due %}<p class="disabled-reason">No academic follow-ups armed.</p>{% endif %}
+</form>
+{% endif %}
+{% endblock %}

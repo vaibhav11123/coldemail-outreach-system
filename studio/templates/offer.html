@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Offer — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Academic Outreach Studio</h1>
+<p>For international undergraduate and master's students seeking a research internship.</p>
+
+<div class="sheet">
+  <h2>Included</h2>
+  <ul>
+    <li>The app</li>
+    <li>The Summer 2027 research library</li>
+    <li>A labeled demo</li>
+    <li>Live publication search (your OpenAlex account)</li>
+    <li>Faculty directory collection</li>
+    <li>Your own files</li>
+  </ul>
+  <h2>Price</h2>
+  <p>{{ price }}</p>
+  <h2>Refund</h2>
+  <p>{{ refund }}</p>
+  <h2>Support</h2>
+  <p><a href="mailto:{{ support }}">{{ support }}</a></p>
+</div>
+
+<p><a class="button" href="/profile">Continue to profile</a></p>
+{% endblock %}

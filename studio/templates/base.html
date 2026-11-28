@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Academic Outreach Studio{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Crimson+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/studio.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">Academic Outreach Studio</a>
+    <nav class="nav" aria-label="Primary">
+      <a href="/offer" {% if nav=='offer' %}aria-current="page"{% endif %}>Offer</a>
+      <a href="/profile" {% if nav=='profile' %}aria-current="page"{% endif %}>Profile</a>
+      <a href="/start" {% if nav=='start' %}aria-current="page"{% endif %}>Openings</a>
+      <a href="/shortlist" {% if nav=='shortlist' %}aria-current="page"{% endif %}>Shortlist</a>
+      <a href="/drafts" {% if nav=='drafts' %}aria-current="page"{% endif %}>Drafts</a>
+      <a href="/tracker" {% if nav=='tracker' %}aria-current="page"{% endif %}>Tracker</a>
+      <a href="/planner" {% if nav=='planner' %}aria-current="page"{% endif %}>Planner</a>
+      <a href="/mail" {% if nav=='mail' %}aria-current="page"{% endif %}>Mail</a>
+      <a href="/return" {% if nav=='return' %}aria-current="page"{% endif %}>Return</a>
+    </nav>
+  </header>
+  <main>
+    {% if flash %}
+      <div class="flash {% if flash_error %}error{% endif %}" role="status">{{ flash }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

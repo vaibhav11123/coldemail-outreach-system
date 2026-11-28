@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Import mapping — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>Confirm column mapping</h1>
+{% if warnings %}
+<ul class="list">
+  {% for w in warnings %}
+  <li class="flash error">{{ w }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+<form method="post" action="/import/confirm">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <input type="hidden" name="import_id" value="{{ import_id }}">
+  <label for="name_col">Name column</label>
+  <select id="name_col" name="name_col">
+    {% for h in headers %}
+    <option value="{{ h }}" {% if mapping.name==h %}selected{% endif %}>{{ h }}</option>
+    {% endfor %}
+  </select>
+  <label for="affiliation_col">University column</label>
+  <select id="affiliation_col" name="affiliation_col">
+    {% for h in headers %}
+    <option value="{{ h }}" {% if mapping.affiliation==h %}selected{% endif %}>{{ h }}</option>
+    {% endfor %}
+  </select>
+  <label for="email_col">Email column (optional)</label>
+  <select id="email_col" name="email_col">
+    <option value="">— none —</option>
+    {% for h in headers %}
+    <option value="{{ h }}" {% if mapping.email==h %}selected{% endif %}>{{ h }}</option>
+    {% endfor %}
+  </select>
+  <p>Preview (first 5):</p>
+  <ul class="list">
+    {% for row in preview %}
+    <li class="mono">{{ row }}</li>
+    {% endfor %}
+  </ul>
+  <button type="submit">Import after confirm</button>
+</form>
+{% endblock %}
