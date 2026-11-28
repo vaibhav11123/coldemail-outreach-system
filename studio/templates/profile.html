@@ -1,8 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Profile — Academic Outreach Studio{% endblock %}
 {% block content %}
+<p class="hero-kicker">Start here</p>
 <h1>Your academic profile</h1>
 <p class="muted">Confirmed lines are used in matching and drafts. Unconfirmed CV lines are unused.</p>
+<ul class="step-rail" aria-label="Where you are">
+  <li class="active">1 · Profile</li>
+  <li>2 · Openings</li>
+  <li>3 · Shortlist</li>
+  <li>4 · Draft</li>
+  <li>5 · Track</li>
+</ul>
 
 <form method="post" action="/profile" enctype="multipart/form-data">
   <input type="hidden" name="page_token" value="{{ page_token }}">

@@ -2,8 +2,11 @@
 {% block title %}Opening — Academic Outreach Studio{% endblock %}
 {% block content %}
 {% if opp.demo %}<p class="stated">Demo</p>{% endif %}
+<p class="hero-kicker">Opening</p>
 <h1>{{ researcher.display_name }}</h1>
 <p class="muted">{{ institution }} · Check date: <span class="mono">{{ opp.checked_at or 'unknown' }}</span></p>
+<p class="toolbar"><a class="button" href="/draft/{{ opp.id }}">Write letter</a>
+<a class="button secondary" href="/shortlist">Back to shortlist</a></p>
 
 <div class="grid-2">
   <div class="sheet">

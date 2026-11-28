@@ -1,11 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Draft — Academic Outreach Studio{% endblock %}
 {% block content %}
+<p class="hero-kicker">Letter</p>
 <h1>Draft</h1>
 <p class="muted">Every research sentence must cite your confirmed profile or a sourced paper. Direct send is optional under Mail.</p>
 
+<ul class="step-rail" aria-label="Where you are">
+  <li>1 · Profile</li>
+  <li>2 · Openings</li>
+  <li>3 · Shortlist</li>
+  <li class="active">4 · Draft</li>
+  <li>5 · Track</li>
+</ul>
+
 {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
 
+<div class="draft-stage">
 <form method="post" action="/draft/{{ opportunity_id }}">
   <input type="hidden" name="page_token" value="{{ page_token }}">
   <label for="recipient">Recipient</label>
@@ -14,27 +24,28 @@
   <input id="subject" name="subject" value="{{ draft.subject }}">
   <label for="body">Body</label>
   <textarea id="body" name="body" rows="12">{{ draft.body }}</textarea>
-  <p>
+  <div class="toolbar">
     <button type="submit" name="action" value="save">Save</button>
     <button type="submit" name="action" value="approve" class="secondary">Approve this exact letter</button>
-  </p>
+  </div>
 </form>
 
 {% if draft.approved_hash == draft.content_hash %}
-<p class="stated">Approved</p>
+<p class="stated">Approved — ready for Mail when you connect an address</p>
 {% else %}
 <p class="disabled-reason">Not approved. Editing recipient, subject, or body clears approval.</p>
 {% endif %}
 
-<p>
+<div class="toolbar">
   <button type="button" id="copy-btn" class="secondary">Copy</button>
   <a class="button secondary" href="/draft/{{ draft.id }}/eml">Download .eml</a>
   <a class="button secondary" href="{{ mailto }}">Open in mail app</a>
-</p>
-<form method="post" action="/draft/{{ draft.id }}/sent-by-me">
-  <input type="hidden" name="page_token" value="{{ page_token }}">
-  <button type="submit" class="secondary">I sent this</button>
-</form>
+  <form method="post" action="/draft/{{ draft.id }}/sent-by-me" style="display:inline">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary">I sent this</button>
+  </form>
+</div>
+</div>
 
 <div class="sheet">
   <h2>Optional rewrite</h2>
@@ -55,12 +66,12 @@
   <p class="muted">We prepare a prompt with only confirmed facts. You submit it in ChatGPT, Claude, Gemini, Grok, DeepSeek or Copilot — we never handle those subscriptions. Paste the result back; we validate before saving.</p>
   <label for="handoff_prompt">Prompt for your AI</label>
   <textarea id="handoff_prompt" rows="8" readonly>{{ handoff_prompt }}</textarea>
-  <p style="margin:0.75rem 0">
+  <div class="toolbar">
     <button type="button" id="copy-handoff" class="secondary">Copy prompt</button>
     {% for t in handoff_targets %}
     <a class="button secondary" href="{{ t.open_url }}" target="_blank" rel="noopener">{{ t.title }}</a>
     {% endfor %}
-  </p>
+  </div>
   <form method="post" action="/draft/{{ opportunity_id }}/handoff-import">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <label for="handoff_body">Paste improved letter body</label>

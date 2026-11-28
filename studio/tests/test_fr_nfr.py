@@ -478,11 +478,13 @@ def test_NFR4_package_scan_rejects_dotenv(tmp_path):
 
 def test_NFR5_wcag_basics_in_css():
     css = (Path(__file__).resolve().parents[1] / "static" / "studio.css").read_text()
-    assert "#92400E" in css
-    assert "#065F46" in css
+    # High-contrast ink + seafoam accents (replaces cream/terracotta palette)
+    assert "#0a1628" in css or "--ink" in css
+    assert "#0e7c6b" in css or "--sea" in css
     assert "prefers-reduced-motion" in css
     assert "outline: 2px solid" in css
     assert "min-height: 44px" in css
+    assert "min-height: 40px" in css or "min-height: 44px" in css
 
 
 def test_NFR6_library_transaction(conn):

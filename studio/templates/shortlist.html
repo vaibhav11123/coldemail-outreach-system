@@ -1,32 +1,54 @@
 {% extends "base.html" %}
 {% block title %}Shortlist — Academic Outreach Studio{% endblock %}
 {% block content %}
+<p class="hero-kicker">Match</p>
 <h1>Shortlist</h1>
+<p class="muted">Ranked openings from your confirmed profile. Unknown funding stays unknown — we never invent “funded”.</p>
+
+<ul class="step-rail" aria-label="Where you are">
+  <li>1 · Profile</li>
+  <li>2 · Openings</li>
+  <li class="active">3 · Shortlist</li>
+  <li>4 · Draft</li>
+  <li>5 · Track</li>
+</ul>
+
 <form method="get" action="/shortlist" class="sheet">
   <label><input type="checkbox" name="hide_unknowns" value="1" {% if hide_unknowns %}checked{% endif %}> Hide unknowns</label>
   <label for="country">Country contains</label>
   <input id="country" name="country" value="{{ country }}">
-  <button type="submit" class="secondary">Apply filters</button>
+  <div class="toolbar">
+    <button type="submit" class="secondary">Apply filters</button>
+  </div>
 </form>
 
 {% if not items %}
-<p class="muted">Empty shortlist. {{ empty_reason }}</p>
+<div class="empty-state">
+  <p class="muted">Empty shortlist. {{ empty_reason }}</p>
+  <p><a class="button secondary" href="/profile">Confirm your profile</a>
+  <a class="button secondary" href="/start">Browse openings</a></p>
+</div>
 {% else %}
-<ul class="list">
+<ul class="list-card">
   {% for item in items %}
   <li>
-    <a href="/opportunity/{{ item.opportunity_id }}">{{ item.name }}</a>
-    — score <span class="mono">{{ '%.3f'|format(item.rank_score) }}</span>
-    · Funding:
-    {% if item.funding=='stated-yes' %}<span class="stated">Stated</span>
-    {% elif item.funding=='stated-no' %}Stated no
-    {% else %}<span class="unknown">Unknown</span>{% endif %}
+    <a class="title" href="/opportunity/{{ item.opportunity_id }}">{{ item.name }}</a>
+    <div class="meta">
+      <span class="score-pill">{{ '%.3f'|format(item.rank_score) }}</span>
+      <span>Funding:
+        {% if item.funding=='stated-yes' %}<span class="stated">Stated</span>
+        {% elif item.funding=='stated-no' %}Stated no
+        {% else %}<span class="unknown">Unknown</span>{% endif %}
+      </span>
+      <a href="/draft/{{ item.opportunity_id }}">Write letter</a>
+    </div>
   </li>
   {% endfor %}
 </ul>
 {% endif %}
-<form method="post" action="/shortlist/rebuild">
+
+<form method="post" action="/shortlist/rebuild" class="toolbar">
   <input type="hidden" name="page_token" value="{{ page_token }}">
-  <button type="submit">Rebuild ranking</button>
+  <button type="submit" class="secondary">Rebuild ranking</button>
 </form>
 {% endblock %}

@@ -1,28 +1,48 @@
 {% extends "base.html" %}
-{% block title %}Offer — Academic Outreach Studio{% endblock %}
+{% block title %}Academic Outreach Studio{% endblock %}
 {% block content %}
-<h1>Academic Outreach Studio</h1>
-<p>For international undergraduate and master's students seeking a research internship.</p>
+<section class="hero">
+  <p class="hero-kicker">Research internship outreach</p>
+  <h1>Academic Outreach Studio</h1>
+  <p class="lead">Find professors, write evidence-backed letters, and track applications — without inventing claims or sending unapproved mail.</p>
+  <div class="hero-actions">
+    <a class="button" href="/profile">Continue to profile</a>
+    <a class="button secondary" href="/connections">Set up connections</a>
+  </div>
+</section>
 
-<div class="sheet">
-  <h2>Included</h2>
-  <ul>
-    <li>The app</li>
+<ul class="step-rail" aria-label="Suggested path">
+  <li class="active">1 · Profile</li>
+  <li>2 · Openings</li>
+  <li>3 · Shortlist</li>
+  <li>4 · Draft</li>
+  <li>5 · Track</li>
+</ul>
+
+<div class="sheet-quiet">
+  <h2>What you get</h2>
+  <ul class="include-grid">
+    <li>The app workspace on your computer</li>
     <li>The Summer 2027 research library</li>
-    <li>A labeled demo</li>
+    <li>A labeled demo so you can learn safely</li>
     <li>Live publication search (your OpenAlex account)</li>
-    <li>Faculty directory collection</li>
-    <li>Your own files</li>
+    <li>Faculty directory collection tools</li>
+    <li>Your own files stay yours</li>
   </ul>
-  <h2>Price</h2>
-  <p>{{ price }}</p>
-  <h2>Refund</h2>
-  <p>{{ refund }}</p>
-  <h2>Support</h2>
-  <p><a href="mailto:{{ support }}">{{ support }}</a></p>
 </div>
 
-<p><a class="button" href="/profile">Continue to profile</a>
-<a class="button secondary" href="/connections">Set up connections</a></p>
+<div class="grid-2">
+  <div class="sheet">
+    <h2>Price</h2>
+    <p class="price-line">{{ price }}</p>
+    <p class="muted">Built for students who need a careful outreach workflow, not a mass-mail blast.</p>
+  </div>
+  <div class="sheet">
+    <h2>Refund &amp; support</h2>
+    <p>{{ refund }}</p>
+    <p><a href="mailto:{{ support }}">{{ support }}</a></p>
+  </div>
+</div>
+
 <p class="muted">No mandatory external accounts. Connections enhance the workspace; the bundled library works offline.</p>
 {% endblock %}
