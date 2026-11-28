@@ -45,7 +45,7 @@
     <button type="submit" class="secondary">Rewrite with connected AI</button>
   </form>
   {% else %}
-  <p>Built-in draft works without AI. <a href="/ai">Activate free AI (Groq)</a> or connect OpenRouter — both use your own allowance.</p>
+  <p>Built-in draft works without AI. <a href="/ai/groq">Connect your free AI (Groq)</a> or <a href="/ai#instant-ai">Connect instant AI</a> — both use your own allowance.</p>
   {% endif %}
   {% if rewrite_note %}<p class="flash {% if rewrite_error %}error{% endif %}">{{ rewrite_note }}</p>{% endif %}
 </div>

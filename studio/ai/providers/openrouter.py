@@ -34,13 +34,13 @@ DEFAULT_MODEL = "openrouter/free"
 
 class OpenRouterProvider:
     id = PROVIDER_ID
-    display_name = "Free AI (OpenRouter)"
-    blurb = "OAuth alternative — your OpenRouter free models and credits."
+    display_name = "Instant AI (OpenRouter)"
+    blurb = "Documented OAuth with PKCE — one authorization, no manual key."
     auth_kind = "oauth"
     priority = 2
     recommended = True
-    card_title = "Free AI (OpenRouter)"
-    card_subtitle = "OAuth — your OpenRouter allowance"
+    card_title = "Connect instant AI"
+    card_subtitle = "OpenRouter OAuth — your allowance"
 
     def get_status(self) -> ProviderStatus:
         key = get_secret(KEY_SECRET)

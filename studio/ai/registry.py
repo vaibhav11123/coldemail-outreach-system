@@ -80,7 +80,7 @@ def _button_label(provider: Any, status) -> str:
     if kind == "managed":
         return "Enable" if not status.connected else "Connected"
     if kind == "guided_key" and getattr(provider, "id", "") == "groq":
-        return "Connect Groq"
+        return "Connect GroqCloud"
     if kind == "guided_key":
         return "Connect"
     return "Set up"

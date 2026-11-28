@@ -12,17 +12,18 @@
 {% if groq_cards %}
 {% set groq = groq_cards[0] %}
 <div class="sheet ai-hero">
-  <h2>Activate free AI</h2>
-  <p class="muted">GroqCloud — fast AI using your own free allowance</p>
+  <h2>Connect your free AI</h2>
+  <p class="muted"><strong>groq</strong> · Powered by your own GroqCloud account</p>
   <ul class="muted">
-    <li>No AI subscription required</li>
-    <li>No coding required</li>
-    <li>Your account, your allowance</li>
+    <li>No credit card required for the free tier</li>
+    <li>No technical configuration</li>
+    <li>Your own inference allowance</li>
+    <li>Credentials stored on your device</li>
   </ul>
   {% if groq.status.connected %}
   <p><span class="stated">Connected</span> {{ groq.status.account_hint }}</p>
   <p class="muted">{{ groq.status.detail }}</p>
-  <form method="post" action="/ai/disconnect/groq" style="display:inline">
+  <form method="post" action="/ai/groq/disconnect" style="display:inline">
     <input type="hidden" name="page_token" value="{{ page_token }}">
     <button type="submit" class="secondary">Disconnect</button>
   </form>
@@ -32,18 +33,15 @@
   </form>
   {% else %}
   <p>{{ groq.status.detail }}</p>
-  <form method="post" action="/ai/connect/groq">
-    <input type="hidden" name="page_token" value="{{ page_token }}">
-    <button type="submit">Connect Groq</button>
-  </form>
-  <p class="muted" style="margin-top:0.75rem">One-time guided setup. We do not run a shared Groq account or inference proxy.</p>
+  <p><a class="button" href="/ai/groq">Connect GroqCloud</a></p>
+  <p class="muted" style="margin-top:0.75rem">Connect Assistant opens the official dashboard. Explicit key transfer only — no scraping, no invented OAuth.</p>
   {% endif %}
 </div>
 {% endif %}
 
-<div class="sheet">
-  <h2>Free AI via OpenRouter</h2>
-  <p class="muted">OAuth alternative — sign in once; uses your OpenRouter allowance</p>
+<div class="sheet" id="instant-ai">
+  <h2>Connect instant AI</h2>
+  <p class="muted">OpenRouter OAuth with PKCE — one authorization, no manual key. Uses your OpenRouter allowance (may route to Groq-hosted models when available).</p>
   {% set free = cards|selectattr('id', 'equalto', 'openrouter')|list %}
   {% if free %}
   {% set card = free[0] %}
@@ -51,7 +49,7 @@
   {% if not card.status.connected %}
   <form method="post" action="/ai/connect/openrouter">
     <input type="hidden" name="page_token" value="{{ page_token }}">
-    <button type="submit" class="secondary">Connect OpenRouter</button>
+    <button type="submit" class="secondary">Connect instant AI</button>
   </form>
   {% else %}
   <form method="post" action="/ai/disconnect/openrouter" style="display:inline">

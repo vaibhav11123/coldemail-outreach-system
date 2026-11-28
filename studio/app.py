@@ -1901,6 +1901,84 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             ),
         )
 
+    @app.get("/ai/groq", response_class=HTMLResponse)
+    async def ai_groq_assistant(request: Request):
+        from studio.connections.groq import onboarding as groq_onboarding
+
+        view = groq_onboarding.start_assistant(launch_browser=False)
+        return TEMPLATES.TemplateResponse(
+            request,
+            "groq_connect.html",
+            ctx(request, nav="ai", view=view),
+        )
+
+    @app.post("/ai/groq/launch")
+    async def ai_groq_launch(page_token: str = Form(...)):
+        require_token(page_token)
+        from studio.connections.groq import onboarding as groq_onboarding
+
+        groq_onboarding.start_assistant(launch_browser=True)
+        return RedirectResponse("/ai/groq?flash=GroqCloud%20opened", status_code=303)
+
+    @app.post("/ai/groq/finish")
+    async def ai_groq_finish(
+        page_token: str = Form(...),
+        api_key: str = Form(""),
+    ):
+        require_token(page_token)
+        from studio.connections.groq import onboarding as groq_onboarding
+
+        ok, message, _view = groq_onboarding.complete_with_pasted_key(api_key)
+        if ok:
+            set_active_provider("groq")
+            return RedirectResponse(
+                f"/ai/groq?flash={quote(message)}", status_code=303
+            )
+        return RedirectResponse(
+            f"/ai/groq?err=1&flash={quote(message)}", status_code=303
+        )
+
+    @app.post("/ai/groq/import-local")
+    async def ai_groq_import_local(page_token: str = Form(...)):
+        require_token(page_token)
+        from studio.connections.groq import onboarding as groq_onboarding
+
+        ok, message, _view = groq_onboarding.import_local_env_key_with_consent(
+            consented=True
+        )
+        if ok:
+            set_active_provider("groq")
+            return RedirectResponse(
+                f"/ai/groq?flash={quote(message)}", status_code=303
+            )
+        return RedirectResponse(
+            f"/ai/groq?err=1&flash={quote(message)}", status_code=303
+        )
+
+    @app.post("/ai/groq/decline-local")
+    async def ai_groq_decline_local(page_token: str = Form(...)):
+        require_token(page_token)
+        from studio.connections.groq import onboarding as groq_onboarding
+
+        groq_onboarding.import_local_env_key_with_consent(consented=False)
+        return RedirectResponse("/ai/groq", status_code=303)
+
+    @app.post("/ai/groq/cancel")
+    async def ai_groq_cancel(page_token: str = Form(...)):
+        require_token(page_token)
+        from studio.connections.groq import onboarding as groq_onboarding
+
+        groq_onboarding.cancel_setup()
+        return RedirectResponse(
+            "/ai?flash=Groq%20setup%20cancelled", status_code=303
+        )
+
+    @app.post("/ai/groq/disconnect")
+    async def ai_groq_disconnect(page_token: str = Form(...)):
+        require_token(page_token)
+        disconnect_provider("groq")
+        return RedirectResponse("/ai?flash=Groq%20disconnected", status_code=303)
+
     @app.get("/ai/mcp", response_class=HTMLResponse)
     async def ai_mcp(request: Request):
         return TEMPLATES.TemplateResponse(
@@ -1920,6 +1998,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         request: Request, provider_id: str, page_token: str = Form(...)
     ):
         require_token(page_token)
+        if provider_id == "groq":
+            return RedirectResponse("/ai/groq", status_code=303)
         headless = provider_id == "openrouter-headless"
         pid = "openrouter" if headless else provider_id
         p = get_provider(pid)
@@ -1957,6 +2037,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
 
     @app.get("/ai/setup/{provider_id}", response_class=HTMLResponse)
     async def ai_setup_get(request: Request, provider_id: str):
+        if provider_id == "groq":
+            return RedirectResponse("/ai/groq", status_code=303)
         p = get_provider(provider_id)
         if not p:
             return RedirectResponse("/ai?err=1&flash=Unknown%20provider", status_code=303)

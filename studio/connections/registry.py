@@ -112,21 +112,21 @@ CONNECTIONS: list[ConnectionSpec] = [
     ),
     ConnectionSpec(
         id="groq",
-        title="Activate free AI (Groq)",
+        title="Connect your free AI (Groq)",
         section="ai",
-        purpose="Guided one-time GroqCloud key; your own free allowance; app calls Groq from your computer",
+        purpose="Connect Assistant: official dashboard + explicit key transfer; your GroqCloud allowance",
         auth_method="guided_key",
         priority="P0",
         production_status="documented",
         capabilities=["ai.rewrite"],
         commercial_note=(
-            "Not OAuth — Groq documents API keys only. "
-            "No shared product key, no inference proxy, no pooled quotas."
+            "Not OAuth — explicit paste or consented local GROQ_API_KEY only. "
+            "No dashboard scraping, no shared product key, no inference proxy."
         ),
         docs_url="https://console.groq.com/keys",
-        fallback="OpenRouter OAuth, Offline AI, or Improve with your AI",
-        connect_href="/ai/setup/groq",
-        button_label="Connect Groq",
+        fallback="Connect instant AI (OpenRouter), Offline AI, or Improve with your AI",
+        connect_href="/ai/groq",
+        button_label="Connect GroqCloud",
     ),
     ConnectionSpec(
         id="external_handoff",

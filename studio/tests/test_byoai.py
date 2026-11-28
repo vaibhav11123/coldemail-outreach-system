@@ -29,7 +29,7 @@ def test_provider_cards_include_free_ai_first(data_dir):
     cards = list_provider_cards()
     assert cards[0]["id"] == "groq"
     assert cards[0]["recommended"] is True
-    assert cards[0]["button_label"] == "Connect Groq"
+    assert cards[0]["button_label"] == "Connect GroqCloud"
     ids = {c["id"] for c in cards}
     assert {
         "groq",
@@ -48,15 +48,15 @@ def test_connect_ai_screen(client):
     r = client.get("/ai")
     assert r.status_code == 200
     assert "Connect your AI" in r.text
-    assert "Activate free AI" in r.text
-    assert "Connect Groq" in r.text
-    assert "Connect OpenRouter" in r.text
+    assert "Connect your free AI" in r.text
+    assert "Connect GroqCloud" in r.text
+    assert "Connect instant AI" in r.text
     assert "Continue without AI" in r.text
     assert "Advanced settings" in r.text
     above = r.text.split("Advanced settings")[0]
-    # Key paste happens on /ai/setup/groq — not on the main hero as a raw field
+    # Key paste happens on /ai/groq — not on the main hero as a raw field
     assert 'name="api_key"' not in above
-    assert "Paste your GroqCloud key" not in above
+    assert "Paste the key Groq showed you" not in above
 
 
 def test_continue_without_ai(client):

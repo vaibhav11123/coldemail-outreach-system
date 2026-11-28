@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ view.title }} — Academic Outreach Studio{% endblock %}
+{% block content %}
+<h1>{{ view.title }}</h1>
+<p class="muted"><strong>groq</strong> · {{ view.subtitle }}</p>
+
+<ul class="muted">
+  {% for b in view.bullets %}
+  <li>{{ b }}</li>
+  {% endfor %}
+</ul>
+
+<p><span class="stated">{{ view.phase_label }}</span>{% if view.account_hint %} {{ view.account_hint }}{% endif %}</p>
+{% if view.detail %}
+<p class="muted">{{ view.detail }}</p>
+{% endif %}
+
+{% if view.connected %}
+<div class="sheet">
+  <p>AI is available for evidence-bound letter polish. Selected model: <code class="mono">{{ view.selected_model }}</code></p>
+  <form method="post" action="/ai/activate/groq" style="display:inline">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit">Use Groq for rewrite</button>
+  </form>
+  <form method="post" action="/ai/groq/disconnect" style="display:inline">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary">Disconnect</button>
+  </form>
+</div>
+{% else %}
+
+{% if view.can_import_local %}
+<div class="sheet">
+  <h2>Local Groq key detected</h2>
+  <p class="muted">Environment variable <code class="mono">GROQ_API_KEY</code> ends with {{ view.local_env.hint }}. Import only with your permission — we never take product-managed keys.</p>
+  <form method="post" action="/ai/groq/import-local" style="display:inline">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit">Import local key</button>
+  </form>
+  <form method="post" action="/ai/groq/decline-local" style="display:inline">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary">Don’t import — use dashboard</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="sheet">
+  <h2>Groq Connect Assistant</h2>
+  <ol>
+    {% for step in view.steps %}
+    <li>{{ step }}</li>
+    {% endfor %}
+  </ol>
+
+  {% if view.can_launch %}
+  <form method="post" action="/ai/groq/launch" style="margin:1rem 0">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit">Connect GroqCloud</button>
+  </form>
+  <p class="muted">Opens the official Groq dashboard only. We do not automate the page.</p>
+  <p><a href="{{ view.dashboard_url }}" rel="noopener" target="_blank">Open GroqCloud keys page manually</a></p>
+  {% endif %}
+
+  {% if view.can_paste %}
+  <form method="post" action="/ai/groq/finish" class="sheet" style="margin-top:1rem">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <label for="api_key">Paste the key Groq showed you</label>
+    <input id="api_key" name="api_key" type="password" autocomplete="new-password" placeholder="gsk_…">
+    <button type="submit">Validate and connect</button>
+  </form>
+  <p class="muted">Explicit transfer only — paste what you copied. We validate, discover models, and store the credential in your OS keychain.</p>
+  {% endif %}
+
+  {% if view.can_cancel %}
+  <form method="post" action="/ai/groq/cancel">
+    <input type="hidden" name="page_token" value="{{ page_token }}">
+    <button type="submit" class="secondary">Cancel setup</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<p class="disabled-reason">{{ view.compliance_note }}</p>
+<p class="muted"><a href="{{ view.docs_url }}" rel="noopener" target="_blank">Groq documentation</a>
+ · <a href="/ai">Back to Connect your AI</a>
+ · Prefer one-touch OAuth? <a href="/ai#instant-ai">Connect instant AI (OpenRouter)</a></p>
+{% endblock %}

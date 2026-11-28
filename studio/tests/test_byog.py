@@ -20,16 +20,16 @@ def test_registry_byog_not_managed():
     ).lower()
     cards = list_provider_cards()
     assert cards[0]["id"] == "groq"
-    assert cards[0]["button_label"] == "Connect Groq"
+    assert cards[0]["button_label"] == "Connect GroqCloud"
     assert cards[0]["auth_kind"] == "guided_key"
 
 
 def test_activate_free_ai_screen(client):
     r = client.get("/ai")
     assert r.status_code == 200
-    assert "Activate free AI" in r.text
-    assert "Connect Groq" in r.text
-    assert "your own free allowance" in r.text.lower() or "your allowance" in r.text.lower()
+    assert "Connect your free AI" in r.text
+    assert "Connect GroqCloud" in r.text
+    assert "Connect instant AI" in r.text
     assert "OpenRouter" in r.text
     above = r.text.split("Advanced settings")[0]
     assert 'name="api_key"' not in above
@@ -38,11 +38,11 @@ def test_activate_free_ai_screen(client):
 
 
 def test_groq_setup_guided_steps(client):
-    r = client.get("/ai/setup/groq")
+    r = client.get("/ai/groq")
     assert r.status_code == 200
-    assert "Open GroqCloud" in r.text
-    assert "Paste your GroqCloud key" in r.text
-    assert "not OAuth" in r.text.lower() or "Not OAuth" in r.text or "not OAuth" in r.text
+    assert "Connect GroqCloud" in r.text
+    assert "Paste the key" in r.text
+    assert "not oauth" in r.text.lower()
     assert "Validate and connect" in r.text
 
 
@@ -59,9 +59,12 @@ def test_validate_and_connect_stores_keychain(client, monkeypatch):
                 ]
             }
 
-    monkeypatch.setattr(groqmod.requests, "get", lambda *a, **k: Resp())
+    monkeypatch.setattr(
+        "studio.connections.groq.credential_validator.requests.get",
+        lambda *a, **k: Resp(),
+    )
     r = client.post(
-        "/ai/finish/groq",
+        "/ai/groq/finish",
         data={
             "page_token": client.page_token,
             "api_key": "gsk_test_student_key_abcdefghijklmnopqrstuvwxyz",
@@ -85,7 +88,10 @@ def test_invalid_key_rejected(monkeypatch):
         def json(self):
             return {"error": "unauthorized"}
 
-    monkeypatch.setattr(groqmod.requests, "get", lambda *a, **k: Resp())
+    monkeypatch.setattr(
+        "studio.connections.groq.credential_validator.requests.get",
+        lambda *a, **k: Resp(),
+    )
     ok, msg, models = validate_groq_key("bad-key")
     assert ok is False
     assert models == []
@@ -111,7 +117,10 @@ def test_rewrite_handles_429(data_dir, monkeypatch):
         def json(self):
             return {}
 
-    monkeypatch.setattr(groqmod.requests, "post", lambda *a, **k: Resp())
+    monkeypatch.setattr(
+        "studio.ai.providers.groq.requests.post",
+        lambda *a, **k: Resp(),
+    )
     out = GroqProvider().rewrite(
         EvidenceBoundRequest(
             recipient="a@b.c",

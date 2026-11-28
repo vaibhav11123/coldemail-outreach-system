@@ -83,7 +83,8 @@ def test_groq_byog_without_key(client):
     st = p.get_status()
     assert st.connected is False
     assert st.auth_kind == "guided_key"
-    assert "groq" in st.detail.lower() or "key" in st.detail.lower()
+    assert "oauth" in st.commercial_note.lower()
+    assert "cookie" in st.commercial_note.lower() or "dashboard" in st.commercial_note.lower()
 
 
 def test_connections_shows_handoff_and_graph(client):
@@ -93,7 +94,7 @@ def test_connections_shows_handoff_and_graph(client):
     assert "Open academic graph" in r.text
     assert "Google Scholar import" in r.text
     assert "Groq" in r.text
-    assert "Connect Groq" in r.text or "Activate free AI" in r.text
+    assert "Connect GroqCloud" in r.text or "Connect your free AI" in r.text
 
 
 def test_bibliography_upload_route(client):
