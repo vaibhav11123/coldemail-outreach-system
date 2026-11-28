@@ -1,6 +1,7 @@
 import pandas as pd
 import pdfplumber
 import re
+from pathlib import Path
 
 CSV_FILE = "../data/raw/14400+ Ultimate HR Outreach List  - DataNiti - 2500+ HR's Manager Contacts with Profiles - .csv"
 PDF_FILE = "../data/raw/Company Wise HR Contacts - HR Contacts.pdf"
@@ -172,6 +173,18 @@ def hiring_score(title):
 # =========================================================
 
 def main():
+    # Refuse to overwrite the live campaign CSV. Sent columns are campaign state.
+    campaign = Path(__file__).resolve().parent.parent / (
+        "data/processed/cold_email_outreach_all_cleaned_ranked.csv"
+    )
+    target = Path(OUTPUT_FILE)
+    if not TEST_MODE and target.resolve() == campaign.resolve():
+        raise SystemExit(
+            "Refusing to write the live campaign CSV. "
+            "Set TEST_MODE=True or choose a different OUTPUT_FILE. "
+            "Sent status must only change when a send finishes."
+        )
+
     csv_df = process_csv(CSV_FILE)
     pdf_df = parse_hr_pdf(PDF_FILE)
 

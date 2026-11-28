@@ -13,10 +13,14 @@ except ImportError:
     from outreach import config
 
 
-def filter_recipients_by_stage(df):
-    """Filters contacts based on the current CAMPAIGN_STAGE and time passed."""
-    today = datetime.now()
-    stage = config.CAMPAIGN_STAGE
+def filter_recipients_by_stage(df, stage=None, now=None):
+    """Filters contacts based on CAMPAIGN_STAGE (or explicit stage) and time passed.
+
+    Rows with scheduled_again_at set use that timestamp as the new anchor and
+    become due when that day has arrived (missed-window recovery).
+    """
+    today = now or datetime.now()
+    stage = stage or config.CAMPAIGN_STAGE
 
     # Ensure minimum required column
     if 'Sent_Status' not in df.columns:
@@ -29,6 +33,7 @@ def filter_recipients_by_stage(df):
         'FollowUp_1_Timestamp',
         'FollowUp_2_Status',
         'FollowUp_2_Timestamp',
+        'scheduled_again_at',
     ]:
         if col not in df.columns:
             df[col] = ''
@@ -48,14 +53,22 @@ def filter_recipients_by_stage(df):
         follow_up_df['Sent_DT'] = pd.to_datetime(
             follow_up_df['Sent_Timestamp'], errors='coerce'
         )
-        follow_up_df = follow_up_df.dropna(subset=['Sent_DT'])
+        follow_up_df['Sched_DT'] = pd.to_datetime(
+            follow_up_df['scheduled_again_at'], errors='coerce'
+        )
 
-        follow_up_df['Days_Since_Send'] = (today - follow_up_df['Sent_DT']).dt.days
-
-        return follow_up_df[
-            (follow_up_df['Days_Since_Send'] >= 6) &
-            (follow_up_df['Days_Since_Send'] <= 8)
-        ]
+        due_mask = []
+        for _, row in follow_up_df.iterrows():
+            if pd.notna(row['Sched_DT']):
+                days = (today - row['Sched_DT'].to_pydatetime()).days
+                due_mask.append(days >= 0)
+                continue
+            if pd.isna(row['Sent_DT']):
+                due_mask.append(False)
+                continue
+            days = (today - row['Sent_DT'].to_pydatetime()).days
+            due_mask.append(6 <= days <= 8)
+        return follow_up_df[due_mask]
 
     elif stage == 'FOLLOW_UP_2':
         follow_up_df = df[
@@ -67,17 +80,24 @@ def filter_recipients_by_stage(df):
         if follow_up_df.empty:
             return follow_up_df
 
-        # IMPORTANT: base FOLLOW_UP_2 on FollowUp_1_Timestamp
         follow_up_df['FU1_DT'] = pd.to_datetime(
             follow_up_df['FollowUp_1_Timestamp'], errors='coerce'
         )
-        follow_up_df = follow_up_df.dropna(subset=['FU1_DT'])
+        follow_up_df['Sched_DT'] = pd.to_datetime(
+            follow_up_df['scheduled_again_at'], errors='coerce'
+        )
 
-        follow_up_df['Days_Since_FU1'] = (today - follow_up_df['FU1_DT']).dt.days
-
-        return follow_up_df[
-            (follow_up_df['Days_Since_FU1'] >= 6) &
-            (follow_up_df['Days_Since_FU1'] <= 8)
-        ]
+        due_mask = []
+        for _, row in follow_up_df.iterrows():
+            if pd.notna(row['Sched_DT']):
+                days = (today - row['Sched_DT'].to_pydatetime()).days
+                due_mask.append(days >= 0)
+                continue
+            if pd.isna(row['FU1_DT']):
+                due_mask.append(False)
+                continue
+            days = (today - row['FU1_DT'].to_pydatetime()).days
+            due_mask.append(6 <= days <= 8)
+        return follow_up_df[due_mask]
 
     return pd.DataFrame()
