@@ -14,7 +14,11 @@ Shared protection stack for:
 - Signed **delivery manifests** (Ed25519) and a **delivery ledger** for leak attribution
 - **Device identity** via Ed25519 + X25519 (not MAC spoofing)
 - **DEK sealed** to the authorized device; SQLCipher encrypts the catalog at rest
+- Outer **AES-256-GCM `.aspkg`** transit container
 - Offline entitlements with TTL; revocation takes effect on next validation
+- FastAPI **`/api/licensing/*`** (payment webhook, activate, revoke, status)
+- Localhost **Academic Data Reader** at `/reader` (`STUDIO_PROTECTED_PACKAGE=…`)
+- Piracy **monitor scaffold** (`python -m studio.dataset monitor --path …`)
 
 ## What this does not claim
 

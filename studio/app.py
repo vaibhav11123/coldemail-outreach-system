@@ -194,6 +194,12 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
 
         require_page_token(_R(), form_token)  # type: ignore[arg-type]
 
+    from studio.dataset.reader_routes import build_reader_router
+    from studio.licensing.api import build_licensing_router
+
+    app.include_router(build_licensing_router())
+    app.include_router(build_reader_router(ctx))
+
     def get_conn():
         return dbmod.connect()
 

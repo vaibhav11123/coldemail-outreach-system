@@ -155,6 +155,28 @@ def cmd_device_info(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_monitor(args: argparse.Namespace) -> int:
+    from studio.licensing.monitor import append_findings_log, scan_local_corpus
+    from studio.licensing.service import delivery_ledger
+
+    paths = [Path(p) for p in args.path]
+    findings = scan_local_corpus(paths, delivery_ledger())
+    log_path = Path(args.log) if args.log else app_data_dir() / "piracy_findings.json"
+    append_findings_log(log_path, findings)
+    print(json.dumps({"findings": len(findings), "log": str(log_path), "items": [f.to_dict() for f in findings]}, indent=2))
+    return 0
+
+
+def cmd_extract_aspkg(args: argparse.Namespace) -> int:
+    from studio.dataset.package_cipher import extract_aspkg
+    from studio.licensing.crypto import b64d
+
+    key = b64d(args.key_b64) if args.key_b64 else bytes.fromhex(args.key_hex)
+    members = extract_aspkg(Path(args.aspkg), Path(args.out), key)
+    print(json.dumps({"extracted": members, "out": args.out}, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m studio.dataset")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -187,6 +209,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--university")
     p.add_argument("--limit", type=int, default=20)
     p.set_defaults(func=cmd_read)
+
+    p = sub.add_parser("monitor", help="Scan local corpus for piracy markers (ledger compare)")
+    p.add_argument("--path", action="append", required=True, help="File or directory (repeatable)")
+    p.add_argument("--log", help="Findings JSON log path")
+    p.set_defaults(func=cmd_monitor)
+
+    p = sub.add_parser("extract-aspkg", help="Extract AES-GCM .aspkg with package/DEK key")
+    p.add_argument("--aspkg", required=True)
+    p.add_argument("--out", required=True)
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--key-hex")
+    g.add_argument("--key-b64")
+    p.set_defaults(func=cmd_extract_aspkg)
 
     args = parser.parse_args(argv)
     return int(args.func(args))

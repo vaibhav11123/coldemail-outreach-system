@@ -9,40 +9,43 @@ Status key: `[x]` implemented in-repo · `[~]` scaffold / partial · `[ ]` not s
 - [x] Customer-specific dataset packaging (`studio/dataset/package_standard.py`)
 - [x] Unique relational export identifiers (HMAC surrogate IDs)
 - [x] Encrypted `.asdb` catalog (SQLCipher via `sqlcipher3`)
+- [x] Outer AES-256-GCM `.aspkg` transit container
 - [x] Signed manifests (`manifest.json` + Ed25519)
-- [x] Offline dataset reader API (`studio/dataset/reader.py` + CLI)
+- [x] Offline dataset reader API + localhost Reader UI (`/reader`)
 - [x] Customer-specific export watermarking (banner, XLSX props, hidden provenance, export IDs, row order)
-- [ ] Full spreadsheet-like Desktop Reader UI (Tauri) — deferred; Python reader CLI ships first
+- [ ] Full spreadsheet-like Desktop Reader (Tauri) — deferred; Python/FastAPI Reader ships first
 - [ ] Collusion-resistant fingerprint codes for partial copies
 
 ## P0 — Licensing
 
-- [x] Purchase-to-entitlement workflow (`LicenseStore.register_purchase` → activate)
+- [x] Purchase-to-entitlement workflow (`LicenseStore` + `/api/licensing/webhook/payment`)
 - [x] Cryptographic device identity (Ed25519 + X25519)
 - [x] Secure key delivery (X25519 sealed DEK in `.aslic`)
 - [x] Two-device activation + replacement hook
 - [x] Signed offline entitlements with TTL / clock skew check
-- [x] Revocation flag (enforced on next activation / entitlement issue)
-- [~] Keygen or FastAPI production licensing service (local JSON store is interim)
+- [x] Revocation flag (webhook + next activation)
+- [x] FastAPI licensing API (`/api/licensing/*`)
+- [~] Keygen production adapter (local JSON store is interim)
 - [ ] Passkeys / verified-email purchase gate in product UI
-- [ ] Payment webhook → entitlement assignment
+- [~] Payment webhook → entitlement assignment (shared-secret webhook scaffold)
 
 ## P1 — Application security
 
-- [~] Packaging scan for secrets / issuer keys (`studio/packaging_scan.py`)
-- [ ] Compile commercial engine (Nuitka) / native Tauri shell
+- [x] Packaging scan for secrets / issuer keys (`studio/packaging_scan.py`)
+- [x] OS-backed DEK cache after unlock (`studio/licensing/dek_cache.py`)
+- [x] Unauthorized package transfer tests (forwarded `.asdb` without `.aslic` / wrong device)
+- [ ] Compile commercial engine (Nuitka) / native Tauri + Rust licence component
 - [ ] Sign application installers
 - [ ] Signed software updates
-- [ ] OS keychain-only DEK caching (currently unwrap per session from `.aslic`)
-- [ ] Unauthorized package transfer test suite in CI matrix (covered partially by unit tests)
 - [ ] Independent penetration test before paid launch
+- [ ] Hardware-backed keys (Secure Enclave / TPM) where available
 
 ## P1 — Commercial enforcement
 
 - [x] Delivery ledger with export-ID lookup (`studio/licensing/ledger.py`)
-- [ ] Published individual / commercial licence terms pages
-- [ ] Automated public-web piracy monitoring
-- [ ] Takedown procedure runbook
+- [x] Draft individual / commercial licence terms (`studio/legal/`)
+- [x] Takedown procedure draft (`studio/legal/TAKEDOWN.md`)
+- [~] Piracy monitoring scaffold (local corpus + ledger compare; live crawlers not wired)
 - [ ] Dataset update channel for legitimate customers
 - [ ] Make ongoing updates the commercial moat (process, not only code)
 

@@ -8,6 +8,7 @@ from typing import Any
 
 from studio.dataset.asdb import build_asdb
 from studio.dataset.fingerprint import FingerprintContext, export_id_for
+from studio.dataset.package_cipher import build_aspkg
 from studio.licensing.activation import LicenseStore, activate_device, build_activation_request
 from studio.licensing.crypto import IssuerKeys, sign_ed25519
 from studio.licensing.device import DeviceIdentity
@@ -124,6 +125,11 @@ def build_protected_package(
         activate_device(license_store, req, aslic_path=aslic_path)
         file_hashes["CustomerLicense.aslic"] = sha256_file(aslic_path)
 
+    # Outer AES-GCM transit container (same DEK sealed in .aslic)
+    aspkg_path = out_dir / "ResearchCatalog.aspkg"
+    aspkg_info = build_aspkg(out_dir, aspkg_path, dek)
+    file_hashes["ResearchCatalog.aspkg"] = sha256_file(aspkg_path)
+
     # Refuse shipping secrets / env files in the customer package
     scan_package_dir(out_dir)
 
@@ -133,6 +139,7 @@ def build_protected_package(
         "record_count": len(records),
         "file_hashes": file_hashes,
         "asdb": str(asdb_path),
+        "aspkg": aspkg_info,
         "activated": aslic_path.exists(),
         "sku": sku_value,
     }

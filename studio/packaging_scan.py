@@ -38,7 +38,15 @@ def scan_package_dir(root: Path) -> None:
                 bad.append(f"{rel} (forbidden suffix)")
                 continue
         # Skip large binary catalogs for content scan
-        if path.suffix.lower() in {".asdb", ".sqlite", ".xlsx", ".pdf", ".png", ".jpg"}:
+        if path.suffix.lower() in {
+            ".asdb",
+            ".aspkg",
+            ".sqlite",
+            ".xlsx",
+            ".pdf",
+            ".png",
+            ".jpg",
+        }:
             continue
         if path.stat().st_size > 2_000_000:
             continue

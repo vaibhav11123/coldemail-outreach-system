@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Academic Data Reader · Academic Outreach Studio{% endblock %}
+{% block content %}
+<section class="panel reader-hero">
+  <p class="eyebrow">Academic Data Reader</p>
+  <h1>Your complete faculty catalog</h1>
+  <p class="lede">
+    All purchased records stay on this device after activation. Lookups work offline until
+    the signed licence needs revalidation.
+  </p>
+  {% if entitlement %}
+  <p class="meta-line">
+    Licence <code>{{ entitlement.license_id }}</code>
+    · SKU <code>{{ entitlement.sku }}</code>
+    · {{ record_count }} records
+  </p>
+  {% endif %}
+</section>
+
+{% if error %}
+<div class="flash error" role="alert">{{ error }}</div>
+<form class="panel stack" method="post" action="/reader/configure">
+  <input type="hidden" name="page_token" value="{{ page_token }}">
+  <label>
+    Protected package folder
+    <input type="text" name="package_dir" value="{{ package_dir }}" placeholder="/path/to/GlobalResearch2027" required>
+  </label>
+  <button type="submit" class="btn primary">Use this package</button>
+</form>
+{% else %}
+
+<form class="panel reader-filters" method="get" action="/reader">
+  <label>
+    Search
+    <input type="search" name="q" value="{{ q }}" placeholder="Name, email, paper, note">
+  </label>
+  <label>
+    University
+    <input type="text" name="university" value="{{ university }}" placeholder="Filter by institution">
+  </label>
+  <label>
+    Sort
+    <select name="sort">
+      <option value="display_name" {% if sort=='display_name' %}selected{% endif %}>Name</option>
+      <option value="university" {% if sort=='university' %}selected{% endif %}>University</option>
+      <option value="-paper_year" {% if sort=='-paper_year' %}selected{% endif %}>Newest paper</option>
+      <option value="status" {% if sort=='status' %}selected{% endif %}>Status</option>
+    </select>
+  </label>
+  <button type="submit" class="btn primary">Apply</button>
+  <a class="btn ghost" href="/reader/export.csv?limit=100">Controlled export (CSV)</a>
+</form>
+
+<section class="panel">
+  <div class="table-wrap">
+    <table class="data-table reader-table">
+      <thead>
+        <tr>
+          <th>Export ID</th>
+          <th>Name</th>
+          <th>University</th>
+          <th>Email</th>
+          <th>Status</th>
+          <th>Funding</th>
+          <th>Paper</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td><code>{{ row.export_id }}</code></td>
+          <td>{{ row.display_name }}</td>
+          <td>{{ row.university or "—" }}</td>
+          <td>{{ row.email or "—" }}</td>
+          <td>{{ row.status or "—" }}</td>
+          <td>{{ row.funding or "—" }}</td>
+          <td>
+            {% if row.paper_title %}
+              {{ row.paper_title }}{% if row.paper_year %} ({{ row.paper_year }}){% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">No rows match this filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="fineprint">
+    Export IDs are customer-specific fingerprints. Controlled exports remain limited and
+    fingerprinted — forwarding the unlocked session to another machine still requires that
+    device’s own activation.
+  </p>
+</section>
+{% endif %}
+{% endblock %}
