@@ -126,6 +126,7 @@ def package_standard_dataset(
     issuer: IssuerKeys,
     ledger: DeliveryLedger | None = None,
     customer_email: str | None = None,
+    notes: str | None = None,
 ) -> dict[str, Any]:
     """Build Standard Dataset package. Facts unchanged; only surrogate IDs + order."""
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -163,6 +164,7 @@ def package_standard_dataset(
             fingerprint_salt=ctx.fingerprint_salt,
             file_hashes=file_hashes,
             export_id_samples=sample,
+            notes=notes,
         )
         delivery_id = rec.delivery_id
         provenance = provenance_payload(ctx, delivery_id)

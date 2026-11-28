@@ -26,6 +26,7 @@ class PurchaseWebhook(BaseModel):
     customer_email: str = Field(min_length=3, max_length=320)
     sku: str
     external_payment_id: str | None = None
+    payment_provider: str | None = None
 
 
 class ActivateBody(BaseModel):
@@ -107,6 +108,8 @@ def build_licensing_router() -> APIRouter:
             customer_id=body.customer_id,
             customer_email=body.customer_email,
             sku=body.sku,
+            external_payment_id=body.external_payment_id,
+            payment_provider=body.payment_provider,
         )
         return {
             "ok": True,

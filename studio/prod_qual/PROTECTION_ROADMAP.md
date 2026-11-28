@@ -3,7 +3,7 @@
 **Products:** Global Research Dataset (`$14.99` provisional) · Academic Studio (`$39.99` provisional)  
 **Rule:** Licence included in purchase · no activation surcharge · no standalone Protected `$24.99` SKU  
 **Internal alias:** `protected_dataset` packaging retained (not sold)  
-**Linked trackers:** `COMPLETE_PRODUCT_ROADMAP.md` (product features) · `SECURITY_QUALIFICATION.md` (60-item stress suite) · `KEYGEN_EVALUATION.md`
+**Linked trackers:** `COMPLETE_PRODUCT_ROADMAP.md` · `SECURITY_QUALIFICATION.md` · `KEYGEN_EVALUATION.md` · `ZERO_COST_COMMERCIAL.md` · `COMMERCIAL_DISTRIBUTION.md`
 
 Status: `[x]` implemented, tested, verified in-repo · `[~]` partial · `[ ]` not implemented · `BLOCKED` external · `N/A` justified
 
@@ -18,7 +18,9 @@ Status: `[x]` implemented, tested, verified in-repo · `[~]` partial · `[ ]` no
 - [x] Canonical licence policies (perpetual ≠ updates/support/AI) — `studio/licensing/policy.py`, `studio/legal/UPDATES_AND_SUPPORT.md`
 - [x] Retain encrypted catalog / Reader / licensing stack (no deletion for SKU consolidation)
 - [x] Integrate graphical Reader into Studio nav + Directory/Dashboard links — `/reader`
-- [x] Keygen evaluation recorded — complete in-house control plane first (`KEYGEN_EVALUATION.md`)
+- [x] Keygen evaluation recorded — no Keygen spend; in-house + optional Workers later (`KEYGEN_EVALUATION.md`)
+- [x] Zero fixed-cost commercial policy — `ZERO_COST_COMMERCIAL.md`
+- [x] Manual fulfilment CLI — `python -m studio.dataset fulfil`
 
 ## Protection stack retention
 
@@ -72,18 +74,21 @@ Status: `[x]` implemented, tested, verified in-repo · `[~]` partial · `[ ]` no
 
 ## Production licensing control plane (P0)
 
-- [~] Payment webhook scaffold (shared secret, **fail-closed if unset**) — needs real provider + idempotency
+- [x] Manual fulfilment path (payment verify → package → ledger receipt) for low volume
+- [~] Payment webhook scaffold (shared secret, **fail-closed if unset**) — needs approved provider + idempotency
 - [~] Cloudflare security-audit skill run-1 **incomplete** — see `CLOUDFLARE_SECURITY_AUDIT.md` (not a release-gate pen-test)
-- [ ] Vaulted production issuer keys
-- [ ] Customer portal (purchase, devices, recovery)
+- [ ] Optional Workers + D1 entitlement API (only when automation thresholds hit)
+- [ ] Vaulted / encrypted-backup production issuer keys
+- [ ] Customer portal (purchase, devices, recovery) — defer; email recovery first
 - [ ] Refund/chargeback entitlement automation beyond revoke flag
 - [ ] Durable audit trail / monitoring / DR drills
-- [ ] Single entitlement façade (Keygen adapter optional later)
+- [ ] Keygen adapter — **N/A unless policy changes** (see `KEYGEN_EVALUATION.md`)
 
 ## Application delivery security (P0)
 
-- [ ] Signed Windows installers (Authenticode)
-- [ ] Signed + notarized macOS installers
+- [ ] Windows: prefer Microsoft Store MSIX (free eligible signing) + direct download
+- [ ] Signed Windows installers (Authenticode) if distributing outside Store
+- [ ] Signed + notarized macOS installers — Apple $99/yr if selected; local browser Studio is $0 interim
 - [ ] Signed software update manifests/payloads
 - [x] Packaging scan excludes issuer secrets
 - [~] OS-backed customer credential storage (keyring)

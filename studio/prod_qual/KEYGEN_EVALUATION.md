@@ -6,13 +6,17 @@
 
 ## Recommendation (current)
 
-**Complete our own lightweight production licensing control plane**, keeping Keygen as an optional adapter behind the existing entitlement interface if volume/ops later justify it.
+**Do not subscribe to Keygen.** Keep our Ed25519 / X25519 stack. For ₹0 fixed cost:
+
+1. **Low volume (1–10/week):** manual fulfilment via `python -m studio.dataset fulfil` on the operator machine — no always-on licensing server.
+2. **Later automation:** optional Cloudflare Workers + D1 + Web Crypto for payment webhooks and entitlements (still $0 within free-tier limits); packaging stays local Python.
+3. Keygen remains an optional façade adapter only if volume/ops later justify a paid control plane.
 
 Rationale:
 1. We already ship Ed25519 licences, X25519 sealed DEKs, `.aslic` / `.asdb`, two-device limits, offline TTL entitlements, webhooks, and a delivery ledger tailored to dataset fingerprinting.
 2. Keygen’s cryptographic schemes (RSA-SHA256 / Ed25519 license files, machine files) are strong but **not drop-in compatible** with our sealed-DEK + SQLCipher catalog format — integration is an adapter project, not a flip.
-3. Early ALU-based cloud pricing (~$49/mo Tier 1 and up; free Dev tier limited) is fine for SaaS, but our products are **one-time $14.99 / $39.99** with perpetual individual licences — control-plane cost must stay lean.
-4. Self-host Keygen CE/EE reduces vendor lock-in but still requires ops, migration planning, and dual-format bridge work.
+3. Keygen cloud pricing (~$49/mo Tier 1+) violates the **₹0 mandatory monthly** commercial policy (`ZERO_COST_COMMERCIAL.md`).
+4. Self-host Keygen CE/EE still requires ops and dual-format bridge work.
 5. Dataset forensic fingerprinting + delivery ledger remain ours regardless of Keygen.
 
 ## Comparison
@@ -40,10 +44,10 @@ Rationale:
 
 ## What must still be built either way
 
-- Production issuer with vaulted keys + rotation
-- Payment provider webhooks (Stripe/etc.) with idempotency
-- Atomic device allocation
-- Customer portal for recovery / device replacement
-- Signed installers and update channel
+- Secure issuer key storage + encrypted backups (local first; vault later)
+- Payment provider webhooks with idempotency **when automating** (MoR after approval)
+- Atomic device allocation (when online activation is required)
+- Customer recovery workflow (email + re-issue; portal later)
+- Signed installers / Store distribution (Microsoft Store path preferred for Windows)
 
-See `PROTECTION_ROADMAP.md` for status.
+See `PROTECTION_ROADMAP.md`, `ZERO_COST_COMMERCIAL.md`, and `COMMERCIAL_DISTRIBUTION.md`.

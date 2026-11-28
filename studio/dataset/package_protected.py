@@ -53,6 +53,7 @@ def build_protected_package(
     activate_for_device: DeviceIdentity | None = None,
     license_store: LicenseStore | None = None,
     license_id: str | None = None,
+    notes: str | None = None,
 ) -> dict[str, Any]:
     sku_value = sku.value if isinstance(sku, SKU) else str(sku)
     edition = get_edition(sku_value)
@@ -84,6 +85,7 @@ def build_protected_package(
             file_hashes=file_hashes,
             export_id_samples=sample,
             package_sha256=file_hashes["ResearchCatalog.asdb"],
+            notes=notes,
         )
         delivery_id = rec.delivery_id
 

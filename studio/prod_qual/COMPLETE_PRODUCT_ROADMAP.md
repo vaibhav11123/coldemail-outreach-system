@@ -106,13 +106,21 @@ Legend: `[x]` verified in repo · `[~]` partial / scaffold · `[ ]` not built
 
 ---
 
+## Commercial operating model (locked)
+
+- ₹0 upfront / ₹0 mandatory monthly infrastructure — `ZERO_COST_COMMERCIAL.md`
+- Prefer MoR / payment links; eliminate Gumroad/Payhip/Lemon Squeezy as primary — `COMMERCIAL_DISTRIBUTION.md`
+- Manual fulfilment first: `python -m studio.dataset fulfil`
+- No Keygen subscription; optional Cloudflare Workers later
+- Biggest commercial blocker: merchant product-category approval (not engineering)
+
 ## Engineering principles (locked)
 
 - Build for completeness — no deliberately crippled SKUs
 - Build for ownership — purchased product is complete
 - Build for independence — no mandatory vendor AI credits
 - Build for reliability, security, extensibility, quality
-- Build before selling — demand validation is not a gate
+- Build a sophisticated product, not a sophisticated payment system
 - One purchase · one individual licence · protection included
 
 ## Finished means

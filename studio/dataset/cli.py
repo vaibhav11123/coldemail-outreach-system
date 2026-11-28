@@ -1,6 +1,7 @@
 """CLI for packaging and activating dataset deliveries.
 
 Examples:
+  python -m studio.dataset fulfil --sku dataset --out /tmp/std --customer c1 --email a@b.c --provider paypal --payment-ref TXN1
   python -m studio.dataset package-standard --out /tmp/std --customer c1 --email a@b.c
   python -m studio.dataset package-protected --out /tmp/prot --customer c1 --activate
   python -m studio.dataset read --package /tmp/prot --query Ada
@@ -69,6 +70,107 @@ def cmd_list_editions(_: argparse.Namespace) -> int:
     for sku, ed in editions().items():
         print(f"{sku.value:20} ${ed.list_price_usd:.2f}  {ed.title}")
         print(f"  {ed.protection_summary}")
+    return 0
+
+
+def _fulfilment_notes(*, provider: str, payment_ref: str, verified_by: str | None) -> str:
+    payload = {
+        "fulfilment": "manual",
+        "payment_provider": provider,
+        "external_payment_id": payment_ref,
+        "verified_by": verified_by or "operator",
+    }
+    return json.dumps(payload, sort_keys=True)
+
+
+def cmd_fulfil(args: argparse.Namespace) -> int:
+    """Manual purchase → package → ledger after operator-verified payment.
+
+    For 1–10 sales/week: no always-on licensing server required.
+    """
+    sku_alias = args.sku.lower().strip()
+    if sku_alias in {"dataset", "standard", "standard_dataset", "global_research_dataset"}:
+        sku = SKU.STANDARD_DATASET
+    elif sku_alias in {"studio", "academic_studio", "academic-studio"}:
+        sku = SKU.ACADEMIC_STUDIO
+    else:
+        print(f"Unknown SKU alias: {args.sku} (use dataset|studio)", file=sys.stderr)
+        return 2
+
+    issuer = _issuer_from_env()
+    records = _load_records(Path(args.sqlite) if args.sqlite else None)
+    store = LicenseStore(app_data_dir() / "license_store.json", issuer)
+    purchase = store.register_purchase(
+        customer_id=args.customer,
+        customer_email=args.email,
+        sku=sku,
+        payment_provider=args.provider,
+        external_payment_id=args.payment_ref,
+    )
+    ctx = FingerprintContext(
+        customer_id=args.customer,
+        fingerprint_salt=purchase.fingerprint_salt,
+        license_id=purchase.license_id,
+    )
+    ledger = DeliveryLedger(app_data_dir() / "delivery_ledger.sqlite")
+    notes = _fulfilment_notes(
+        provider=args.provider,
+        payment_ref=args.payment_ref,
+        verified_by=args.verified_by,
+    )
+    out_dir = Path(args.out)
+    if sku is SKU.STANDARD_DATASET:
+        result = package_standard_dataset(
+            records=records,
+            out_dir=out_dir,
+            ctx=ctx,
+            issuer=issuer,
+            ledger=ledger,
+            customer_email=args.email,
+            notes=notes,
+        )
+    else:
+        device = load_or_create_device_identity() if args.activate else None
+        result = build_protected_package(
+            records=records,
+            out_dir=out_dir,
+            ctx=ctx,
+            issuer=issuer,
+            dek=purchase.dek,
+            sku=sku,
+            ledger=ledger,
+            customer_email=args.email,
+            activate_for_device=device,
+            license_store=store if device else None,
+            license_id=purchase.license_id if device else None,
+            notes=notes,
+        )
+        if not args.activate:
+            print(
+                "Studio package built without CustomerLicense.aslic — "
+                "customer activates on their device after delivery.",
+                file=sys.stderr,
+            )
+
+    receipt = {
+        "mode": "manual_fulfilment",
+        "sku": sku.value,
+        "customer_id": args.customer,
+        "customer_email": args.email,
+        "payment_provider": args.provider,
+        "external_payment_id": args.payment_ref,
+        "license_id": purchase.license_id,
+        "out_dir": str(out_dir.resolve()),
+        "package": result,
+        "next_steps": [
+            "Verify payment remains settled (no refund/chargeback).",
+            "Deliver out_dir via private link or marketplace file delivery.",
+            "Keep delivery_ledger.sqlite and fulfilment_receipt.json backed up.",
+        ],
+    }
+    receipt_path = out_dir / "fulfilment_receipt.json"
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(receipt, indent=2))
     return 0
 
 
@@ -195,6 +297,25 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("device", help="Show this machine's licensing device identity")
     p.set_defaults(func=cmd_device_info)
+
+    p = sub.add_parser(
+        "fulfil",
+        help="Manual fulfilment: verified payment → personalized package + ledger receipt",
+    )
+    p.add_argument("--sku", required=True, help="dataset | studio")
+    p.add_argument("--out", required=True)
+    p.add_argument("--customer", required=True)
+    p.add_argument("--email", required=True)
+    p.add_argument("--provider", required=True, help="paypal | fastspring | cashfree | …")
+    p.add_argument("--payment-ref", required=True, help="Provider transaction / order id")
+    p.add_argument("--verified-by", help="Operator identity for the receipt")
+    p.add_argument("--sqlite", help="Optional source SQLite; default mini/bundled studio DB")
+    p.add_argument(
+        "--activate",
+        action="store_true",
+        help="Studio only: activate for this machine (ops/testing; not customer delivery)",
+    )
+    p.set_defaults(func=cmd_fulfil)
 
     p = sub.add_parser("package-standard", help="Build fingerprinted Standard Dataset package")
     p.add_argument("--out", required=True)

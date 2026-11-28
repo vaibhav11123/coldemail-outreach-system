@@ -241,3 +241,40 @@ def test_cli_editions(studio_home):
     from studio.dataset.cli import main
 
     assert main(["editions"]) == 0
+
+
+def test_cli_fulfil_dataset_writes_receipt(studio_home, tmp_path):
+    from studio.dataset.cli import main
+
+    out = tmp_path / "fulfil_dataset"
+    rc = main(
+        [
+            "fulfil",
+            "--sku",
+            "dataset",
+            "--out",
+            str(out),
+            "--customer",
+            "cust_fulfil",
+            "--email",
+            "fulfil@example.edu",
+            "--provider",
+            "paypal",
+            "--payment-ref",
+            "TXN-TEST-001",
+            "--verified-by",
+            "pytest",
+        ]
+    )
+    assert rc == 0
+    receipt = json.loads((out / "fulfilment_receipt.json").read_text(encoding="utf-8"))
+    assert receipt["mode"] == "manual_fulfilment"
+    assert receipt["sku"] == SKU.STANDARD_DATASET.value
+    assert receipt["payment_provider"] == "paypal"
+    assert receipt["external_payment_id"] == "TXN-TEST-001"
+    assert (out / "faculty_catalog.csv").exists()
+    assert (out / "manifest.json").exists()
+    store_raw = json.loads((studio_home / "license_store.json").read_text(encoding="utf-8"))
+    purchase = next(iter(store_raw["purchases"].values()))
+    assert purchase["external_payment_id"] == "TXN-TEST-001"
+    assert purchase["payment_provider"] == "paypal"

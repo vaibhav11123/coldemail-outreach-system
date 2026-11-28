@@ -61,7 +61,11 @@ class ActivationRequest:
 
 
 class LicenseStore:
-    """Local JSON store used until Keygen / FastAPI licensing service is wired."""
+    """Local JSON store for issuer ops (manual fulfilment and local tests).
+
+    Production path: keep this on the operator machine for low volume; optional
+    Cloudflare Workers + D1 later. Do not subscribe to Keygen for ₹0 fixed cost.
+    """
 
     def __init__(self, path: Path, issuer: IssuerKeys):
         self.path = path
@@ -84,6 +88,8 @@ class LicenseStore:
         sku: SKU | str,
         dek: bytes | None = None,
         fingerprint_salt: str | None = None,
+        payment_provider: str | None = None,
+        external_payment_id: str | None = None,
     ) -> PurchaseRecord:
         sku_value = sku.value if isinstance(sku, SKU) else str(sku)
         get_edition(sku_value)  # validate
@@ -107,6 +113,8 @@ class LicenseStore:
             "created_at": rec.created_at,
             "revoked": False,
             "activated_devices": {},
+            "payment_provider": payment_provider,
+            "external_payment_id": external_payment_id,
         }
         self._write(data)
         return rec
